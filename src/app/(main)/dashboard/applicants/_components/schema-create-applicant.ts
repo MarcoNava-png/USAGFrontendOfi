@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+export const createApplicantSchema = z.object({
+  nombre: z.string().min(1, "El nombre es requerido"),
+  apellidoPaterno: z.string().min(1, "El apellido paterno es requerido"),
+  apellidoMaterno: z.string().min(1, "El apellido materno es requerido"),
+  fechaNacimiento: z.string().min(1, "La fecha de nacimiento es requerida"),
+  generoId: z.coerce.number().int().min(1, "Selecciona un género"),
+  correo: z.string().email("Ingresa un correo válido"),
+  telefono: z.string().min(10, "El teléfono debe tener al menos 10 dígitos"),
+  curp: z.string().min(18, "La CURP debe tener 18 caracteres").max(18, "La CURP debe tener 18 caracteres"),
+  calle: z.string().min(1, "La calle es requerida"),
+  numeroExterior: z.string().min(1, "El número exterior es requerido"),
+  numeroInterior: z.string().optional(),
+  codigoPostalId: z.coerce.number().int().min(1, "Selecciona una colonia/localidad"),
+  idEstadoCivil: z.coerce.number().int().min(1, "Selecciona el estado civil"),
+  campusId: z.coerce.number().int().min(1, "Selecciona un campus"),
+  planEstudiosId: z.coerce.number().int().min(1, "Selecciona un plan de estudios"),
+  aspiranteStatusId: z.coerce.number().int().min(1, "Selecciona el estatus"),
+  medioContactoId: z.coerce.number().int().min(1, "Selecciona el medio de contacto"),
+  notas: z.string().optional(),
+  horarioId: z.coerce.number().int().min(1, "Selecciona un horario"),
+  cuatrimestreInteres: z.coerce.number().int().min(1).max(9).optional(),
+  stateId: z.string().optional(),
+  municipalityId: z.string().optional(),
+  atendidoPorUsuarioId: z.string().optional(),
+});
