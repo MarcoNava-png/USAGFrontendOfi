@@ -95,7 +95,7 @@ export async function getGrupos(idPeriodo?: number) {
 }
 
 export async function getPeriodosAcademicos() {
-  const { data } = await apiClient.get("/periodos-academicos");
+  const { data } = await apiClient.get("/PeriodoAcademico");
   return data;
 }
 
@@ -110,7 +110,7 @@ export async function getParciales() {
 }
 
 export async function getProfesores() {
-  const { data } = await apiClient.get("/profesores");
+  const { data } = await apiClient.get("/Profesor");
   return data;
 }
 

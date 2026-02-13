@@ -194,7 +194,7 @@ export const sidebarItems: NavGroup[] = [
           { title: "Grupos", url: "/dashboard/academic-management", newTab: false, requiredModule: "Academico" },
           { title: "Promoción", url: "/dashboard/promotions", newTab: false, requiredModule: "Academico", isNew: true },
           { title: "Horarios", url: "/dashboard/schedules", newTab: false, requiredModule: "Academico" },
-          { title: "Profesores", url: "/dashboard/teachers", newTab: false, requiredModule: "Academico" },
+          { title: "Docentes", url: "/dashboard/teachers", newTab: false, requiredModule: "Academico" },
         ],
       },
       {
@@ -241,6 +241,19 @@ export const sidebarItems: NavGroup[] = [
           { title: "Pagos", url: "/dashboard/payments", newTab: false, requiredModule: "Finanzas" },
           { title: "Reportes", url: "/dashboard/reports", newTab: false, requiredModule: "Finanzas" },
         ],
+      },
+    ],
+  },
+  {
+    id: 9,
+    label: "AUDITORÍA",
+    requiredModule: "Bitacora",
+    items: [
+      {
+        title: "Bitácora",
+        url: "/dashboard/bitacora",
+        icon: ScrollText,
+        requiredModule: "Bitacora",
       },
     ],
   },

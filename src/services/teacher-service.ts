@@ -2,6 +2,16 @@ import { PayloadCreateTeacher, PayloadUpdateTeacher, Teacher, TeachersResponse, 
 
 import apiClient from "./api-client";
 
+export async function getAllTeachers(
+  page?: number,
+  pageSize?: number,
+): Promise<TeachersResponse> {
+  const { data } = await apiClient.get<TeachersResponse>(
+    `/Profesor?page=${page ?? 1}&pageSize=${pageSize ?? 2000}`,
+  );
+  return data;
+}
+
 export async function getTeachersList(
   campusId: string | number,
   page?: number,

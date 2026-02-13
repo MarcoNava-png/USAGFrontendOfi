@@ -182,12 +182,12 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
       };
 
       await createTeacher(payload);
-      toast.success("Profesor creado correctamente");
+      toast.success("Docente creado correctamente");
       onCreate(payload);
       onClose();
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err?.response?.data || "Error al crear el profesor";
-      toast.error("Error al crear profesor", { description: String(errorMessage) });
+      toast.error("Error al crear docente", { description: String(errorMessage) });
     } finally {
       setLoading(false);
     }
@@ -201,10 +201,10 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
       >
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-blue-900">
-            Nuevo Profesor
+            Nuevo Docente
           </DialogTitle>
           <DialogDescription>
-            Complete el formulario con la información del profesor. Los campos marcados con * son obligatorios.
+            Complete el formulario con la información del docente. Los campos marcados con * son obligatorios.
           </DialogDescription>
         </DialogHeader>
 
@@ -392,7 +392,7 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
                     <FormItem>
                       <FormLabel>Correo Institucional <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="profesor@universidad.edu" {...field} />
+                        <Input type="email" placeholder="docente@universidad.edu" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -643,7 +643,7 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
                 Cancelar
               </Button>
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={loading}>
-                {loading ? "Creando..." : "Crear Profesor"}
+                {loading ? "Creando..." : "Crear Docente"}
               </Button>
             </div>
           </form>

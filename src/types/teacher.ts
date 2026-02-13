@@ -5,8 +5,23 @@ export interface Teacher {
   noEmpleado: string;
   nombreCompleto: string;
   emailInstitucional: string;
+  // Persona fields
+  nombre?: string;
+  apellidoPaterno?: string;
+  apellidoMaterno?: string;
+  correo?: string;
   telefono?: string;
-  especialidad?: string;
+  curp?: string;
+  rfc?: string;
+  fechaNacimiento?: string;
+  generoId?: number;
+  idEstadoCivil?: number;
+  campusId?: number;
+  // Direccion fields
+  calle?: string;
+  numeroExterior?: string;
+  numeroInterior?: string;
+  codigoPostalId?: number;
 }
 
 export interface PayloadCreateTeacher {

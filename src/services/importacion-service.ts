@@ -139,6 +139,16 @@ export const importacionService = {
     return response.data.data
   },
 
+  async importarProfesores(
+    request: ImportarProfesoresRequest
+  ): Promise<ImportarProfesoresResponse> {
+    const response = await axiosInstance.post<ImportarProfesoresResponse>(
+      `${API_URL}/profesores`,
+      request
+    )
+    return response.data
+  },
+
   async descargarPlantillaMaterias(idPlanEstudios?: number): Promise<Blob> {
     const url = idPlanEstudios
       ? `/materiaplan/plantilla?idPlanEstudios=${idPlanEstudios}`
@@ -312,6 +322,47 @@ export interface ImportarMateriasResponse {
   fallidos: number
   detalle: ImportarMateriaResultItem[]
   resultados: ImportarMateriasResultado[]
+}
+
+// ─── Profesores/Docentes ────────────────────────────────
+
+export interface ImportarProfesorDto {
+  noEmpleado: string
+  apellidoPaterno: string
+  apellidoMaterno?: string
+  nombre: string
+  genero?: string
+  rfc?: string
+  curp?: string
+  fechaNacimiento?: string
+  domicilio?: string
+  telefono?: string
+  email?: string
+  estadoFederativo?: string
+  cedulaProfesional?: string
+}
+
+export interface ImportarProfesoresRequest {
+  profesores: ImportarProfesorDto[]
+  actualizarExistentes: boolean
+}
+
+export interface ResultadoImportacionProfesor {
+  fila: number
+  noEmpleado: string
+  nombreCompleto: string
+  exito: boolean
+  mensaje: string
+  idProfesor?: number
+  advertencias: string[]
+}
+
+export interface ImportarProfesoresResponse {
+  totalProcesados: number
+  exitosos: number
+  fallidos: number
+  actualizados: number
+  resultados: ResultadoImportacionProfesor[]
 }
 
 export default importacionService

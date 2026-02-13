@@ -18,8 +18,11 @@ export default function GroupEnrollmentPage() {
   const {
     students,
     studyPlans,
+    campusList,
     academicPeriods,
     availableGroups,
+    selectedCampusId,
+    setSelectedCampusId,
     selectedPlanId,
     setSelectedPlanId,
     selectedPeriodId,
@@ -28,6 +31,8 @@ export default function GroupEnrollmentPage() {
     setSelectedStudentId,
     cuatrimestreFilter,
     setCuatrimestreFilter,
+    periodoLabel,
+    maxPeriodos,
     loading,
     initialLoading,
     enrolling,
@@ -63,7 +68,7 @@ export default function GroupEnrollmentPage() {
             Inscripción a Grupos
           </h1>
           <p className="text-muted-foreground mt-1">
-            Inscribe estudiantes nuevos a grupos completos (todas las materias del cuatrimestre)
+            Inscribe estudiantes nuevos a grupos completos (todas las materias del {periodoLabel.toLowerCase()})
           </p>
         </div>
       </div>
@@ -110,14 +115,19 @@ export default function GroupEnrollmentPage() {
         </CardHeader>
         <div className="px-6 pb-6">
           <FiltersSection
+            campusList={campusList}
             studyPlans={studyPlans}
             academicPeriods={academicPeriods}
+            selectedCampusId={selectedCampusId}
+            setSelectedCampusId={setSelectedCampusId}
             selectedPlanId={selectedPlanId}
             setSelectedPlanId={setSelectedPlanId}
             selectedPeriodId={selectedPeriodId}
             setSelectedPeriodId={setSelectedPeriodId}
             cuatrimestreFilter={cuatrimestreFilter}
             setCuatrimestreFilter={setCuatrimestreFilter}
+            periodoLabel={periodoLabel}
+            maxPeriodos={maxPeriodos}
             loading={loading}
             loadAvailableGroups={loadAvailableGroups}
           />

@@ -2,19 +2,23 @@ import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
+import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getStudyPlans } from "@/services/catalogs-service";
 import { enrollStudentInGroup, searchGroups } from "@/services/groups-service";
 import { getStudentsWithoutGroup } from "@/services/students-service";
+import { Campus } from "@/types/campus";
 import { AcademicPeriod, StudyPlan } from "@/types/catalog";
 import { Group, GroupEnrollmentResult } from "@/types/group";
 import { Student } from "@/types/student";
 
 export function useGroupEnrollment() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
+  const [allStudyPlans, setAllStudyPlans] = useState<StudyPlan[]>([]);
+  const [campusList, setCampusList] = useState<Campus[]>([]);
   const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
 
+  const [selectedCampusId, setSelectedCampusId] = useState<string>("");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
@@ -31,9 +35,27 @@ export function useGroupEnrollment() {
   const [showAlreadyInGroupModal, setShowAlreadyInGroupModal] = useState(false);
   const [alreadyInGroupInfo, setAlreadyInGroupInfo] = useState<{ studentName: string; groupCode: string } | null>(null);
 
+  // Filter plans by selected campus
+  const studyPlans = selectedCampusId
+    ? allStudyPlans.filter((p) => p.idCampus?.toString() === selectedCampusId)
+    : allStudyPlans;
+
+  // Determine if selected plan uses semesters
+  const selectedPlan = allStudyPlans.find((p) => p.idPlanEstudios.toString() === selectedPlanId);
+  const isSemestral = selectedPlan?.periodicidad?.toLowerCase().includes("semest") ?? false;
+  const periodoLabel = isSemestral ? "Semestre" : "Cuatrimestre";
+  const maxPeriodos = isSemestral ? 12 : 9;
+
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Reset plan when campus changes
+  useEffect(() => {
+    setSelectedPlanId("");
+    setAvailableGroups([]);
+    setStudents([]);
+  }, [selectedCampusId]);
 
   useEffect(() => {
     if (selectedPlanId && selectedPeriodId) {
@@ -44,20 +66,20 @@ export function useGroupEnrollment() {
   const loadInitialData = async () => {
     setInitialLoading(true);
     try {
-      const [plansData, periodsData] = await Promise.all([
+      const [plansData, periodsData, campusData] = await Promise.all([
         getStudyPlans(),
         getAcademicPeriods(),
+        getCampusList(),
       ]);
 
-      setStudyPlans(plansData);
+      setAllStudyPlans(plansData);
       setAcademicPeriods(periodsData);
+      setCampusList(campusData.items ?? []);
 
       const activePeriod = periodsData.find((p) => p.status === 1 || p.esPeriodoActual);
       if (activePeriod) {
         setSelectedPeriodId(activePeriod.idPeriodoAcademico.toString());
       }
-
-      toast.success(`Cargados: ${plansData.length} planes, ${periodsData.length} periodos`);
     } catch (error) {
       toast.error("Error al cargar los datos");
     } finally {
@@ -152,14 +174,7 @@ export function useGroupEnrollment() {
 
       if (err?.response?.status === 400) {
         const errorData = err.response.data;
-
-        errorMessage =
-          errorData?.Error ||
-          errorData?.error ||
-          errorData?.mensaje ||
-          errorData?.Message ||
-          "Error en la solicitud de inscripción";
-
+        errorMessage = errorData?.Error || errorData?.error || errorData?.mensaje || errorData?.Message || "Error en la solicitud de inscripción";
         if (errorMessage.toLowerCase().includes("transaction") || errorMessage.toLowerCase().includes("sql")) {
           errorDetails = "Error de base de datos. Por favor, contacta al administrador del sistema.";
         } else if (errorMessage.toLowerCase().includes("ya")) {
@@ -187,23 +202,16 @@ export function useGroupEnrollment() {
         errorMessage.toLowerCase().includes("ya pertenece al grupo");
 
       if (isAlreadyInGroup) {
-        setAlreadyInGroupInfo({
-          studentName: student?.nombreCompleto ?? "Estudiante",
-          groupCode: codigoGrupo,
-        });
+        setAlreadyInGroupInfo({ studentName: student?.nombreCompleto ?? "Estudiante", groupCode: codigoGrupo });
         setShowAlreadyInGroupModal(true);
         return;
       }
 
       const canForceEnroll =
-        errorMessage.toLowerCase().includes("cupo") ||
-        errorMessage.toLowerCase().includes("lleno") ||
-        errorMessage.toLowerCase().includes("ya está inscrito") ||
-        errorMessage.toLowerCase().includes("ya inscrito") ||
-        errorMessage.toLowerCase().includes("plan") ||
-        errorMessage.toLowerCase().includes("recibo") ||
-        errorMessage.toLowerCase().includes("pendiente") ||
-        errorMessage.toLowerCase().includes("pago") ||
+        errorMessage.toLowerCase().includes("cupo") || errorMessage.toLowerCase().includes("lleno") ||
+        errorMessage.toLowerCase().includes("ya está inscrito") || errorMessage.toLowerCase().includes("ya inscrito") ||
+        errorMessage.toLowerCase().includes("plan") || errorMessage.toLowerCase().includes("recibo") ||
+        errorMessage.toLowerCase().includes("pendiente") || errorMessage.toLowerCase().includes("pago") ||
         err?.response?.status === 400;
 
       if (canForceEnroll && !forceEnroll) {
@@ -225,37 +233,17 @@ export function useGroupEnrollment() {
       toast.warning("Ya hay una inscripción en proceso. Por favor espera.");
       return;
     }
-
-    if (!selectedStudentId) {
-      toast.error("Selecciona un estudiante primero");
-      return;
-    }
-
-    if (!selectedPlanId) {
-      toast.error("Selecciona un plan de estudios primero");
-      return;
-    }
+    if (!selectedStudentId) { toast.error("Selecciona un estudiante primero"); return; }
+    if (!selectedPlanId) { toast.error("Selecciona un plan de estudios primero"); return; }
 
     const student = students.find((s) => s.idEstudiante === selectedStudentId);
-
-    if (!student) {
-      toast.error("No se encontró la información del estudiante seleccionado");
-      return;
-    }
-
+    if (!student) { toast.error("No se encontró la información del estudiante seleccionado"); return; }
     if (!student?.idPlanActual) {
-      toast.error(
-        "El estudiante no tiene plan de estudios asignado. Por favor, asígnalo desde el módulo de Estudiantes primero.",
-        { duration: 5000 }
-      );
+      toast.error("El estudiante no tiene plan de estudios asignado. Por favor, asígnalo desde el módulo de Estudiantes primero.", { duration: 5000 });
       return;
     }
-
     if (student.idPlanActual.toString() !== selectedPlanId) {
-      toast.error(
-        `El estudiante está inscrito en un plan diferente. Plan actual: ${student.planEstudios}`,
-        { duration: 5000 }
-      );
+      toast.error(`El estudiante está inscrito en un plan diferente. Plan actual: ${student.planEstudios}`, { duration: 5000 });
       return;
     }
 
@@ -264,7 +252,6 @@ export function useGroupEnrollment() {
 
   const handleForceEnrollConfirm = async () => {
     if (!pendingEnrollment) return;
-
     setShowForceEnrollDialog(false);
     await performEnrollment(pendingEnrollment.idGrupo, pendingEnrollment.codigoGrupo, true);
     setPendingEnrollment(null);
@@ -277,39 +264,21 @@ export function useGroupEnrollment() {
   };
 
   const selectedStudent = students.find((s) => s.idEstudiante === selectedStudentId);
-  const selectedPlan = studyPlans.find((p) => p.idPlanEstudios.toString() === selectedPlanId);
 
   return {
-    students,
-    studyPlans,
-    academicPeriods,
-    availableGroups,
-    selectedPlanId,
-    setSelectedPlanId,
-    selectedPeriodId,
-    setSelectedPeriodId,
-    selectedStudentId,
-    setSelectedStudentId,
-    cuatrimestreFilter,
-    setCuatrimestreFilter,
-    loading,
-    initialLoading,
-    enrolling,
-    enrollingGroupId,
-    showResultModal,
-    setShowResultModal,
-    enrollmentResult,
-    selectedStudent,
-    selectedPlan,
-    loadAvailableGroups,
-    handleEnrollStudent,
-    showForceEnrollDialog,
-    setShowForceEnrollDialog,
-    handleForceEnrollConfirm,
-    handleForceEnrollCancel,
-    pendingEnrollment,
-    showAlreadyInGroupModal,
-    setShowAlreadyInGroupModal,
-    alreadyInGroupInfo,
+    students, studyPlans, campusList, academicPeriods, availableGroups,
+    selectedCampusId, setSelectedCampusId,
+    selectedPlanId, setSelectedPlanId,
+    selectedPeriodId, setSelectedPeriodId,
+    selectedStudentId, setSelectedStudentId,
+    cuatrimestreFilter, setCuatrimestreFilter,
+    periodoLabel, maxPeriodos,
+    loading, initialLoading, enrolling, enrollingGroupId,
+    showResultModal, setShowResultModal, enrollmentResult,
+    selectedStudent, selectedPlan,
+    loadAvailableGroups, handleEnrollStudent,
+    showForceEnrollDialog, setShowForceEnrollDialog,
+    handleForceEnrollConfirm, handleForceEnrollCancel, pendingEnrollment,
+    showAlreadyInGroupModal, setShowAlreadyInGroupModal, alreadyInGroupInfo,
   };
 }

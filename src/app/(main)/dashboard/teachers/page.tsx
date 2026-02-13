@@ -2,55 +2,54 @@
 
 import { useEffect, useState } from "react";
 
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Upload } from "lucide-react";
 
 import { CreateTeacherDialog } from "@/app/(main)/dashboard/teachers/_components/create-teacher-dialog";
+import { ImportTeachersModal } from "@/app/(main)/dashboard/teachers/_components/import-teachers-modal";
 import { UpdateTeacherDialog } from "@/app/(main)/dashboard/teachers/_components/update-teacher-dialog";
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { getCampusList } from "@/services/campus-service";
 import { getCivilStatus, getGenresList } from "@/services/catalogs-service";
 import { getStates } from "@/services/location-service";
-import { getTeachersList } from "@/services/teacher-service";
+import { getAllTeachers } from "@/services/teacher-service";
 import { Campus } from "@/types/campus";
 import { CivilStatus, Genres } from "@/types/catalog";
 import { State } from "@/types/location";
 import { Teacher } from "@/types/teacher";
 
-import { CampusSelect } from "./_components/campus-select";
 import { teachersColumns } from "./_components/columns";
 import { EmptyTeachers } from "./_components/empty";
 
 export default function TeachersPage() {
   const [campuses, setCampuses] = useState<Campus[]>([]);
-  const [selectedCampus, setSelectedCampus] = useState<number | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [civilStatus, setCivilStatus] = useState<CivilStatus[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [genres, setGenres] = useState<Genres[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openUpdateDialog, setOpenUpdateDialog] = useState(false);
+  const [openImportModal, setOpenImportModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
-  useEffect(() => {
-    getCampusList().then((res) => setCampuses(res.items ?? []));
-  }, []);
+  const loadTeachers = () => {
+    setLoading(true);
+    setError(null);
+    getAllTeachers()
+      .then((res) => setTeachers(res.items ?? []))
+      .catch(() => setError("Error de red"))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    if (selectedCampus) {
-      setLoading(true);
-      getTeachersList(selectedCampus)
-        .then((res) => setTeachers(res.items ?? []))
-        .catch(() => setError("Error de red"))
-        .finally(() => setLoading(false));
-    } else {
-      setTeachers([]);
-    }
-  }, [selectedCampus]);
+    loadTeachers();
+    getCampusList().then((res) => setCampuses(res.items ?? []));
+  }, []);
 
   useEffect(() => {
     getCivilStatus().then((res) => {
@@ -89,32 +88,40 @@ export default function TeachersPage() {
             >
               <GraduationCap className="h-8 w-8" style={{ color: '#14356F' }} />
             </div>
-            Profesores
+            Docentes
           </h1>
           <p className="text-muted-foreground mt-1">
             Gestión del personal docente
           </p>
         </div>
-        {selectedCampus && (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpenImportModal(true)}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Importar Excel
+          </Button>
           <Button
             type="button"
             onClick={() => setOpenCreateDialog(true)}
             className="text-white"
             style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
           >
-            Nuevo Profesor
+            Nuevo Docente
           </Button>
-        )}
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Stats Card */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card
           className="border-2"
           style={{ borderColor: 'rgba(20, 53, 111, 0.2)', background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.05), rgba(30, 74, 143, 0.1))' }}
         >
           <CardHeader className="pb-2">
-            <CardDescription style={{ color: '#1e4a8f' }}>Total Profesores</CardDescription>
+            <CardDescription style={{ color: '#1e4a8f' }}>Total Docentes</CardDescription>
             <CardTitle className="text-4xl" style={{ color: '#14356F' }}>
               {teachers.length}
             </CardTitle>
@@ -128,23 +135,11 @@ export default function TeachersPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-purple-600 dark:text-purple-400">Campus Seleccionado</CardDescription>
-            <CardTitle className="text-lg text-purple-700 dark:text-purple-300 truncate">
-              {selectedCampus ? campuses.find(c => c.idCampus === selectedCampus)?.nombre ?? "—" : "Ninguno"}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <div className="w-full">
-        <CampusSelect campuses={campuses} value={selectedCampus} onChange={setSelectedCampus} />
       </div>
 
       {loading ? (
         <div className="flex h-[50vh] items-center justify-center">
-          <div className="text-muted-foreground">Cargando profesores...</div>
+          <div className="text-muted-foreground">Cargando docentes...</div>
         </div>
       ) : error ? (
         <div className="flex h-[50vh] items-center justify-center">
@@ -153,25 +148,27 @@ export default function TeachersPage() {
       ) : teachers.length === 0 ? (
         <EmptyTeachers />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <DataTable table={table} columns={teachersColumns(handleEdit)} />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-lg border">
+            <DataTable table={table} columns={teachersColumns(handleEdit)} />
+          </div>
+          <DataTablePagination table={table} />
+        </>
       )}
       <CreateTeacherDialog
         open={openCreateDialog}
-        campusId={selectedCampus}
         genres={genres}
         states={states}
         civilStatus={civilStatus}
         onClose={() => setOpenCreateDialog(false)}
         onCreate={() => {
           setOpenCreateDialog(false);
+          loadTeachers();
         }}
       />
       <UpdateTeacherDialog
         open={openUpdateDialog}
         teacher={selectedTeacher}
-        campusId={selectedCampus}
         genres={genres}
         states={states}
         civilStatus={civilStatus}
@@ -182,7 +179,13 @@ export default function TeachersPage() {
         onUpdate={() => {
           setOpenUpdateDialog(false);
           setSelectedTeacher(null);
+          loadTeachers();
         }}
+      />
+      <ImportTeachersModal
+        open={openImportModal}
+        onOpenChange={setOpenImportModal}
+        onImportSuccess={loadTeachers}
       />
     </div>
   );

@@ -51,6 +51,7 @@ const getRoleBadgeColor = (role: string) => {
     controlescolar: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
     finanzas: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     admisiones: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+    academico: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
     superadmin: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
   };
   return roleMap[role.toLowerCase()] || "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
@@ -66,6 +67,7 @@ const getRoleLabel = (role: string) => {
     controlescolar: "Control Escolar",
     finanzas: "Finanzas",
     admisiones: "Admisiones",
+    academico: "Académico",
     superadmin: "Super Admin",
   };
   return roleLabels[role.toLowerCase()] || role;
@@ -86,8 +88,12 @@ export default function UsersPage() {
     try {
       setLoading(true);
       const data = await getAllUsers();
-      setUsers(data);
-      setFilteredUsers(data);
+      // Filtrar usuarios con rol "docente" ya que se gestionan en la pagina de Docentes
+      const nonTeacherUsers = data.filter(
+        (user: User) => !user.roles?.some((role) => role.toLowerCase() === "docente")
+      );
+      setUsers(nonTeacherUsers);
+      setFilteredUsers(nonTeacherUsers);
     } catch {
       toast.error("Error al cargar usuarios", {
         description: "No se pudieron cargar los usuarios",

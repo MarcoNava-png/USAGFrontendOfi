@@ -36,13 +36,16 @@ import { getBitacora } from '@/services/bitacora-service'
 import { MODULOS_BITACORA, MODULO_COLORS, type BitacoraAccion, type BitacoraFiltros } from '@/types/bitacora'
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
+  const utcStr = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z'
+  const d = new Date(utcStr)
   return d.toLocaleDateString('es-MX', {
+    timeZone: 'America/Mexico_City',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   })
 }
 
@@ -55,6 +58,7 @@ const ACCION_LABELS: Record<string, string> = {
   CREAR: 'Crear',
   ACTUALIZAR: 'Actualizar',
   ELIMINAR: 'Eliminar',
+  CONSULTAR: 'Consultar',
 }
 
 function formatAccion(accion: string): string {
@@ -126,7 +130,7 @@ export default function BitacoraPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
           <ScrollText className="h-6 w-6" />
           Bitacora de Acciones
         </h1>
@@ -137,7 +141,7 @@ export default function BitacoraPage() {
 
       <Card>
         <CardContent className="pt-4 pb-3">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1">
               <label className="text-xs font-medium">Modulo</label>
               <Select value={modulo} onValueChange={(v) => setModulo(v)}>
@@ -242,26 +246,26 @@ export default function BitacoraPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[150px]">Fecha</TableHead>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Modulo</TableHead>
-                      <TableHead>Accion</TableHead>
-                      <TableHead>Entidad</TableHead>
-                      <TableHead className="max-w-[300px]">Descripcion</TableHead>
-                      <TableHead className="w-[100px]">IP</TableHead>
+                      <TableHead className="w-[140px] text-xs">Fecha</TableHead>
+                      <TableHead className="text-xs">Usuario</TableHead>
+                      <TableHead className="text-xs">Modulo</TableHead>
+                      <TableHead className="text-xs">Accion</TableHead>
+                      <TableHead className="text-xs">Entidad</TableHead>
+                      <TableHead className="max-w-[250px] text-xs">Descripcion</TableHead>
+                      <TableHead className="w-[90px] text-xs">IP</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.idBitacora}>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
                           {formatDate(item.fechaUtc)}
                         </TableCell>
-                        <TableCell className="text-sm font-medium">{item.nombreUsuario}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-2 text-xs sm:text-sm font-medium">{item.nombreUsuario}</TableCell>
+                        <TableCell className="py-2">
                           <Badge
                             variant="secondary"
                             className={MODULO_COLORS[item.modulo] ?? 'bg-gray-100 text-gray-800'}
@@ -269,19 +273,19 @@ export default function BitacoraPage() {
                             {item.modulo}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="py-2 text-xs sm:text-sm">
                           {formatAccion(item.accion)}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="py-2 text-xs sm:text-sm">
                           {item.entidad}
                           {item.entidadId && (
                             <span className="text-muted-foreground ml-1">#{item.entidadId}</span>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">
+                        <TableCell className="py-2 max-w-[250px] truncate text-xs sm:text-sm text-muted-foreground">
                           {item.descripcion}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono">
+                        <TableCell className="py-2 text-xs text-muted-foreground font-mono">
                           {item.ipAddress}
                         </TableCell>
                       </TableRow>
@@ -291,8 +295,8 @@ export default function BitacoraPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-4">
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Pagina {filtros.page} de {totalPages} ({totalItems} registros)
                   </p>
                   <div className="flex gap-1">

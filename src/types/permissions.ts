@@ -68,7 +68,8 @@ export const MODULE_ROUTES: Record<string, string[]> = {
   Catalogos: ['/dashboard/campus', '/dashboard/subjects', '/dashboard/study-plans', '/dashboard/academic-periods'],
   Academico: ['/dashboard/academic-management', '/dashboard/schedules', '/dashboard/classrooms', '/dashboard/teachers'],
   Finanzas: ['/dashboard/cashier', '/dashboard/receipts', '/dashboard/payment-templates', '/dashboard/payment-concepts', '/dashboard/scholarships', '/dashboard/payments', '/dashboard/reports', '/dashboard/cashier/corte'],
-  Configuracion: ['/dashboard/users', '/dashboard/roles'],
+  Configuracion: ['/dashboard/users', '/dashboard/roles', '/dashboard/bitacora'],
+  Bitacora: ['/dashboard/bitacora'],
 }
 
 export const SYSTEM_ROLES = {
@@ -81,6 +82,7 @@ export const SYSTEM_ROLES = {
   CONTROL_ESCOLAR: 'controlescolar',
   FINANZAS: 'finanzas',
   ADMISIONES: 'admisiones',
+  ACADEMICO: 'academico',
 } as const
 
 export type SystemRole = typeof SYSTEM_ROLES[keyof typeof SYSTEM_ROLES]
@@ -95,6 +97,7 @@ export const ROLE_LABELS: Record<string, string> = {
   controlescolar: 'Control Escolar',
   finanzas: 'Finanzas',
   admisiones: 'Admisiones',
+  academico: 'Académico',
 }
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {
@@ -107,6 +110,7 @@ export const ROLE_DESCRIPTIONS: Record<string, string> = {
   controlescolar: 'Admisiones, estudiantes y finanzas',
   finanzas: 'Módulo financiero completo: caja, pagos, recibos',
   admisiones: 'Proceso de admisión y cobro de inscripciones',
+  academico: 'Gestión académica completa: grupos, horarios, calificaciones, estudiantes y catálogos',
 }
 
 export const ROLE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -119,6 +123,7 @@ export const ROLE_COLORS: Record<string, { bg: string; text: string; border: str
   controlescolar: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300' },
   finanzas: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
   admisiones: { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
+  academico: { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-300' },
 }
 
 export const MODULE_ICONS: Record<string, string> = {

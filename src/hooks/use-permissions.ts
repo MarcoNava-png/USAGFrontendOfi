@@ -73,6 +73,10 @@ export function usePermissions() {
     (permissionCode: string, action: 'view' | 'create' | 'edit' | 'delete' = 'view'): boolean => {
       if (!permissions) return false
 
+      if (permissions.roles.includes(SYSTEM_ROLES.SUPER_ADMIN)) {
+        return action === 'view'
+      }
+
       if (permissions.roles.includes(SYSTEM_ROLES.ADMIN)) return true
 
       const permission = permissions.permissions.find((p) => p.permissionCode === permissionCode)
@@ -98,6 +102,10 @@ export function usePermissions() {
     (module: string): boolean => {
       if (!permissions) return false
 
+      if (permissions.roles.includes(SYSTEM_ROLES.SUPER_ADMIN)) {
+        return module === 'Bitacora'
+      }
+
       if (permissions.roles.includes(SYSTEM_ROLES.ADMIN)) return true
 
       return permissions.permissions.some((p) => p.module === module && p.canView)
@@ -107,6 +115,10 @@ export function usePermissions() {
 
   const accessibleModules = useMemo(() => {
     if (!permissions) return []
+
+    if (permissions.roles.includes(SYSTEM_ROLES.SUPER_ADMIN)) {
+      return ['Bitacora']
+    }
 
     if (permissions.roles.includes(SYSTEM_ROLES.ADMIN)) {
       return ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion']
@@ -145,6 +157,7 @@ function getBasicPermissionsForRole(role: string): UserPermissions {
   }
 
   const moduleAccess: Record<string, string[]> = {
+    [SYSTEM_ROLES.SUPER_ADMIN]: ['Bitacora'],
     [SYSTEM_ROLES.ADMIN]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion'],
     [SYSTEM_ROLES.DIRECTOR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas'],
     [SYSTEM_ROLES.COORDINADOR]: ['Dashboard', 'Estudiantes', 'Catalogos', 'Academico'],

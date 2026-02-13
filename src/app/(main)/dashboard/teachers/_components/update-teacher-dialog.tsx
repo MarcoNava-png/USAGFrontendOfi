@@ -1,21 +1,77 @@
 "use client";
 
-import React from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, ChevronsUpDown, Search, User, MapPin, Briefcase, Phone } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { getMunicipalities, getTownships } from "@/services/location-service";
 import { updateTeacher } from "@/services/teacher-service";
 import { CivilStatus, Genres } from "@/types/catalog";
 import { State, Municipality, Township } from "@/types/location";
 import { Teacher } from "@/types/teacher";
 
+const updateTeacherSchema = z.object({
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  apellidoPaterno: z.string().min(2, "El apellido paterno debe tener al menos 2 caracteres"),
+  apellidoMaterno: z.string().min(2, "El apellido materno debe tener al menos 2 caracteres"),
+  fechaNacimiento: z.string().min(1, "La fecha de nacimiento es requerida"),
+  generoId: z.number().min(1, "Selecciona un genero"),
+  idEstadoCivil: z.number().min(1, "Selecciona un estado civil"),
+  curp: z.string().optional(),
+  correo: z.string().email("Ingresa un correo valido"),
+  telefono: z.string().min(10, "El telefono debe tener al menos 10 digitos"),
+  emailInstitucional: z.string().email("Ingresa un correo institucional valido"),
+  calle: z.string().optional(),
+  numeroExterior: z.string().optional(),
+  numeroInterior: z.string().optional(),
+  stateId: z.string().optional(),
+  municipalityId: z.string().optional(),
+  codigoPostalId: z.number().optional(),
+  noEmpleado: z.string().min(1, "El numero de empleado es requerido"),
+  rfc: z.string().optional(),
+});
+
+type UpdateTeacherFormData = z.infer<typeof updateTeacherSchema>;
+
 export interface UpdateTeacherDialogProps {
   open: boolean;
   teacher: Teacher | null;
-  campusId?: number | null;
   genres: Genres[];
   states: State[];
   civilStatus: CivilStatus[];
@@ -26,123 +82,128 @@ export interface UpdateTeacherDialogProps {
 export const UpdateTeacherDialog: React.FC<UpdateTeacherDialogProps> = ({
   open,
   teacher,
-  campusId,
   genres,
   states,
   civilStatus,
   onClose,
   onUpdate,
 }) => {
-  const [form, setForm] = React.useState({
-    nombre: "",
-    apellidoPaterno: "",
-    apellidoMaterno: "",
-    fechaNacimiento: "",
-    generoId: 0,
-    correo: "",
-    telefono: "",
-    curp: "",
-    calle: "",
-    numeroExterior: "",
-    numeroInterior: "",
-    codigoPostalId: "",
-    idEstadoCivil: 0,
-    noEmpleado: "",
-    rfc: "",
-    emailInstitucional: "",
+  const [loading, setLoading] = useState(false);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [townships, setTownships] = useState<Township[]>([]);
+  const [openColoniaPopover, setOpenColoniaPopover] = useState(false);
+  const [coloniaSearch, setColoniaSearch] = useState("");
+
+  const form = useForm<UpdateTeacherFormData>({
+    resolver: zodResolver(updateTeacherSchema),
+    defaultValues: {
+      nombre: "",
+      apellidoPaterno: "",
+      apellidoMaterno: "",
+      fechaNacimiento: "",
+      generoId: 0,
+      idEstadoCivil: 0,
+      curp: "",
+      correo: "",
+      telefono: "",
+      emailInstitucional: "",
+      calle: "",
+      numeroExterior: "",
+      numeroInterior: "",
+      stateId: "",
+      municipalityId: "",
+      codigoPostalId: 0,
+      noEmpleado: "",
+      rfc: "",
+    },
   });
 
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [selectedState, setSelectedState] = React.useState<string>("");
-  const [selectedMunicipality, setSelectedMunicipality] = React.useState<string>("");
-  const [municipalities, setMunicipalities] = React.useState<Municipality[]>([]);
-  const [townships, setTownships] = React.useState<Township[]>([]);
+  const watchedStateId = form.watch("stateId");
+  const watchedMunicipalityId = form.watch("municipalityId");
+  const watchedCodigoPostalId = form.watch("codigoPostalId");
 
-  React.useEffect(() => {
-    setSelectedMunicipality("");
-    setTownships([]);
-    setForm((prev) => ({ ...prev, codigoPostalId: "" }));
-    if (selectedState) {
-      getMunicipalities(selectedState)
-        .then((data) => setMunicipalities(data))
-        .catch(() => setMunicipalities([]));
+  // Populate form when teacher changes
+  useEffect(() => {
+    if (open && teacher) {
+      form.reset({
+        nombre: teacher.nombre || "",
+        apellidoPaterno: teacher.apellidoPaterno || "",
+        apellidoMaterno: teacher.apellidoMaterno || "",
+        fechaNacimiento: teacher.fechaNacimiento || "",
+        generoId: teacher.generoId || 0,
+        idEstadoCivil: teacher.idEstadoCivil || 0,
+        curp: teacher.curp || "",
+        correo: teacher.correo || "",
+        telefono: teacher.telefono || "",
+        emailInstitucional: teacher.emailInstitucional || "",
+        calle: teacher.calle || "",
+        numeroExterior: teacher.numeroExterior || "",
+        numeroInterior: teacher.numeroInterior || "",
+        stateId: "",
+        municipalityId: "",
+        codigoPostalId: teacher.codigoPostalId || 0,
+        noEmpleado: teacher.noEmpleado || "",
+        rfc: teacher.rfc || "",
+      });
+      setMunicipalities([]);
+      setTownships([]);
+    }
+  }, [open, teacher, form]);
+
+  useEffect(() => {
+    if (watchedStateId) {
+      getMunicipalities(watchedStateId).then(setMunicipalities);
+      form.setValue("municipalityId", "", { shouldValidate: false });
+      form.setValue("codigoPostalId", 0, { shouldValidate: false });
     } else {
       setMunicipalities([]);
     }
-  }, [selectedState]);
+  }, [watchedStateId]);
 
-  React.useEffect(() => {
-    setTownships([]);
-    setForm((prev) => ({ ...prev, codigoPostalId: "" }));
-    if (selectedMunicipality) {
-      getTownships(selectedMunicipality)
-        .then((data) => setTownships(data))
-        .catch(() => setTownships([]));
+  useEffect(() => {
+    if (watchedMunicipalityId) {
+      getTownships(watchedMunicipalityId).then(setTownships);
+      form.setValue("codigoPostalId", 0, { shouldValidate: false });
     } else {
       setTownships([]);
     }
-  }, [selectedMunicipality]);
+  }, [watchedMunicipalityId]);
 
-  React.useEffect(() => {
-    if (open && teacher) {
-      setForm({
-        nombre: "",
-        apellidoPaterno: "",
-        apellidoMaterno: "",
-        fechaNacimiento: "",
-        generoId: 0,
-        correo: "",
-        telefono: "",
-        curp: "",
-        calle: "",
-        numeroExterior: "",
-        numeroInterior: "",
-        codigoPostalId: "",
-        idEstadoCivil: 0,
-        noEmpleado: teacher.noEmpleado || "",
-        rfc: "",
-        emailInstitucional: teacher.emailInstitucional || "",
-      });
-      setSelectedState("");
-      setSelectedMunicipality("");
-      setError(null);
-    }
-  }, [open, teacher]);
+  const filteredTownships = useMemo(() => {
+    return townships.filter((t) => t.municipioId === watchedMunicipalityId);
+  }, [townships, watchedMunicipalityId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const searchedTownships = useMemo(() => {
+    if (!coloniaSearch) return filteredTownships;
+    return filteredTownships.filter((t) =>
+      t.asentamiento.toLowerCase().includes(coloniaSearch.toLowerCase())
+    );
+  }, [filteredTownships, coloniaSearch]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const selectedColoniaName = useMemo(() => {
+    const found = townships.find((t) => t.id === watchedCodigoPostalId);
+    return found?.asentamiento || "";
+  }, [townships, watchedCodigoPostalId]);
 
-    if (!campusId || !teacher) {
-      setError("No se ha seleccionado un campus o profesor");
-      return;
-    }
+  const onSubmit = async (data: UpdateTeacherFormData) => {
+    if (!teacher) return;
 
     setLoading(true);
-    setError(null);
-
     try {
       const payload = {
-        ...form,
+        ...data,
         idProfesor: teacher.idProfesor,
-        generoId: Number(form.generoId),
-        codigoPostalId: Number(form.codigoPostalId),
-        idEstadoCivil: Number(form.idEstadoCivil),
-        campusId: campusId,
+        campusId: teacher.campusId || 1,
         status: 1,
       };
 
-      await updateTeacher(payload);
+      await updateTeacher(payload as any);
+      toast.success("Docente actualizado correctamente");
       onUpdate(payload);
       onClose();
-    } catch (err) {
-      console.error(err);
-      setError("Error al actualizar el profesor. Intenta nuevamente.");
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.response?.data || "Error al actualizar el docente";
+      toast.error("Error al actualizar docente", { description: String(errorMessage) });
     } finally {
       setLoading(false);
     }
@@ -150,243 +211,445 @@ export const UpdateTeacherDialog: React.FC<UpdateTeacherDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
-          <DialogTitle>Actualizar Profesor</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-blue-900">
+            Actualizar Docente
+          </DialogTitle>
+          <DialogDescription>
+            Modifique los campos necesarios. Los campos marcados con * son obligatorios.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 py-2 md:grid-cols-2">
-          {/* Nombre */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input id="nombre" name="nombre" value={form.nombre} onChange={handleChange} required />
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Seccion: Datos Personales */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-blue-900">Datos Personales</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <FormField
+                  control={form.control}
+                  name="nombre"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nombre(s)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Apellido paterno */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="apellidoPaterno">Apellido paterno</Label>
-            <Input
-              id="apellidoPaterno"
-              name="apellidoPaterno"
-              value={form.apellidoPaterno}
-              onChange={handleChange}
-              required
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="apellidoPaterno"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Apellido Paterno <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Apellido paterno" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Apellido materno */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="apellidoMaterno">Apellido materno</Label>
-            <Input
-              id="apellidoMaterno"
-              name="apellidoMaterno"
-              value={form.apellidoMaterno}
-              onChange={handleChange}
-              required
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="apellidoMaterno"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Apellido Materno <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Apellido materno" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Fecha nacimiento */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="fechaNacimiento">Fecha de nacimiento</Label>
-            <Input
-              id="fechaNacimiento"
-              type="date"
-              name="fechaNacimiento"
-              value={form.fechaNacimiento}
-              onChange={handleChange}
-              required
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="fechaNacimiento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de Nacimiento <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Género */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="generoId">Género</Label>
-            <select
-              id="generoId"
-              name="generoId"
-              value={form.generoId}
-              onChange={handleChange}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              <option value={0} disabled>
-                Selecciona género
-              </option>
-              {genres.map((g) => (
-                <option key={g.idGenero} value={g.idGenero}>
-                  {g.descGenero}
-                </option>
-              ))}
-            </select>
-          </div>
+                <FormField
+                  control={form.control}
+                  name="generoId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Genero <span className="text-red-500">*</span></FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(Number(value))}
+                        value={field.value ? String(field.value) : ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona genero" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {genres.map((genre) => (
+                            <SelectItem key={genre.idGenero} value={String(genre.idGenero)}>
+                              {genre.descGenero}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Correo personal */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="correo">Correo personal</Label>
-            <Input id="correo" type="email" name="correo" value={form.correo} onChange={handleChange} required />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="idEstadoCivil"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado Civil <span className="text-red-500">*</span></FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(Number(value))}
+                        value={field.value ? String(field.value) : ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona estado civil" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {civilStatus.map((status) => (
+                            <SelectItem key={status.idEstadoCivil} value={String(status.idEstadoCivil)}>
+                              {status.descEstadoCivil}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Teléfono */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="telefono">Teléfono</Label>
-            <Input id="telefono" name="telefono" value={form.telefono} onChange={handleChange} required />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="curp"
+                  render={({ field }) => (
+                    <FormItem className="lg:col-span-2">
+                      <FormLabel>CURP</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="CURP (18 caracteres)"
+                          maxLength={18}
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-          {/* CURP */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="curp">CURP</Label>
-            <Input id="curp" name="curp" value={form.curp} onChange={handleChange} required />
-          </div>
+            {/* Seccion: Contacto */}
+            <div className="rounded-lg border border-green-200 bg-green-50/50 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <Phone className="h-5 w-5 text-green-600" />
+                <h3 className="text-lg font-semibold text-green-900">Informacion de Contacto</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="correo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo Personal <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="correo@ejemplo.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Calle */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="calle">Calle</Label>
-            <Input id="calle" name="calle" value={form.calle} onChange={handleChange} required />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="telefono"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="10 digitos" maxLength={10} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Número exterior */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="numeroExterior">Número exterior</Label>
-            <Input
-              id="numeroExterior"
-              name="numeroExterior"
-              value={form.numeroExterior}
-              onChange={handleChange}
-              required
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="emailInstitucional"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo Institucional <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="docente@universidad.edu" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-          {/* Número interior */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="numeroInterior">Número interior</Label>
-            <Input id="numeroInterior" name="numeroInterior" value={form.numeroInterior} onChange={handleChange} />
-          </div>
+            {/* Seccion: Direccion */}
+            <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-orange-600" />
+                <h3 className="text-lg font-semibold text-orange-900">Direccion</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <FormField
+                  control={form.control}
+                  name="calle"
+                  render={({ field }) => (
+                    <FormItem className="lg:col-span-2">
+                      <FormLabel>Calle</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nombre de la calle" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Estado */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="state">Estado</Label>
-            <select
-              id="state"
-              value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              <option value="" disabled>
-                Selecciona estado
-              </option>
-              {states.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+                <FormField
+                  control={form.control}
+                  name="numeroExterior"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No. Exterior</FormLabel>
+                      <FormControl>
+                        <Input placeholder="No. ext" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Municipio */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="municipality">Municipio</Label>
-            <select
-              id="municipality"
-              value={selectedMunicipality}
-              onChange={(e) => setSelectedMunicipality(e.target.value)}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              required
-              disabled={!selectedState}
-            >
-              <option value="" disabled>
-                Selecciona municipio
-              </option>
-              {municipalities.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+                <FormField
+                  control={form.control}
+                  name="numeroInterior"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No. Interior</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Opcional" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Colonia / Código postal */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="codigoPostalId">Colonia / Código postal</Label>
-            <select
-              id="codigoPostalId"
-              name="codigoPostalId"
-              value={form.codigoPostalId}
-              onChange={(e) => setForm((prev) => ({ ...prev, codigoPostalId: e.target.value }))}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              required
-              disabled={!selectedMunicipality}
-            >
-              <option value="" disabled>
-                Selecciona colonia / código postal
-              </option>
-              {townships.map((t) => (
-                <option key={t.id} value={t.codigo}>
-                  {t.asentamiento} ({t.codigo})
-                </option>
-              ))}
-            </select>
-          </div>
+                <FormField
+                  control={form.control}
+                  name="stateId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona estado" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {states.map((state) => (
+                            <SelectItem key={state.id} value={state.id}>
+                              {state.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Estado civil */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="idEstadoCivil">Estado civil</Label>
-            <select
-              id="idEstadoCivil"
-              name="idEstadoCivil"
-              value={form.idEstadoCivil}
-              onChange={handleChange}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              <option value={0} disabled>
-                Selecciona estado civil
-              </option>
-              {civilStatus.map((c) => (
-                <option key={c.idEstadoCivil} value={c.idEstadoCivil}>
-                  {c.descEstadoCivil}
-                </option>
-              ))}
-            </select>
-          </div>
+                <FormField
+                  control={form.control}
+                  name="municipalityId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Municipio</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        disabled={!watchedStateId}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona municipio" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {municipalities
+                            .filter((m) => m.estadoId === watchedStateId)
+                            .map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.nombre}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* No. Empleado */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="noEmpleado">No. Empleado</Label>
-            <Input id="noEmpleado" name="noEmpleado" value={form.noEmpleado} onChange={handleChange} required />
-          </div>
+                {/* Buscador de Colonia */}
+                <FormField
+                  control={form.control}
+                  name="codigoPostalId"
+                  render={({ field }) => (
+                    <FormItem className="lg:col-span-2">
+                      <FormLabel>Colonia/Localidad</FormLabel>
+                      <Popover open={openColoniaPopover} onOpenChange={setOpenColoniaPopover}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={!watchedMunicipalityId}
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <Search className="h-4 w-4 shrink-0 opacity-50" />
+                                <span className="truncate">
+                                  {selectedColoniaName || "Buscar colonia..."}
+                                </span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <Command>
+                            <CommandInput
+                              placeholder="Escribe para buscar colonia..."
+                              value={coloniaSearch}
+                              onValueChange={setColoniaSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>No se encontraron colonias</CommandEmpty>
+                              <CommandGroup className="max-h-[300px] overflow-y-auto">
+                                {searchedTownships.map((township) => (
+                                  <CommandItem
+                                    key={township.id}
+                                    value={township.asentamiento}
+                                    onSelect={() => {
+                                      field.onChange(township.id);
+                                      setOpenColoniaPopover(false);
+                                      setColoniaSearch("");
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        field.value === township.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span>{township.asentamiento}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        CP: {township.codigo}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-          {/* RFC */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="rfc">RFC</Label>
-            <Input id="rfc" name="rfc" value={form.rfc} onChange={handleChange} required />
-          </div>
+            {/* Seccion: Informacion Laboral */}
+            <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-purple-900">Informacion Laboral</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="noEmpleado"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No. Empleado <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Numero de empleado" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Email institucional */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="emailInstitucional">Email institucional</Label>
-            <Input
-              id="emailInstitucional"
-              type="email"
-              name="emailInstitucional"
-              value={form.emailInstitucional}
-              onChange={handleChange}
-              required
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name="rfc"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>RFC</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="RFC (12-13 caracteres)"
+                          maxLength={13}
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-          {error && <div className="text-destructive col-span-2 text-sm">{error}</div>}
-
-          <DialogFooter className="col-span-2 mt-2">
-            <Button type="button" onClick={onClose} variant="secondary" disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Actualizando..." : "Actualizar"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* Botones de accion */}
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={loading}>
+                {loading ? "Actualizando..." : "Actualizar Docente"}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

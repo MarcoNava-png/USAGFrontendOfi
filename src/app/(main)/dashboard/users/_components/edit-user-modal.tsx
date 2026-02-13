@@ -46,6 +46,7 @@ const ROLES = [
   { value: "controlescolar", label: "Control Escolar" },
   { value: "finanzas", label: "Finanzas" },
   { value: "admisiones", label: "Admisiones" },
+  { value: "academico", label: "Académico" },
   { value: "docente", label: "Docente/Profesor" },
   { value: "alumno", label: "Alumno/Estudiante" },
 ] as const;

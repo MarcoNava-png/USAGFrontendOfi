@@ -1,125 +1,146 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Building2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Campus } from "@/types/campus";
 import { AcademicPeriod, StudyPlan } from "@/types/catalog";
 
 interface FiltersSectionProps {
+  campusList: Campus[];
   studyPlans: StudyPlan[];
   academicPeriods: AcademicPeriod[];
+  selectedCampusId: string;
+  setSelectedCampusId: (value: string) => void;
   selectedPlanId: string;
   setSelectedPlanId: (value: string) => void;
   selectedPeriodId: string;
   setSelectedPeriodId: (value: string) => void;
   cuatrimestreFilter: string;
   setCuatrimestreFilter: (value: string) => void;
+  periodoLabel: string;
+  maxPeriodos: number;
   loading: boolean;
   loadAvailableGroups: () => void;
 }
 
 export function FiltersSection({
+  campusList,
   studyPlans,
   academicPeriods,
+  selectedCampusId,
+  setSelectedCampusId,
   selectedPlanId,
   setSelectedPlanId,
   selectedPeriodId,
   setSelectedPeriodId,
   cuatrimestreFilter,
   setCuatrimestreFilter,
+  periodoLabel,
+  maxPeriodos,
   loading,
   loadAvailableGroups,
 }: FiltersSectionProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-lg border shadow-sm">
+    <div className="space-y-4">
+      {/* Row 1: Campus */}
       <div className="space-y-2">
-        <Label htmlFor="plan" className="text-sm font-medium !text-gray-900">
-          Plan de Estudios
-        </Label>
-        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-          <SelectTrigger className="w-full border-2 border-gray-400 bg-white !text-gray-900 [&_span]:!text-gray-900">
-            <SelectValue placeholder="Selecciona un plan" className="!text-gray-900" />
+        <Label className="text-sm font-medium">Campus</Label>
+        <Select value={selectedCampusId} onValueChange={setSelectedCampusId}>
+          <SelectTrigger className="w-full">
+            <Building2 className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
+            <SelectValue placeholder="Selecciona un campus" />
           </SelectTrigger>
-          <SelectContent className="!bg-white !text-gray-900 z-[9999] max-h-[300px] border-2 border-blue-500">
-            {studyPlans.length === 0 ? (
-              <div className="p-4 text-center text-gray-900 bg-gray-100">No hay planes disponibles</div>
-            ) : (
-              studyPlans.map((plan) => (
-                <SelectItem
-                  key={plan.idPlanEstudios}
-                  value={plan.idPlanEstudios.toString()}
-                  className="!text-gray-900 !bg-white hover:!bg-blue-50 data-[highlighted]:!bg-blue-50 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer min-h-[40px] [&_span]:!text-gray-900"
-                >
-                  {plan.nombrePlanEstudios}
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
-        {studyPlans.length > 0 && (
-          <p className="text-xs text-gray-500">Total: {studyPlans.length} planes disponibles</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="period" className="text-sm font-medium !text-gray-900">
-          Periodo Académico
-        </Label>
-        <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-          <SelectTrigger className="w-full bg-white border-gray-300 !text-gray-900 [&_span]:!text-gray-900">
-            <SelectValue placeholder="Selecciona periodo" className="!text-gray-900" />
-          </SelectTrigger>
-          <SelectContent className="!bg-white !text-gray-900 z-[9999] max-h-[300px]">
-            {academicPeriods.length === 0 ? (
-              <div className="p-4 text-center text-gray-900 bg-gray-100">No hay períodos disponibles</div>
-            ) : (
-              academicPeriods.map((period) => (
-                <SelectItem
-                  key={period.idPeriodoAcademico}
-                  value={period.idPeriodoAcademico.toString()}
-                  className="!text-gray-900 !bg-white hover:!bg-blue-50 data-[highlighted]:!bg-blue-50 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer min-h-[40px]"
-                >
-                  {period.nombre}
-                </SelectItem>
-              ))
-            )}
-
-          </SelectContent>
-        </Select>
-        {academicPeriods.length > 0 && (
-          <p className="text-xs text-gray-500">Total: {academicPeriods.length} períodos disponibles</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="cuatrimestre" className="text-sm font-medium !text-gray-900">
-          Cuatrimestre
-        </Label>
-        <Select value={cuatrimestreFilter} onValueChange={setCuatrimestreFilter}>
-          <SelectTrigger className="w-full bg-white border-gray-300 !text-gray-900 [&_span]:!text-gray-900">
-            <SelectValue className="!text-gray-900" />
-          </SelectTrigger>
-          <SelectContent className="!bg-white !text-gray-900 z-[9999] max-h-[300px]">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <SelectItem
-                key={num}
-                value={num.toString()}
-                className="!text-gray-900 !bg-white hover:!bg-blue-50 data-[highlighted]:!bg-blue-50 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer [&_span]:!text-gray-900"
-              >
-                {num}° Cuatrimestre
+          <SelectContent className="max-h-[300px]">
+            {campusList.map((c) => (
+              <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                {c.nombre}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="flex items-end">
-        <Button onClick={loadAvailableGroups} disabled={!selectedPlanId || !selectedPeriodId || loading} className="w-full">
-          <Search className="w-4 h-4 mr-2" />
-          {loading ? "Buscando..." : "Buscar"}
-        </Button>
+      {/* Row 2: Plan de Estudios (full width for long names) */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Plan de Estudios</Label>
+        <Select value={selectedPlanId} onValueChange={setSelectedPlanId} disabled={!selectedCampusId}>
+          <SelectTrigger className="w-full min-w-0">
+            <span className="truncate">
+              <SelectValue placeholder={selectedCampusId ? "Selecciona un plan" : "Primero selecciona un campus"} />
+            </span>
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px]">
+            {studyPlans.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                {selectedCampusId ? "No hay planes en este campus" : "Selecciona un campus"}
+              </div>
+            ) : (
+              studyPlans.map((plan) => (
+                <SelectItem key={plan.idPlanEstudios} value={plan.idPlanEstudios.toString()}>
+                  {plan.clavePlanEstudios} - {plan.nombrePlanEstudios}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {selectedPlanId && studyPlans.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {studyPlans.find((p) => p.idPlanEstudios.toString() === selectedPlanId)?.periodicidad ?? ""}
+          </p>
+        )}
+      </div>
+
+      {/* Row 3: Periodo, Cuatrimestre/Semestre, Buscar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Periodo Acad&eacute;mico</Label>
+          <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecciona periodo" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {academicPeriods.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground text-sm">No hay periodos disponibles</div>
+              ) : (
+                academicPeriods.map((period) => (
+                  <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
+                    {period.nombre}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">{periodoLabel}</Label>
+          <Select value={cuatrimestreFilter} onValueChange={setCuatrimestreFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {Array.from({ length: maxPeriodos }, (_, i) => i + 1).map((num) => (
+                <SelectItem key={num} value={num.toString()}>
+                  {num}&deg; {periodoLabel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-end">
+          <Button
+            onClick={loadAvailableGroups}
+            disabled={!selectedPlanId || !selectedPeriodId || loading}
+            className="w-full"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            {loading ? "Buscando..." : "Buscar"}
+          </Button>
+        </div>
       </div>
     </div>
   );

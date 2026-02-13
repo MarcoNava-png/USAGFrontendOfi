@@ -31,6 +31,12 @@ import {
 export default function DashboardDefaultPage() {
   const { dashboard, rol, isLoading, error, refetch } = useDashboard();
 
+  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+  if (user?.role === 'superadmin') {
+    window.location.href = '/dashboard/bitacora'
+    return null
+  }
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
