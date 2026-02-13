@@ -10,6 +10,7 @@ export interface LoginResponse {
     token: string;
     expiration: string;
     photoUrl: string | null;
+    mustChangePassword: boolean;
   };
   isSuccess: boolean;
   messageError: string | null;

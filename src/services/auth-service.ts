@@ -12,6 +12,9 @@ export async function login({ email, password }: { email: string; password: stri
       localStorage.setItem("access_token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data));
       document.cookie = `access_token=${data.data.token}; path=/; max-age=86400; SameSite=Lax`;
+      if (data.data.mustChangePassword) {
+        document.cookie = "must_change_password=1; path=/; max-age=86400; SameSite=Lax";
+      }
       return { success: true, token: data.data.token, user: data.data };
     }
     return { success: false, error: data.messageError ?? "Invalid credentials" };
@@ -24,6 +27,7 @@ export function logout() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("user");
   document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+  document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Lax";
 }
 
 export async function refreshToken(): Promise<{ success: boolean; error?: string }> {
@@ -47,6 +51,11 @@ export async function register({ name, email, password }: { name: string; email:
     return { success: true };
   }
   return { success: false, error: "Invalid registration data" };
+}
+
+export async function changePassword({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+  const response = await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+  return response.data;
 }
 
 export async function forgotPassword({ email }: { email: string }) {

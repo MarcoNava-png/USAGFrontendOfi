@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Loader2, User } from "lucide-react";
+import { Camera, Eye, EyeOff, KeyRound, Loader2, ShieldAlert, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -32,6 +34,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { getInitials } from "@/lib/utils";
+import { changePassword } from "@/services/auth-service";
 import { updateUserProfile } from "@/services/users-service";
 
 const formSchema = z.object({
@@ -41,6 +44,23 @@ const formSchema = z.object({
   telefono: z.string().optional(),
   biografia: z.string().optional(),
 });
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Ingresa tu contraseña actual"),
+  newPassword: z
+    .string()
+    .min(12, "La contraseña debe tener al menos 12 caracteres")
+    .regex(/[a-z]/, "Debe contener al menos una letra minuscula")
+    .regex(/[A-Z]/, "Debe contener al menos una letra mayuscula")
+    .regex(/[0-9]/, "Debe contener al menos un numero")
+    .regex(/[^a-zA-Z0-9]/, "Debe contener al menos un caracter especial"),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
+
+type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -70,7 +90,14 @@ const getRoleLabel = (role: string) => {
 
 export default function ProfilePage() {
   const { user, isLoading, refreshProfile } = useCurrentUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const forcePasswordChange = searchParams.get("forcePasswordChange") === "1";
   const [saving, setSaving] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const formInitialized = useRef(false);
@@ -85,6 +112,51 @@ export default function ProfilePage() {
       biografia: "",
     },
   });
+
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmitPassword = async (values: PasswordFormValues) => {
+    try {
+      setSavingPassword(true);
+      await changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+      passwordForm.reset();
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.mustChangePassword = false;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Lax";
+
+      toast.success("Contraseña actualizada", {
+        description: "Tu contraseña ha sido cambiada exitosamente",
+      });
+
+      if (forcePasswordChange) {
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
+      toast.error("Error al cambiar contraseña", {
+        description: error?.response?.data?.message || "No se pudo cambiar la contraseña",
+      });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   useEffect(() => {
     if (user && !formInitialized.current) {
@@ -196,6 +268,154 @@ export default function ProfilePage() {
           <Button onClick={() => window.location.href = "/auth/v2/login"}>
             Iniciar sesión
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (forcePasswordChange) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-full max-w-lg space-y-6">
+          <Card className="border-2 border-amber-300 dark:border-amber-700">
+            <CardHeader className="bg-amber-50 dark:bg-amber-950/30">
+              <CardTitle className="text-lg flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <ShieldAlert className="h-5 w-5" />
+                Cambio de Contraseña Requerido
+              </CardTitle>
+              <CardDescription>
+                Por seguridad, debes cambiar tu contraseña antes de continuar usando el sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">
+                  <FormField
+                    control={passwordForm.control}
+                    name="currentPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contraseña Actual <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showCurrentPassword ? "text" : "password"}
+                              placeholder="••••••••••••"
+                              className="focus-visible:ring-[#14356F] pr-10"
+                              {...field}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                              {showCurrentPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={passwordForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nueva Contraseña <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showNewPassword ? "text" : "password"}
+                              placeholder="••••••••••••"
+                              className="focus-visible:ring-[#14356F] pr-10"
+                              {...field}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Minimo 12 caracteres, mayusculas, minusculas, numeros y caracteres especiales
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={passwordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirmar Nueva Contraseña <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="••••••••••••"
+                              className="focus-visible:ring-[#14356F] pr-10"
+                              {...field}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      type="submit"
+                      disabled={savingPassword}
+                      className="text-white w-full"
+                      style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                    >
+                      {savingPassword ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Cambiando...
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="h-4 w-4 mr-2" />
+                          Cambiar Contraseña y Continuar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -450,6 +670,154 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card
+        className="border-2"
+        style={{ borderColor: 'rgba(20, 53, 111, 0.2)' }}
+      >
+        <CardHeader
+          style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.03), rgba(30, 74, 143, 0.05))' }}
+        >
+          <CardTitle className="text-lg flex items-center gap-2" style={{ color: '#14356F' }}>
+            <KeyRound className="h-5 w-5" />
+            Cambiar Contraseña
+          </CardTitle>
+          <CardDescription>
+            Actualiza tu contraseña de acceso al sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4 max-w-md">
+              <FormField
+                control={passwordForm.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña Actual <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showCurrentPassword ? "text" : "password"}
+                          placeholder="••••••••••••"
+                          className="focus-visible:ring-[#14356F] pr-10"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        >
+                          {showCurrentPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={passwordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nueva Contraseña <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showNewPassword ? "text" : "password"}
+                          placeholder="••••••••••••"
+                          className="focus-visible:ring-[#14356F] pr-10"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Minimo 12 caracteres, mayusculas, minusculas, numeros y caracteres especiales
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={passwordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Nueva Contraseña <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="••••••••••••"
+                          className="focus-visible:ring-[#14356F] pr-10"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="text-white"
+                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                >
+                  {savingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Cambiando...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="h-4 w-4 mr-2" />
+                      Cambiar Contraseña
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

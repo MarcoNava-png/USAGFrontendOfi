@@ -47,7 +47,11 @@ export function LoginForm() {
         description: "Bienvenido " + (res.user?.nombres ?? ""),
       });
 
-      router.push("/dashboard");
+      if (res.user?.mustChangePassword) {
+        router.push("/dashboard/profile?forcePasswordChange=1");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
       let message = "Error desconocido";
       if (error instanceof Error) message = error.message;
