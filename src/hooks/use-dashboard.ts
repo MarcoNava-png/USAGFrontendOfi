@@ -18,6 +18,13 @@ export function useDashboard(): UseDashboardReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async () => {
+    // Superadmin no tiene dashboard, se redirige a bitácora
+    const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
+    if (storedUser?.role === 'superadmin') {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);

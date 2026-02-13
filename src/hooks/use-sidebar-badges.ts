@@ -15,6 +15,13 @@ export function useSidebarBadges() {
   const [loading, setLoading] = useState(true)
 
   const fetchBadges = useCallback(async () => {
+    // Superadmin no necesita badges del sidebar
+    const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+    if (storedUser?.role === 'superadmin') {
+      setLoading(false)
+      return
+    }
+
     try {
       const contadorSolicitudes = await documentosSolicitudesService.getContadorPendientes()
       setBadges((prev) => ({
