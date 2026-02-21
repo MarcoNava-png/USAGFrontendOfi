@@ -64,7 +64,7 @@ export interface PermissionAssignment {
 export const MODULE_ROUTES: Record<string, string[]> = {
   Dashboard: ['/dashboard/default'],
   Admisiones: ['/dashboard/applicants'],
-  Estudiantes: ['/dashboard/students', '/dashboard/group-enrollment', '/dashboard/grades', '/dashboard/attendances'],
+  Estudiantes: ['/dashboard/students', '/dashboard/group-enrollment', '/dashboard/grades', '/dashboard/attendances', '/dashboard/reportes-academicos'],
   Catalogos: ['/dashboard/campus', '/dashboard/subjects', '/dashboard/study-plans', '/dashboard/academic-periods'],
   Academico: ['/dashboard/academic-management', '/dashboard/schedules', '/dashboard/classrooms', '/dashboard/teachers'],
   Finanzas: ['/dashboard/cashier', '/dashboard/receipts', '/dashboard/payment-templates', '/dashboard/payment-concepts', '/dashboard/scholarships', '/dashboard/payments', '/dashboard/reports', '/dashboard/cashier/corte'],

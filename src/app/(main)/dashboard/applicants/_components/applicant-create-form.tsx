@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 
-import { Check, ChevronsUpDown, Search, User, MapPin, GraduationCap, Phone } from "lucide-react";
+import { Briefcase, Check, ChevronsUpDown, Search, User, MapPin, GraduationCap, Phone } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -39,13 +39,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { cn } from "@/lib/utils";
 import { getMunicipalities, getTownships } from "@/services/location-service";
+import { getDiasForPlanModalidad } from "@/services/plan-modalidad-dia-service";
 import { PayloadCreateApplicant } from "@/types/applicant";
 import { Campus } from "@/types/campus";
 import {
+  AcademicPeriod,
   ApplicantStatus,
   CivilStatus,
   ContactMethod,
   Genres,
+  Modalidad,
   Schedule,
 } from "@/types/catalog";
 import { State, Municipality, Township } from "@/types/location";
@@ -62,6 +65,8 @@ interface ApplicantFormProps {
   schedules: Schedule[];
   applicantStatus: ApplicantStatus[];
   states: State[];
+  modalidades: Modalidad[];
+  academicPeriods: AcademicPeriod[];
   onSubmit: (data: PayloadCreateApplicant) => void;
   onCancel: () => void;
 }
@@ -76,6 +81,8 @@ export function ApplicantCreateForm({
   schedules,
   applicantStatus,
   states,
+  modalidades,
+  academicPeriods,
   onSubmit,
   onCancel,
 }: ApplicantFormProps) {
@@ -96,6 +103,8 @@ export function ApplicantCreateForm({
   const watchedMunicipalityId = form.watch("municipalityId");
   const watchedCodigoPostalId = form.watch("codigoPostalId");
   const watchedCampusId = form.watch("campusId");
+  const watchedPlanEstudiosId = form.watch("planEstudiosId");
+  const watchedIdModalidad = form.watch("idModalidad");
 
   useEffect(() => {
     if (watchedStateId) {
@@ -127,6 +136,34 @@ export function ApplicantCreateForm({
     return studyPlans.filter((plan) => plan.idCampus === watchedCampusId);
   }, [studyPlans, watchedCampusId]);
 
+  const selectedPlan = useMemo(() => {
+    if (!watchedPlanEstudiosId || watchedPlanEstudiosId === 0) return null;
+    return studyPlans.find((p) => p.idPlanEstudios === watchedPlanEstudiosId) ?? null;
+  }, [studyPlans, watchedPlanEstudiosId]);
+
+  const filteredAcademicPeriods = useMemo(() => {
+    if (!selectedPlan) return [];
+    return academicPeriods.filter((p) => p.idPeriodicidad === selectedPlan.idPeriodicidad);
+  }, [academicPeriods, selectedPlan]);
+
+  const [diasImparticion, setDiasImparticion] = useState<string>("");
+
+  useEffect(() => {
+    if (watchedPlanEstudiosId && watchedPlanEstudiosId > 0 && watchedIdModalidad && watchedIdModalidad > 0) {
+      getDiasForPlanModalidad(watchedPlanEstudiosId, watchedIdModalidad)
+        .then((dias) => {
+          if (dias.length > 0) {
+            setDiasImparticion(dias.map((d) => d.nombreDia).join(", "));
+          } else {
+            setDiasImparticion("");
+          }
+        })
+        .catch(() => setDiasImparticion(""));
+    } else {
+      setDiasImparticion("");
+    }
+  }, [watchedPlanEstudiosId, watchedIdModalidad]);
+
   useEffect(() => {
     if (watchedCampusId) {
       const currentPlan = studyPlans.find((p) => p.idPlanEstudios === form.getValues("planEstudiosId"));
@@ -150,13 +187,13 @@ export function ApplicantCreateForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <User className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-blue-900">Datos Personales</h3>
+            <h3 className="text-base font-semibold text-blue-900">Datos Personales</h3>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
             <FormField
               control={form.control}
               name="nombre"
@@ -273,7 +310,7 @@ export function ApplicantCreateForm({
               control={form.control}
               name="curp"
               render={({ field }) => (
-                <FormItem className="lg:col-span-2">
+                <FormItem>
                   <FormLabel>CURP <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input
@@ -287,15 +324,29 @@ export function ApplicantCreateForm({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="nacionalidad"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nacionalidad</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Mexicana" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
 
         <div className="rounded-lg border border-green-200 bg-green-50/50 p-4">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <Phone className="h-5 w-5 text-green-600" />
-            <h3 className="text-lg font-semibold text-green-900">Información de Contacto</h3>
+            <h3 className="text-base font-semibold text-green-900">Información de Contacto</h3>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-3">
             <FormField
               control={form.control}
               name="correo"
@@ -352,14 +403,61 @@ export function ApplicantCreateForm({
               )}
             />
           </div>
+
+          <div className="mt-3 border-t border-green-200 pt-3">
+            <h4 className="mb-2 text-sm font-semibold text-green-800">Contacto de Emergencia</h4>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="nombreContactoEmergencia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nombre completo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="telefonoContactoEmergencia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl>
+                      <Input placeholder="10 dígitos" maxLength={20} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="parentescoContactoEmergencia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parentesco</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Padre, Madre, Hermano" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-4">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <MapPin className="h-5 w-5 text-orange-600" />
-            <h3 className="text-lg font-semibold text-orange-900">Dirección</h3>
+            <h3 className="text-base font-semibold text-orange-900">Dirección</h3>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
             <FormField
               control={form.control}
               name="calle"
@@ -533,11 +631,11 @@ export function ApplicantCreateForm({
         </div>
 
         <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-4">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-purple-900">Información Académica</h3>
+            <h3 className="text-base font-semibold text-purple-900">Información Académica</h3>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
             <FormField
               control={form.control}
               name="campusId"
@@ -653,6 +751,111 @@ export function ApplicantCreateForm({
 
             <FormField
               control={form.control}
+              name="idPeriodoAcademico"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Periodo Académico</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                    value={field.value ? String(field.value) : ""}
+                    disabled={!selectedPlan}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedPlan ? "Selecciona periodo" : "Primero selecciona un plan"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {filteredAcademicPeriods.map((period) => (
+                        <SelectItem key={period.idPeriodoAcademico} value={String(period.idPeriodoAcademico)}>
+                          {period.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="institucionProcedencia"
+              render={({ field }) => (
+                <FormItem className="lg:col-span-2">
+                  <FormLabel>Institución de Procedencia</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nombre de la institución de procedencia" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="idModalidad"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Modalidad</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? String(field.value) : ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona modalidad" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {modalidades.map((m) => (
+                        <SelectItem key={m.idModalidad} value={String(m.idModalidad)}>
+                          {m.descModalidad}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormItem>
+              <FormLabel>Días de Impartición</FormLabel>
+              <Input
+                value={diasImparticion || "No configurado"}
+                disabled
+                className="bg-muted"
+              />
+            </FormItem>
+
+            <FormField
+              control={form.control}
+              name="recorridoPlantel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Recorrido por el Campus</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(value === "true")}
+                    value={field.value !== undefined ? String(field.value) : ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="true">Sí</SelectItem>
+                      <SelectItem value="false">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="aspiranteStatusId"
               render={({ field }) => (
                 <FormItem>
@@ -683,15 +886,104 @@ export function ApplicantCreateForm({
               control={form.control}
               name="notas"
               render={({ field }) => (
-                <FormItem className="lg:col-span-3">
+                <FormItem className="lg:col-span-4">
                   <FormLabel>Notas / Observaciones</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Notas adicionales sobre el aspirante (opcional)"
+                      placeholder="Notas adicionales (opcional)"
                       className="resize-none"
                       rows={2}
                       {...field}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-amber-600" />
+            <h3 className="text-base font-semibold text-amber-900">Datos Socioeconómicos</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
+            <FormField
+              control={form.control}
+              name="trabaja"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>¿Trabajas?</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(value === "true")}
+                    value={field.value !== undefined ? String(field.value) : ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="true">Sí</SelectItem>
+                      <SelectItem value="false">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="nombreEmpresa"
+              render={({ field }) => (
+                <FormItem className="lg:col-span-2">
+                  <FormLabel>Nombre de la Empresa</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nombre de la empresa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="puestoEmpresa"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Puesto</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Puesto que desempeña" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="domicilioEmpresa"
+              render={({ field }) => (
+                <FormItem className="lg:col-span-2">
+                  <FormLabel>Domicilio de la Empresa</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Dirección de la empresa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="quienCubreGastos"
+              render={({ field }) => (
+                <FormItem className="lg:col-span-2">
+                  <FormLabel>¿Quién cubrirá tus gastos?</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Padres, Yo mismo, Beca" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

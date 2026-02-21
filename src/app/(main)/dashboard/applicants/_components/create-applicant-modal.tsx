@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { createApplicant } from "@/services/applicants-service";
 import { PayloadCreateApplicant } from "@/types/applicant";
 import { Campus } from "@/types/campus";
-import { ApplicantStatus, CivilStatus, ContactMethod, Genres, Schedule } from "@/types/catalog";
+import { AcademicPeriod, ApplicantStatus, CivilStatus, ContactMethod, Genres, Modalidad, Schedule } from "@/types/catalog";
 import { State } from "@/types/location";
 import { StudyPlan } from "@/types/study-plan";
 
@@ -27,6 +27,8 @@ interface CreateApplicantModalProps {
   schedules: Schedule[];
   applicantStatus: ApplicantStatus[];
   states: State[];
+  modalidades: Modalidad[];
+  academicPeriods: AcademicPeriod[];
   onOpenChange: (open: boolean) => void;
   onApplicantCreated?: () => void;
 }
@@ -42,6 +44,8 @@ export function CreateApplicantModal({
   schedules,
   applicantStatus,
   states,
+  modalidades,
+  academicPeriods,
   onApplicantCreated,
 }: CreateApplicantModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +76,9 @@ export function CreateApplicantModal({
       horarioId: 0,
       stateId: "",
       municipalityId: "",
+      nombreContactoEmergencia: "",
+      telefonoContactoEmergencia: "",
+      parentescoContactoEmergencia: "",
     },
   });
 
@@ -124,13 +131,13 @@ export function CreateApplicantModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto"
+        className="max-h-[95vh] w-full !max-w-[80vw] overflow-y-auto p-6"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {
           if (isSubmitting) e.preventDefault();
         }}
       >
-        <DialogHeader>
+        <DialogHeader className="pb-2">
           <DialogTitle className="text-xl font-bold text-blue-900">
             Crear Nuevo Aspirante
           </DialogTitle>
@@ -149,6 +156,8 @@ export function CreateApplicantModal({
           schedules={schedules}
           applicantStatus={applicantStatus}
           states={states}
+          modalidades={modalidades}
+          academicPeriods={academicPeriods}
           onSubmit={onSubmit}
           onCancel={handleCancel}
         />

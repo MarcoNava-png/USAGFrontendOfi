@@ -38,3 +38,20 @@ export interface PayloadUpdateStudyPlan extends PayloadCreateStudyPlan {
 }
 
 export type StudyPlansResponse = PaginatedResponse<StudyPlan>;
+
+export interface PlanDocumentoRequisito {
+  idDocumentoRequisito: number;
+  clave: string;
+  descripcion: string;
+  esObligatorio: boolean;
+  orden: number;
+}
+
+export interface DocumentoRequisitoDisponible {
+  idDocumentoRequisito: number;
+  clave: string;
+  descripcion: string;
+  esObligatorio: boolean;
+  orden: number;
+  activo: boolean;
+}

@@ -161,7 +161,7 @@ function getBasicPermissionsForRole(role: string): UserPermissions {
     [SYSTEM_ROLES.ADMIN]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion'],
     [SYSTEM_ROLES.DIRECTOR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas'],
     [SYSTEM_ROLES.COORDINADOR]: ['Dashboard', 'Estudiantes', 'Catalogos', 'Academico'],
-    [SYSTEM_ROLES.CONTROL_ESCOLAR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Finanzas'],
+    [SYSTEM_ROLES.CONTROL_ESCOLAR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Finanzas', 'Catalogos', 'Academico'],
     [SYSTEM_ROLES.FINANZAS]: ['Dashboard', 'Finanzas', 'Estudiantes', 'Admisiones'],
     [SYSTEM_ROLES.ADMISIONES]: ['Dashboard', 'Admisiones', 'Finanzas'],
     [SYSTEM_ROLES.ACADEMICO]: ['Dashboard', 'Academico', 'Estudiantes', 'Catalogos', 'Admisiones'],

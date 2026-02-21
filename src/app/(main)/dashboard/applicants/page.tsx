@@ -11,27 +11,42 @@ import {
   Updater,
   PaginationState,
 } from "@tanstack/react-table";
-import { Users } from "lucide-react";
+import { Users, Trash2, DollarSign } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { withDndColumn } from "@/components/data-table/table-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getApplicantsList } from "@/services/applicants-service";
+import { usePermissions } from "@/hooks/use-permissions";
+import { getApplicantsList, hideApplicant } from "@/services/applicants-service";
 import { getCampusList } from "@/services/campus-service";
 import {
+  getAcademicPeriods,
   getApplicantStatus,
   getCivilStatus,
   getContactMethods,
   getGenresList,
+  getModalidades,
   getSchedules,
 } from "@/services/catalogs-service";
 import { getStates } from "@/services/location-service";
 import { getStudyPlansList } from "@/services/study-plans-service";
 import { Applicant, ApplicantsResponse } from "@/types/applicant";
 import { Campus } from "@/types/campus";
-import { ApplicantStatus, CivilStatus, ContactMethod, Genres, Schedule } from "@/types/catalog";
+import { AcademicPeriod, ApplicantStatus, CivilStatus, ContactMethod, Genres, Modalidad, Schedule } from "@/types/catalog";
 import { State } from "@/types/location";
 import { StudyPlan } from "@/types/study-plan";
 
@@ -109,6 +124,13 @@ function Page() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [applicantStatus, setApplicantStatus] = useState<ApplicantStatus[]>([]);
   const [states, setStates] = useState<State[]>([]);
+  const [modalidades, setModalidades] = useState<Modalidad[]>([]);
+  const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
+  const [hideDialogOpen, setHideDialogOpen] = useState(false);
+  const [applicantToHide, setApplicantToHide] = useState<Applicant | null>(null);
+  const [hiding, setHiding] = useState(false);
+  const { isAdmin, primaryRole } = usePermissions();
+  const canHideApplicants = isAdmin || primaryRole === "DIRECTOR";
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -133,6 +155,23 @@ function Page() {
       .finally(() => setLoading(false));
   };
 
+  const handleHideApplicant = async () => {
+    if (!applicantToHide) return;
+    setHiding(true);
+    try {
+      await hideApplicant(applicantToHide.idAspirante);
+      toast.success(`Aspirante "${applicantToHide.nombreCompleto}" ocultado exitosamente`);
+      setHideDialogOpen(false);
+      setApplicantToHide(null);
+      loadApplicants();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { Error?: string } }; message?: string };
+      toast.error(err?.response?.data?.Error ?? err?.message ?? "Error al ocultar aspirante");
+    } finally {
+      setHiding(false);
+    }
+  };
+
   useEffect(() => {
     const handler: NodeJS.Timeout = setTimeout(() => {
       loadApplicants();
@@ -144,7 +183,7 @@ function Page() {
     const loadCatalogs = async () => {
       setLoading(true);
       try {
-        const [genresData, civilStatusData, campusData, studyPlansData, contactMethodsData, schedulesData, applicantStatusData, statesData] = await Promise.all([
+        const [genresData, civilStatusData, campusData, studyPlansData, contactMethodsData, schedulesData, applicantStatusData, statesData, modalidadesData, academicPeriodsData] = await Promise.all([
           getGenresList(),
           getCivilStatus(),
           getCampusList(),
@@ -153,6 +192,8 @@ function Page() {
           getSchedules(),
           getApplicantStatus(),
           getStates(),
+          getModalidades(),
+          getAcademicPeriods(),
         ]);
 
         setGenres(genresData);
@@ -163,6 +204,8 @@ function Page() {
         setSchedules(schedulesData);
         setApplicantStatus(applicantStatusData);
         setStates(statesData);
+        setModalidades(modalidadesData);
+        setAcademicPeriods(academicPeriodsData);
       } catch (error) {
         console.error("Error loading catalogs:", error);
       } finally {
@@ -218,6 +261,14 @@ function Page() {
             placeholder="Filtrar por nombre o email"
             className="min-w-[220px] rounded-lg border px-3 py-2 text-sm focus-visible:ring-[#14356F]"
           />
+          {canHideApplicants && (
+            <Button variant="outline" asChild className="gap-1">
+              <Link href="/dashboard/applicants/commissions">
+                <DollarSign className="h-4 w-4" />
+                Comisiones
+              </Link>
+            </Button>
+          )}
           <Button
             onClick={() => setOpen(true)}
             className="text-white"
@@ -242,7 +293,7 @@ function Page() {
         </Card>
         <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
           <CardHeader className="pb-2">
-            <CardDescription className="text-green-600 dark:text-green-400">Inscriptos</CardDescription>
+            <CardDescription className="text-green-600 dark:text-green-400">Inscritos</CardDescription>
             <CardTitle className="text-4xl text-green-700 dark:text-green-300">
               {data.filter(a => a.aspiranteEstatus === "Inscrito").length}
             </CardTitle>
@@ -276,6 +327,8 @@ function Page() {
         schedules={schedules}
         applicantStatus={applicantStatus}
         states={states}
+        modalidades={modalidades}
+        academicPeriods={academicPeriods}
         onOpenChange={setOpen}
         onApplicantCreated={() => {
           loadApplicants();
@@ -406,6 +459,21 @@ function Page() {
                     >
                       Inscribir
                     </Button>
+
+                    {canHideApplicants && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setApplicantToHide(applicant);
+                          setHideDialogOpen(true);
+                        }}
+                        title="Ocultar aspirante"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -467,6 +535,28 @@ function Page() {
           loadApplicants();
         }}
       />
+
+      <AlertDialog open={hideDialogOpen} onOpenChange={setHideDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ocultar aspirante</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro que desea ocultar al aspirante <strong>{applicantToHide?.nombreCompleto}</strong>?
+              El aspirante no se eliminará del sistema, solo dejará de aparecer en el listado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={hiding}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleHideApplicant}
+              disabled={hiding}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {hiding ? "Ocultando..." : "Ocultar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DataTablePagination table={table} />
       {loading && <div className="text-center">Cargando...</div>}

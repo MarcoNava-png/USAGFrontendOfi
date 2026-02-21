@@ -14,7 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import { createAndDownloadExcel, readExcelAsArrays } from "@/lib/excel";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -102,11 +102,7 @@ export function ImportStudyPlansModal({
     setLoading(true);
 
     try {
-      const data = await selectedFile.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
+      const jsonData = await readExcelAsArrays(selectedFile);
 
       if (jsonData.length < 2) {
         toast.error("El archivo no contiene datos");
@@ -204,7 +200,7 @@ export function ImportStudyPlansModal({
     onOpenChange(false);
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const template = [
       [
         "ClavePlanEstudios",
@@ -238,10 +234,10 @@ export function ImportStudyPlansModal({
       ],
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Planes");
-    XLSX.writeFile(wb, "plantilla_importacion_planes_estudio.xlsx");
+    await createAndDownloadExcel(
+      [{ name: "Planes", data: template }],
+      "plantilla_importacion_planes_estudio.xlsx",
+    );
   };
 
   return (

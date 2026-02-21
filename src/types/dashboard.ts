@@ -327,5 +327,6 @@ export type RoleDashboard =
   | "controlescolar"
   | "admisiones"
   | "coordinador"
+  | "academico"
   | "docente"
   | "alumno";

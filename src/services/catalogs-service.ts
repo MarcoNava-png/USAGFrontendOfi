@@ -6,6 +6,8 @@ import {
   EducationLevel,
   Genres,
   Grupo,
+  Modalidad,
+  ModalidadPlan,
   PaymentMethod,
   Periodicity,
   Schedule,
@@ -110,4 +112,14 @@ export async function getGrupos(idPeriodoAcademico?: number): Promise<Grupo[]> {
   }
   const res = await apiClient.get<{ items: Grupo[] }>(`/grupos?${params.toString()}`);
   return res.data.items;
+}
+
+export async function getModalidades(): Promise<Modalidad[]> {
+  const res = await apiClient.get<Modalidad[]>(`${baseUrlCatalogs}/modalidades`);
+  return res.data;
+}
+
+export async function getModalidadesPlan(): Promise<ModalidadPlan[]> {
+  const res = await apiClient.get<ModalidadPlan[]>(`${baseUrlCatalogs}/modalidades-plan`);
+  return res.data;
 }

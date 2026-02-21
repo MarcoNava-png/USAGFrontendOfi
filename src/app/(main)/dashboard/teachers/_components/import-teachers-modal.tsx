@@ -14,7 +14,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import {
+  createAndDownloadExcel,
+  excelDateToString,
+  readExcelAsArrays,
+} from "@/lib/excel";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -150,11 +154,7 @@ export function ImportTeachersModal({
     setLoading(true);
 
     try {
-      const data = await selectedFile.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
+      const jsonData = await readExcelAsArrays(selectedFile);
 
       if (jsonData.length < 2) {
         toast.error("El archivo no contiene datos");
@@ -193,10 +193,7 @@ export function ImportTeachersModal({
 
             // Para fechas, formatear si viene como numero de Excel
             if (mappedKey === "fechaNacimiento" && !isNaN(Number(value)) && Number(value) > 10000) {
-              const date = XLSX.SSF.parse_date_code(Number(value));
-              if (date) {
-                value = `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
-              }
+              value = excelDateToString(Number(value));
             }
 
             (prof as Record<string, string>)[mappedKey] = value;
@@ -269,7 +266,7 @@ export function ImportTeachersModal({
     onOpenChange(false);
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const template = [
       [
         "* Clave",
@@ -318,28 +315,10 @@ export function ImportTeachersModal({
       ],
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(template);
-
-    // Ajustar anchos de columna
-    ws["!cols"] = [
-      { wch: 10 }, // Clave
-      { wch: 15 }, // Paterno
-      { wch: 15 }, // Materno
-      { wch: 20 }, // Nombre
-      { wch: 12 }, // Genero
-      { wch: 15 }, // RFC
-      { wch: 20 }, // CURP
-      { wch: 18 }, // Fecha Nacimiento
-      { wch: 35 }, // Domicilio
-      { wch: 15 }, // Telefono
-      { wch: 25 }, // Email
-      { wch: 18 }, // Estado
-      { wch: 18 }, // Cedula
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Docentes");
-    XLSX.writeFile(wb, "plantilla_importacion_docentes.xlsx");
+    await createAndDownloadExcel(
+      [{ name: "Docentes", data: template, columnWidths: [10, 15, 15, 20, 12, 15, 20, 18, 35, 15, 25, 18, 18] }],
+      "plantilla_importacion_docentes.xlsx",
+    );
   };
 
   return (

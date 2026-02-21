@@ -38,7 +38,7 @@ export function ApplicantLogsModal(props: ApplicantLogsModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] !max-w-[80vw] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar seguimiento para: {applicant?.nombreCompleto}</DialogTitle>
         </DialogHeader>

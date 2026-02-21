@@ -1,4 +1,11 @@
-import { PayloadCreateStudyPlan, PayloadUpdateStudyPlan, StudyPlan, StudyPlansResponse } from "@/types/study-plan";
+import {
+  PayloadCreateStudyPlan,
+  PayloadUpdateStudyPlan,
+  StudyPlan,
+  StudyPlansResponse,
+  PlanDocumentoRequisito,
+  DocumentoRequisitoDisponible,
+} from "@/types/study-plan";
 
 import apiClient from "./api-client";
 
@@ -45,5 +52,23 @@ export async function getStudyPlanById(id: number): Promise<StudyPlan> {
 
 export async function toggleStudyPlanStatus(id: number): Promise<StudyPlan> {
   const { data } = await apiClient.put<StudyPlan>(`/PlanEstudios/${id}/toggle`);
+  return data;
+}
+
+export async function getDocumentosPlan(idPlan: number): Promise<PlanDocumentoRequisito[]> {
+  const { data } = await apiClient.get<PlanDocumentoRequisito[]>(`/PlanEstudios/${idPlan}/documentos`);
+  return data;
+}
+
+export async function actualizarDocumentosPlan(
+  idPlan: number,
+  documentos: { idDocumentoRequisito: number; esObligatorio: boolean }[]
+): Promise<{ message: string }> {
+  const { data } = await apiClient.put<{ message: string }>(`/PlanEstudios/${idPlan}/documentos`, { documentos });
+  return data;
+}
+
+export async function getDocumentosRequisitoDisponibles(): Promise<DocumentoRequisitoDisponible[]> {
+  const { data } = await apiClient.get<DocumentoRequisitoDisponible[]>(`/PlanEstudios/documentos-requisito`);
   return data;
 }

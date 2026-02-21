@@ -116,4 +116,16 @@ export interface Grupo {
   estudiantesInscritos?: number;
 }
 
+export interface Modalidad {
+  idModalidad: number;
+  descModalidad: string;
+  activo: boolean;
+}
+
+export interface ModalidadPlan {
+  idModalidadPlan: number;
+  descModalidadPlan: string;
+  activo: boolean;
+}
+
 export type Turno = Schedule;

@@ -15,7 +15,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
+import { createAndDownloadExcel, readExcelAsArrays } from '@/lib/excel'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -131,11 +131,7 @@ export default function ImportarMateriasPage() {
     setLoading(true)
 
     try {
-      const data = await selectedFile.arrayBuffer()
-      const workbook = XLSX.read(data)
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 })
+      const jsonData = await readExcelAsArrays(selectedFile)
 
       if (jsonData.length < 2) {
         toast.error('El archivo no contiene datos')
@@ -261,7 +257,7 @@ export default function ImportarMateriasPage() {
     }
   }
 
-  const downloadLocalTemplate = () => {
+  const downloadLocalTemplate = async () => {
     const template = [
       ['Clave', 'Nombre', 'PlanEstudios', 'ClaveCampus', 'Cuatrimestre', 'Creditos', 'HorasTeoria', 'HorasPractica', 'EsOptativa', 'Tipo'],
       ['EECI101', 'Fundamentos Básicos De Enfermería', 'Especialidad En Cuidados Intensivos', 'NORTE', '1', '6', '4', '2', 'No', 'Formación Académica'],
@@ -269,10 +265,6 @@ export default function ImportarMateriasPage() {
       ['EECI102', 'Fisiopatología I', 'Especialidad En Cuidados Intensivos', 'NORTE', '1', '6', '4', '2', 'No', 'Formación Académica'],
       ['EECI201', 'Cuidados Intensivos I', 'Especialidad En Cuidados Intensivos', 'NORTE', '2', '8', '4', '4', 'No', 'Formación Académica'],
     ]
-
-    const ws = XLSX.utils.aoa_to_sheet(template)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Materias')
 
     const instrucciones = [
       ['INSTRUCCIONES PARA IMPORTACIÓN DE MATERIAS'],
@@ -296,10 +288,14 @@ export default function ImportarMateriasPage() {
       ['duplica la fila cambiando solo la columna ClaveCampus.'],
       ['La materia se creará una sola vez y se asignará a cada plan.'],
     ]
-    const wsInstruc = XLSX.utils.aoa_to_sheet(instrucciones)
-    XLSX.utils.book_append_sheet(wb, wsInstruc, 'Instrucciones')
 
-    XLSX.writeFile(wb, 'plantilla_importacion_materias.xlsx')
+    await createAndDownloadExcel(
+      [
+        { name: 'Materias', data: template },
+        { name: 'Instrucciones', data: instrucciones },
+      ],
+      'plantilla_importacion_materias.xlsx',
+    )
     toast.success('Plantilla descargada')
   }
 

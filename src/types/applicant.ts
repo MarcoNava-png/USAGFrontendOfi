@@ -47,6 +47,19 @@ export interface PayloadCreateApplicant {
   stateId?: string;
   municipalityId?: string;
   townshipId?: number;
+  nacionalidad?: string;
+  institucionProcedencia?: string;
+  idModalidad?: number;
+  idPeriodoAcademico?: number;
+  recorridoPlantel?: boolean;
+  trabaja?: boolean;
+  nombreEmpresa?: string;
+  domicilioEmpresa?: string;
+  puestoEmpresa?: string;
+  quienCubreGastos?: string;
+  nombreContactoEmergencia?: string;
+  telefonoContactoEmergencia?: string;
+  parentescoContactoEmergencia?: string;
 }
 
 export interface PayloadUpdateApplicant {
@@ -208,6 +221,17 @@ export interface InformacionAcademicaDto {
   turno: string;
   campus: string;
   nivelEducativo: string;
+  institucionProcedencia?: string | null;
+  modalidad?: string | null;
+  recorridoPlantel?: boolean | null;
+}
+
+export interface DatosSocioeconomicosDto {
+  trabaja?: boolean | null;
+  nombreEmpresa?: string | null;
+  domicilioEmpresa?: string | null;
+  puestoEmpresa?: string | null;
+  quienCubreGastos?: string | null;
 }
 
 export interface DocumentoDto {
@@ -285,6 +309,7 @@ export interface FichaAdmisionDto {
   datosPersonales: DatosPersonalesDto;
   datosContacto: DatosContactoDto;
   informacionAcademica: InformacionAcademicaDto;
+  datosSocioeconomicos: DatosSocioeconomicosDto;
   documentos: DocumentoDto[];
   informacionPagos: InformacionPagosDto;
   seguimiento: SeguimientoDto;

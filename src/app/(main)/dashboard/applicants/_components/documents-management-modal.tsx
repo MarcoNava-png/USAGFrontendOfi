@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { FileText, Upload, CheckCircle, XCircle, Clock, Eye } from "lucide-react";
+import { FileText, Upload, CheckCircle, XCircle, Clock, Eye, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   getDocumentRequirements,
   uploadApplicantDocument,
   changeDocumentStatus,
+  resetApplicantDocument,
 } from "@/services/applicants-service";
 import {
   AspiranteDocumentoDto,
@@ -33,6 +34,7 @@ interface DocumentRequirementCardProps {
   document: AspiranteDocumentoDto | undefined;
   onUpload: (idDocumentoRequisito: number) => void;
   onValidate: (idDocumento: number, validar: boolean) => void;
+  onReset: (idDocumento: number) => void;
   uploadingDocId: number | null;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
@@ -65,6 +67,7 @@ interface DocumentActionsProps {
   setNotas: (notas: string) => void;
   onUpload: (id: number) => void;
   onValidate: (idDoc: number, valid: boolean) => void;
+  onReset: (idDoc: number) => void;
 }
 
 function DocumentActions({
@@ -77,13 +80,24 @@ function DocumentActions({
   setNotas,
   onUpload,
   onValidate,
+  onReset,
 }: DocumentActionsProps) {
   const isPending = !doc || doc.estatus === EstatusDocumentoEnum.PENDIENTE;
   const isSubido = doc?.estatus === EstatusDocumentoEnum.SUBIDO;
+  const isRechazado = doc?.estatus === EstatusDocumentoEnum.RECHAZADO;
 
-  if (isPending) {
+  // PENDIENTE o RECHAZADO: mostrar formulario de carga
+  if (isPending || isRechazado) {
     return (
       <div className="space-y-2">
+        {isRechazado && doc?.urlArchivo && (
+          <Button size="sm" variant="outline" asChild className="w-full mb-1">
+            <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
+              <Eye className="mr-1 h-4 w-4" />
+              Ver documento rechazado
+            </a>
+          </Button>
+        )}
         <Input
           type="file"
           onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
@@ -105,45 +119,75 @@ function DocumentActions({
           className="w-full"
         >
           <Upload className="mr-2 h-4 w-4" />
-          {isUploading ? "Subiendo..." : "Subir"}
+          {isUploading ? "Subiendo..." : isRechazado ? "Re-subir documento" : "Subir"}
         </Button>
       </div>
     );
   }
 
+  // SUBIDO: mostrar Ver + Validar + Rechazar + Cancelar
   if (isSubido && doc) {
     return (
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
+        {doc.urlArchivo && (
+          <Button size="sm" variant="outline" asChild className="w-full">
+            <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
+              <Eye className="mr-1 h-4 w-4" />
+              Ver documento
+            </a>
+          </Button>
+        )}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => onValidate(doc.idAspiranteDocumento, true)}
+            size="sm"
+            variant="outline"
+            className="border-green-200 text-green-700 hover:bg-green-50"
+          >
+            <CheckCircle className="mr-1 h-4 w-4" />
+            Validar
+          </Button>
+          <Button
+            onClick={() => onValidate(doc.idAspiranteDocumento, false)}
+            size="sm"
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-50"
+          >
+            <XCircle className="mr-1 h-4 w-4" />
+            Rechazar
+          </Button>
+        </div>
         <Button
-          onClick={() => onValidate(doc.idAspiranteDocumento, true)}
+          onClick={() => onReset(doc.idAspiranteDocumento)}
           size="sm"
           variant="outline"
-          className="border-green-200 text-green-700 hover:bg-green-50"
+          className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
         >
-          <CheckCircle className="mr-1 h-4 w-4" />
-          Validar
-        </Button>
-        <Button
-          onClick={() => onValidate(doc.idAspiranteDocumento, false)}
-          size="sm"
-          variant="outline"
-          className="border-red-200 text-red-700 hover:bg-red-50"
-        >
-          <XCircle className="mr-1 h-4 w-4" />
-          Rechazar
+          <RotateCcw className="mr-1 h-4 w-4" />
+          Cancelar documento
         </Button>
       </div>
     );
   }
 
+  // VALIDADO: mostrar Ver + Cancelar
   if (doc?.urlArchivo) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2">
         <Button size="sm" variant="outline" asChild>
           <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
             <Eye className="mr-1 h-4 w-4" />
-            Ver
+            Ver documento
           </a>
+        </Button>
+        <Button
+          onClick={() => onReset(doc.idAspiranteDocumento)}
+          size="sm"
+          variant="outline"
+          className="border-orange-200 text-orange-700 hover:bg-orange-50"
+        >
+          <RotateCcw className="mr-1 h-4 w-4" />
+          Cancelar documento
         </Button>
       </div>
     );
@@ -157,6 +201,7 @@ function DocumentRequirementCard({
   document: doc,
   onUpload,
   onValidate,
+  onReset,
   uploadingDocId,
   selectedFile,
   setSelectedFile,
@@ -208,6 +253,7 @@ function DocumentRequirementCard({
             setNotas={setNotas}
             onUpload={onUpload}
             onValidate={onValidate}
+            onReset={onReset}
           />
         </div>
       </div>
@@ -287,6 +333,18 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
     }
   };
 
+  const handleReset = async (idDocumento: number) => {
+    if (!confirm("¿Cancelar este documento? Se eliminará el archivo y volverá a estado pendiente.")) return;
+    try {
+      await resetApplicantDocument(idDocumento);
+      toast.success("Documento cancelado, puede volver a subirlo");
+      loadData();
+    } catch (error) {
+      toast.error("Error al cancelar documento");
+      console.error(error);
+    }
+  };
+
   const getDocumentStatus = (reqId: number): AspiranteDocumentoDto | undefined => {
     return documents.find((d) => d.idDocumentoRequisito === reqId);
   };
@@ -321,7 +379,7 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] !max-w-[80vw] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Documentos - {applicant.nombreCompleto}
@@ -339,6 +397,7 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
                 document={getDocumentStatus(req.idDocumentoRequisito)}
                 onUpload={handleUpload}
                 onValidate={handleValidate}
+                onReset={handleReset}
                 uploadingDocId={uploadingDocId}
                 selectedFile={selectedFile}
                 setSelectedFile={setSelectedFile}

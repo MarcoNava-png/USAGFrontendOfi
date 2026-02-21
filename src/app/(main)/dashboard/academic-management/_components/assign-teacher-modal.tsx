@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { assignTeacherToSubject } from "@/services/groups-service";
-import { getTeachersList, validateTeacherSchedule } from "@/services/teacher-service";
+import { getAllTeachers, validateTeacherSchedule } from "@/services/teacher-service";
 import { GrupoMateria } from "@/types/group";
 import { Teacher, TeacherScheduleConflict } from "@/types/teacher";
 
@@ -41,8 +41,6 @@ export function AssignTeacherModal({ open, onClose, grupoMateria, onSuccess }: A
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [conflict, setConflict] = useState<TeacherScheduleConflict | null>(null);
-
-  const campusId = 1;
 
   useEffect(() => {
     if (open) {
@@ -66,7 +64,7 @@ export function AssignTeacherModal({ open, onClose, grupoMateria, onSuccess }: A
 
   const loadTeachers = async () => {
     try {
-      const response = await getTeachersList(campusId, 1, 1000);
+      const response = await getAllTeachers(1, 2000);
       setTeachers(response.items || []);
     } catch (error) {
       console.error("Error al cargar profesores:", error);

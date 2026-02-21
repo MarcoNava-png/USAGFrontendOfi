@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 
 import {
   Users,
@@ -72,12 +72,16 @@ import microsoftGraphService, {
   UserInfoDto,
   CreateUserRequest,
 } from "@/services/microsoft-graph-service"
+import { getAllUsers } from "@/services/users-service"
+import type { User as SaciUser } from "@/types/user"
 
 export default function AzureUsersPage() {
   const [users, setUsers] = useState<UserInfoDto[]>([])
+  const [saciUsers, setSaciUsers] = useState<SaciUser[]>([])
   const [domains, setDomains] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<"todos" | "docente" | "administrativo" | "estudiante">("todos")
   const [error, setError] = useState<string | null>(null)
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -102,25 +106,91 @@ export default function AzureUsersPage() {
     forceChangePasswordNextSignIn: true,
   })
   const [selectedDomain, setSelectedDomain] = useState("")
+  const [selectedRole, setSelectedRole] = useState("docente")
+  const [sendCredentialsEmail, setSendCredentialsEmail] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [createdResult, setCreatedResult] = useState<{
+    email: string
+    password: string
+    appCreated: boolean
+    appError?: string
+    emailSent: boolean
+  } | null>(null)
+
+  const availableRoles = [
+    { value: "admin", label: "Administrador" },
+    { value: "director", label: "Director" },
+    { value: "coordinador", label: "Coordinador" },
+    { value: "controlescolar", label: "Control Escolar" },
+    { value: "finanzas", label: "Finanzas" },
+    { value: "admisiones", label: "Admisiones" },
+    { value: "academico", label: "Academico" },
+    { value: "docente", label: "Docente" },
+    { value: "alumno", label: "Alumno" },
+  ]
+
+  const normalizeText = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "")
+
+  const DEFAULT_DOMAIN = "usaguanajuato.edu.mx"
+
+  const existingEmails = useMemo(
+    () => users.map(u => (u.email || u.userPrincipalName || "").toLowerCase()),
+    [users]
+  )
+
+  const generatedMailNickname = useMemo(() => {
+    const gn = (formData.givenName || "").trim()
+    const sn = (formData.surname || "").trim()
+    if (!gn || !sn) return ""
+
+    const primerNombre = normalizeText(gn.split(/\s+/)[0])
+    const partsApellido = sn.split(/\s+/)
+    const primerApellido = normalizeText(partsApellido[0])
+    const segundoApellido = partsApellido[1] ? normalizeText(partsApellido[1]) : ""
+
+    const nickCorto = `${primerNombre}.${primerApellido}`
+    const emailCorto = `${nickCorto}@${selectedDomain || DEFAULT_DOMAIN}`
+
+    if (!existingEmails.includes(emailCorto.toLowerCase())) {
+      return nickCorto
+    }
+
+    if (segundoApellido) {
+      return `${primerNombre}.${primerApellido}${segundoApellido}`
+    }
+
+    return nickCorto
+  }, [formData.givenName, formData.surname, existingEmails, selectedDomain])
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [usersData, domainsData] = await Promise.all([
+      const [usersData, domainsData, saciData] = await Promise.all([
         microsoftGraphService.getUsers(200),
-        microsoftGraphService.getDomains(),
+        microsoftGraphService.getDomains().catch(() => [] as string[]),
+        getAllUsers().catch(() => [] as SaciUser[]),
       ])
       setUsers(usersData)
-      setDomains(domainsData)
-      if (domainsData.length > 0 && !selectedDomain) {
-        setSelectedDomain(domainsData[0])
+      const finalDomains = domainsData.length > 0 ? domainsData : [DEFAULT_DOMAIN]
+      setDomains(finalDomains)
+      setSaciUsers(saciData)
+      if (!selectedDomain) {
+        setSelectedDomain(finalDomains[0])
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error al cargar datos"
       setError(message)
       toast.error("Error al cargar usuarios de Azure AD")
+      if (!selectedDomain) {
+        setDomains([DEFAULT_DOMAIN])
+        setSelectedDomain(DEFAULT_DOMAIN)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -130,12 +200,41 @@ export default function AzureUsersPage() {
     loadData()
   }, [loadData])
 
-  const filteredUsers = users.filter(
-    (user) =>
+  const saciByEmail = useMemo(
+    () => new Map(saciUsers.map((u) => [u.email.toLowerCase(), u])),
+    [saciUsers]
+  )
+
+  const adminRoles = ["admin", "superadmin", "director", "coordinador", "controlescolar", "finanzas", "admisiones", "academico"]
+
+  const getUserCategory = useCallback((user: UserInfoDto): "docente" | "administrativo" | "estudiante" | "sin clasificar" => {
+    const email = (user.email || user.userPrincipalName || "").toLowerCase()
+    const saciUser = saciByEmail.get(email)
+
+    if (saciUser?.roles?.length) {
+      const roles = saciUser.roles.map((r) => r.toLowerCase())
+      if (roles.includes("alumno")) return "estudiante"
+      if (roles.includes("docente")) return "docente"
+      if (roles.some((r) => adminRoles.includes(r))) return "administrativo"
+    }
+
+    const localPart = email.split("@")[0] || ""
+    if (/^[bl]/i.test(localPart)) return "estudiante"
+
+    return "sin clasificar"
+  }, [saciByEmail])
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
       user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.userPrincipalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+
+    if (!matchesSearch) return false
+    if (categoryFilter === "todos") return true
+
+    return getUserCategory(user) === categoryFilter
+  })
 
   const resetForm = () => {
     setFormData({
@@ -151,6 +250,8 @@ export default function AzureUsersPage() {
       mobilePhone: "",
       forceChangePasswordNextSignIn: true,
     })
+    setSelectedRole("docente")
+    setSendCredentialsEmail(true)
   }
 
   const generatePassword = () => {
@@ -163,21 +264,44 @@ export default function AzureUsersPage() {
   }
 
   const handleCreateUser = async () => {
-    if (!formData.displayName || !formData.mailNickname || !formData.password) {
-      toast.error("Por favor complete los campos requeridos")
+    if (!formData.givenName || !formData.surname || !formData.password) {
+      toast.error("Por favor complete nombre, apellido y contrasena")
+      return
+    }
+
+    if (!generatedMailNickname || !selectedDomain) {
+      toast.error("No se pudo generar el correo. Verifique nombre y apellido")
       return
     }
 
     setIsSubmitting(true)
     try {
-      const userPrincipalName = `${formData.mailNickname}@${selectedDomain}`
+      const mailNickname = generatedMailNickname
+      const userPrincipalName = `${mailNickname}@${selectedDomain}`
+      const displayName = `${formData.givenName.trim()} ${formData.surname.trim()}`
+
       const result = await microsoftGraphService.createUser({
-        ...formData,
+        displayName,
+        givenName: formData.givenName.trim(),
+        surname: formData.surname.trim(),
         userPrincipalName,
+        mailNickname,
+        password: formData.password,
+        forceChangePasswordNextSignIn: true,
+        createInApp: true,
+        roles: [selectedRole],
+        sendCredentialsEmail,
       })
 
       if (result.success) {
-        toast.success("Usuario creado exitosamente")
+        const email = result.userPrincipalName || userPrincipalName
+        setCreatedResult({
+          email,
+          password: formData.password,
+          appCreated: result.appUserCreated ?? false,
+          appError: !result.appUserCreated ? result.message : undefined,
+          emailSent: result.credentialsEmailSent ?? false,
+        })
         setCreateDialogOpen(false)
         resetForm()
         loadData()
@@ -316,10 +440,10 @@ export default function AzureUsersPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+            <CardTitle className="text-sm font-medium">Total</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -328,34 +452,49 @@ export default function AzureUsersPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setCategoryFilter(categoryFilter === "docente" ? "todos" : "docente")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usuarios Activos</CardTitle>
-            <Check className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Docentes</CardTitle>
+            <Briefcase className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {isLoading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
-                users.filter((u) => u.accountEnabled).length
+                users.filter((u) => getUserCategory(u) === "docente").length
               )}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:border-green-400 transition-colors" onClick={() => setCategoryFilter(categoryFilter === "administrativo" ? "todos" : "administrativo")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dominios</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Administrativos</CardTitle>
+            <Building className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? <Skeleton className="h-8 w-16" /> : domains.length}
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                users.filter((u) => getUserCategory(u) === "administrativo").length
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {domains.slice(0, 2).join(", ")}
-              {domains.length > 2 && `...`}
-            </p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-orange-400 transition-colors" onClick={() => setCategoryFilter(categoryFilter === "estudiante" ? "todos" : "estudiante")}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Estudiantes</CardTitle>
+            <Users className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                users.filter((u) => getUserCategory(u) === "estudiante").length
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -363,21 +502,45 @@ export default function AzureUsersPage() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle>Lista de Usuarios</CardTitle>
-              <CardDescription>
-                Usuarios registrados en Azure Active Directory
-              </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Lista de Usuarios</CardTitle>
+                <CardDescription>
+                  Usuarios registrados en Azure Active Directory
+                  {categoryFilter !== "todos" && (
+                    <span className="ml-2 font-medium">
+                      — Filtro: {categoryFilter}
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+              <div className="relative w-full md:w-72">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
             </div>
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar usuario..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+            <div className="flex gap-2 flex-wrap">
+              {(["todos", "docente", "administrativo", "estudiante"] as const).map((cat) => (
+                <Button
+                  key={cat}
+                  variant={categoryFilter === cat ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCategoryFilter(cat)}
+                >
+                  {cat === "todos" ? "Todos" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  {cat !== "todos" && !isLoading && (
+                    <span className="ml-1 text-xs opacity-70">
+                      ({users.filter((u) => getUserCategory(u) === cat).length})
+                    </span>
+                  )}
+                </Button>
+              ))}
             </div>
           </div>
         </CardHeader>
@@ -399,8 +562,7 @@ export default function AzureUsersPage() {
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Correo</TableHead>
-                    <TableHead>Departamento</TableHead>
-                    <TableHead>Cargo</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -425,14 +587,26 @@ export default function AzureUsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {user.department || (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {user.jobTitle || (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        {(() => {
+                          const cat = getUserCategory(user)
+                          const styles = {
+                            docente: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+                            administrativo: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+                            estudiante: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+                            "sin clasificar": "",
+                          }
+                          const labels = {
+                            docente: "Docente",
+                            administrativo: "Administrativo",
+                            estudiante: "Estudiante",
+                            "sin clasificar": "Sin clasificar",
+                          }
+                          return (
+                            <Badge variant={cat === "sin clasificar" ? "secondary" : "outline"} className={styles[cat]}>
+                              {labels[cat]}
+                            </Badge>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -484,19 +658,20 @@ export default function AzureUsersPage() {
 
       {/* Create User Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Usuario</DialogTitle>
             <DialogDescription>
-              Crea un nuevo usuario en Azure AD con correo corporativo Office 365
+              Crea un usuario con correo institucional y acceso al sistema
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="givenName">Nombre</Label>
+                <Label htmlFor="givenName">
+                  Nombre <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="givenName"
                   value={formData.givenName}
@@ -507,7 +682,9 @@ export default function AzureUsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="surname">Apellido</Label>
+                <Label htmlFor="surname">
+                  Apellido <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="surname"
                   value={formData.surname}
@@ -520,41 +697,26 @@ export default function AzureUsersPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="displayName">
-                Nombre para mostrar <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="displayName"
-                value={formData.displayName}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, displayName: e.target.value }))
-                }
-                placeholder="Juan Perez"
-              />
+              <Label>Correo institucional</Label>
+              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Mail className="h-4 w-4 text-blue-500" />
+                {generatedMailNickname && selectedDomain ? (
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                    {generatedMailNickname}@{selectedDomain}
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">
+                    Escribe nombre y apellido para generar el correo
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Email */}
-            <div className="space-y-2">
-              <Label>
-                Correo Corporativo <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.mailNickname}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      mailNickname: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""),
-                    }))
-                  }
-                  placeholder="juan.perez"
-                  className="flex-1"
-                />
-                <span className="flex items-center px-3 bg-muted rounded-md text-sm">
-                  @
-                </span>
+            {domains.length > 1 && (
+              <div className="space-y-2">
+                <Label>Dominio</Label>
                 <Select value={selectedDomain} onValueChange={setSelectedDomain}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger>
                     <SelectValue placeholder="Dominio" />
                   </SelectTrigger>
                   <SelectContent>
@@ -566,12 +728,7 @@ export default function AzureUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {formData.mailNickname && selectedDomain && (
-                <p className="text-sm text-muted-foreground">
-                  Correo: {formData.mailNickname}@{selectedDomain}
-                </p>
-              )}
-            </div>
+            )}
 
             {/* Password */}
             <div className="space-y-2">
@@ -586,109 +743,43 @@ export default function AzureUsersPage() {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, password: e.target.value }))
                   }
-                  placeholder="Minimo 8 caracteres"
+                  placeholder="Minimo 12 caracteres"
                   className="flex-1"
                 />
                 <Button type="button" variant="outline" onClick={generatePassword}>
                   Generar
                 </Button>
-                {formData.password && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => copyToClipboard(formData.password)}
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
               </div>
             </div>
 
-            {/* Force change password */}
+            {/* Role */}
+            <div className="space-y-2">
+              <Label>Rol en el sistema</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label>Cambiar contrasena en primer inicio</Label>
+                <Label>Enviar credenciales por correo</Label>
                 <p className="text-sm text-muted-foreground">
-                  El usuario debera cambiar la contrasena al iniciar sesion
+                  Envia el correo institucional y contrasena al usuario
                 </p>
               </div>
               <Switch
-                checked={formData.forceChangePasswordNextSignIn}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    forceChangePasswordNextSignIn: checked,
-                  }))
-                }
+                checked={sendCredentialsEmail}
+                onCheckedChange={setSendCredentialsEmail}
               />
-            </div>
-
-            {/* Work Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="jobTitle">
-                  <Briefcase className="h-4 w-4 inline mr-1" />
-                  Cargo
-                </Label>
-                <Input
-                  id="jobTitle"
-                  value={formData.jobTitle}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, jobTitle: e.target.value }))
-                  }
-                  placeholder="Profesor"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">
-                  <Building className="h-4 w-4 inline mr-1" />
-                  Departamento
-                </Label>
-                <Input
-                  id="department"
-                  value={formData.department}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, department: e.target.value }))
-                  }
-                  placeholder="Academico"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="officeLocation">Ubicacion</Label>
-                <Input
-                  id="officeLocation"
-                  value={formData.officeLocation}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      officeLocation: e.target.value,
-                    }))
-                  }
-                  placeholder="Edificio A"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mobilePhone">
-                  <Phone className="h-4 w-4 inline mr-1" />
-                  Telefono
-                </Label>
-                <Input
-                  id="mobilePhone"
-                  value={formData.mobilePhone}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, mobilePhone: e.target.value }))
-                  }
-                  placeholder="+52 123 456 7890"
-                />
-              </div>
             </div>
           </div>
 
@@ -705,6 +796,116 @@ export default function AzureUsersPage() {
             <Button onClick={handleCreateUser} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Crear Usuario
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Created User Result Dialog */}
+      <Dialog open={createdResult !== null} onOpenChange={(open) => !open && setCreatedResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Usuario Creado</DialogTitle>
+            <DialogDescription>
+              Comparta estas credenciales con el usuario de forma segura
+            </DialogDescription>
+          </DialogHeader>
+
+          {createdResult && (
+            <div className="space-y-4">
+              {createdResult.appError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    El correo se creo en Azure, pero hubo un error al crear en el sistema: {createdResult.appError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {createdResult.appCreated && (
+                <Alert>
+                  <Check className="h-4 w-4" />
+                  <AlertDescription>
+                    Usuario creado exitosamente en Azure y en el sistema
+                    {createdResult.emailSent && " — Credenciales enviadas por correo"}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {createdResult.appCreated && !createdResult.emailSent && sendCredentialsEmail && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No se pudo enviar el correo con las credenciales. Compartelas manualmente.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs">Correo institucional</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <code className="flex-1 font-mono">{createdResult.email}</code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(createdResult.email)}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs">Contrasena</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                    <code className="flex-1 font-mono">{createdResult.password}</code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(createdResult.password)}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  El usuario debera cambiar la contrasena en su primer inicio de sesion.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (createdResult) {
+                  copyToClipboard(
+                    `Correo: ${createdResult.email}\nContrasena: ${createdResult.password}`
+                  )
+                }
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar todo
+            </Button>
+            <Button onClick={() => setCreatedResult(null)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>

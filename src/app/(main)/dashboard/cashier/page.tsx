@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 
-import { Ban, Check, ChevronDown, ChevronRight, DollarSign, Edit2, FileText, Printer, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Ban, Check, ChevronDown, ChevronRight, DollarSign, Edit2, FileText, Printer, RotateCcw, Search, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -90,6 +90,8 @@ export default function CashierPage() {
   } | null>(null);
   const [motivoQuitarRecargo, setMotivoQuitarRecargo] = useState<string>("");
 
+  const [estudiantesMultiples, setEstudiantesMultiples] = useState<{ idEstudiante: number; matricula: string; nombreCompleto: string }[]>([]);
+
   const [confirmCancelar, setConfirmCancelar] = useState<{ idRecibo: number; folio: string } | null>(null);
   const [motivoCancelar, setMotivoCancelar] = useState<string>("");
   const [confirmReversar, setConfirmReversar] = useState<{ idRecibo: number; folio: string; estatus: string } | null>(null);
@@ -116,14 +118,16 @@ export default function CashierPage() {
     }
 
     setBuscando(true);
+    setEstudiantesMultiples([]);
     try {
       const data = mostrarTodos
         ? await buscarTodosLosRecibos(criterio.trim())
         : await buscarRecibosParaCobro(criterio.trim());
 
       if (data.multiple && data.estudiantes) {
-        toast.error("Se encontraron múltiples estudiantes. Sé más específico en la búsqueda.");
+        setEstudiantesMultiples(data.estudiantes);
         setResultado(null);
+        toast.info(`Se encontraron ${data.estudiantes.length} estudiante(s). Selecciona uno.`);
       } else if (data.recibos.length === 0) {
         toast.info(mostrarTodos ? "No se encontraron recibos" : "No se encontraron recibos pendientes");
         setResultado(null);
@@ -135,6 +139,32 @@ export default function CashierPage() {
     } catch (error: unknown) {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(message ?? "No se encontró el estudiante o recibo");
+      setResultado(null);
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  async function seleccionarEstudiante(matricula: string) {
+    setEstudiantesMultiples([]);
+    setCriterio(matricula);
+    setBuscando(true);
+    try {
+      const data = mostrarTodos
+        ? await buscarTodosLosRecibos(matricula)
+        : await buscarRecibosParaCobro(matricula);
+
+      if (data.recibos.length === 0) {
+        toast.info(mostrarTodos ? "No se encontraron recibos" : "No se encontraron recibos pendientes");
+        setResultado(null);
+      } else {
+        setResultado(data);
+        setRecibosSeleccionados(new Set());
+        toast.success(`Se encontraron ${data.recibos.length} recibo(s)`);
+      }
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message ?? "No se encontró el estudiante");
       setResultado(null);
     } finally {
       setBuscando(false);
@@ -451,6 +481,7 @@ export default function CashierPage() {
   function limpiarFormulario() {
     setResultado(null);
     setRecibosSeleccionados(new Set());
+    setEstudiantesMultiples([]);
     setCriterio("");
     setMonto("");
     setReferencia("");
@@ -520,6 +551,55 @@ export default function CashierPage() {
           </div>
         </CardContent>
       </Card>
+
+      {estudiantesMultiples.length > 0 && (
+        <Card className="border-2" style={{ borderColor: 'rgba(20, 53, 111, 0.2)' }}>
+          <CardHeader style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.03), rgba(30, 74, 143, 0.05))' }}>
+            <CardTitle className="flex items-center gap-2" style={{ color: '#14356F' }}>
+              <Users className="h-5 w-5" />
+              Se encontraron {estudiantesMultiples.length} estudiantes
+            </CardTitle>
+            <CardDescription>Selecciona al estudiante que deseas consultar</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}>
+                  <TableHead className="text-white font-semibold">Matrícula</TableHead>
+                  <TableHead className="text-white font-semibold">Nombre Completo</TableHead>
+                  <TableHead className="text-white font-semibold text-center">Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {estudiantesMultiples.map((est) => (
+                  <TableRow
+                    key={est.idEstudiante}
+                    className="cursor-pointer hover:bg-blue-50"
+                    onClick={() => seleccionarEstudiante(est.matricula)}
+                  >
+                    <TableCell className="font-mono font-semibold">{est.matricula}</TableCell>
+                    <TableCell>{est.nombreCompleto}</TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        className="text-white"
+                        style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          seleccionarEstudiante(est.matricula);
+                        }}
+                      >
+                        <Search className="w-4 h-4 mr-1" />
+                        Seleccionar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {resultado && resultado.estudiante && (
         <>

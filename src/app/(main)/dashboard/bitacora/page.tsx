@@ -6,6 +6,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Download,
   Loader2,
   ScrollText,
   Search,
@@ -121,6 +122,43 @@ export default function BitacoraPage() {
     setFiltros({ page: 1, pageSize: 20 })
   }
 
+  const [exportando, setExportando] = useState(false)
+
+  const exportarCSV = async () => {
+    setExportando(true)
+    try {
+      const result = await getBitacora({ ...filtros, page: 1, pageSize: 10000 })
+      const rows = result.items.map(item => ({
+        Fecha: formatDate(item.fechaUtc),
+        Usuario: item.nombreUsuario,
+        Modulo: item.modulo,
+        Accion: formatAccion(item.accion),
+        Entidad: item.entidad + (item.entidadId ? ` #${item.entidadId}` : ''),
+        Descripcion: item.descripcion ?? '',
+        IP: item.ipAddress ?? '',
+      }))
+      if (rows.length === 0) return
+      const headers = Object.keys(rows[0])
+      const csv = [
+        headers.join(','),
+        ...rows.map(row => headers.map(h => `"${(row[h as keyof typeof row] ?? '').replace(/"/g, '""')}"`).join(','))
+      ].join('\n')
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Bitacora_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch {
+      // ignore
+    } finally {
+      setExportando(false)
+    }
+  }
+
   const tieneFilros = modulo !== 'todos' || usuario || fechaDesde || fechaHasta || busqueda
 
   const irPagina = (p: number) => {
@@ -230,6 +268,15 @@ export default function BitacoraPage() {
               <CardTitle className="text-base">Registros</CardTitle>
               <CardDescription>{totalItems} registros encontrados</CardDescription>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={totalItems === 0 || exportando}
+              onClick={exportarCSV}
+            >
+              {exportando ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+              Exportar CSV
+            </Button>
           </div>
         </CardHeader>
         <CardContent>

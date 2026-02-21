@@ -1,4 +1,4 @@
-import { superAdminAxios } from './super-admin-auth-service'
+import axiosInstance from './api-client'
 
 export interface EmailAddress {
   name?: string
@@ -56,6 +56,9 @@ export interface CreateUserRequest {
   officeLocation?: string
   mobilePhone?: string
   forceChangePasswordNextSignIn?: boolean
+  createInApp?: boolean
+  roles?: string[]
+  sendCredentialsEmail?: boolean
 }
 
 export interface CreateUserResponse {
@@ -64,6 +67,10 @@ export interface CreateUserResponse {
   userPrincipalName?: string
   email?: string
   message?: string
+  appUserCreated?: boolean
+  appUserId?: string
+  assignedRoles?: string[]
+  credentialsEmailSent?: boolean
 }
 
 export const microsoftGraphService = {
@@ -76,28 +83,28 @@ export const microsoftGraphService = {
     params.append('top', top.toString())
     if (unreadOnly) params.append('unreadOnly', 'true')
 
-    const response = await superAdminAxios.get(
+    const response = await axiosInstance.get(
       `/email/${encodeURIComponent(userEmail)}?${params.toString()}`
     )
     return response.data
   },
 
   getEmailById: async (userEmail: string, messageId: string): Promise<EmailDto> => {
-    const response = await superAdminAxios.get(
+    const response = await axiosInstance.get(
       `/email/${encodeURIComponent(userEmail)}/messages/${messageId}`
     )
     return response.data
   },
 
   sendEmail: async (userEmail: string, request: SendEmailRequest): Promise<void> => {
-    await superAdminAxios.post(
+    await axiosInstance.post(
       `/email/${encodeURIComponent(userEmail)}/send`,
       request
     )
   },
 
   markAsRead: async (userEmail: string, messageId: string): Promise<void> => {
-    await superAdminAxios.post(
+    await axiosInstance.post(
       `/email/${encodeURIComponent(userEmail)}/messages/${messageId}/read`
     )
   },
@@ -111,46 +118,46 @@ export const microsoftGraphService = {
     params.append('query', query)
     params.append('top', top.toString())
 
-    const response = await superAdminAxios.get(
+    const response = await axiosInstance.get(
       `/email/${encodeURIComponent(userEmail)}/search?${params.toString()}`
     )
     return response.data
   },
 
   getUsers: async (top: number = 100): Promise<UserInfoDto[]> => {
-    const response = await superAdminAxios.get(`/email/users?top=${top}`)
+    const response = await axiosInstance.get(`/email/users?top=${top}`)
     return response.data
   },
 
   getUserById: async (userIdOrEmail: string): Promise<UserInfoDto> => {
-    const response = await superAdminAxios.get(
+    const response = await axiosInstance.get(
       `/email/users/${encodeURIComponent(userIdOrEmail)}`
     )
     return response.data
   },
 
   createUser: async (request: CreateUserRequest): Promise<CreateUserResponse> => {
-    const response = await superAdminAxios.post('/email/users', request)
+    const response = await axiosInstance.post('/email/users', request)
     return response.data
   },
 
   updateUser: async (userId: string, request: Partial<CreateUserRequest>): Promise<void> => {
-    await superAdminAxios.put(`/email/users/${userId}`, request)
+    await axiosInstance.put(`/email/users/${userId}`, request)
   },
 
   deleteUser: async (userId: string): Promise<void> => {
-    await superAdminAxios.delete(`/email/users/${userId}`)
+    await axiosInstance.delete(`/email/users/${userId}`)
   },
 
   resetPassword: async (userId: string): Promise<{ password: string }> => {
-    const response = await superAdminAxios.post(
+    const response = await axiosInstance.post(
       `/email/users/${userId}/reset-password`
     )
     return response.data
   },
 
   getDomains: async (): Promise<string[]> => {
-    const response = await superAdminAxios.get('/email/domains')
+    const response = await axiosInstance.get('/email/domains')
     return response.data
   },
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Award, Calendar, Edit, GraduationCap, Layers, Search, Trash2, Upload, Power, Building2 } from "lucide-react";
+import { Award, Calendar, Edit, FileText, GraduationCap, Layers, Search, Trash2, Upload, Power, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
@@ -42,6 +42,7 @@ import { StudyPlan } from "@/types/study-plan";
 import { CreateStudyPlanDialog } from "./_components/create-study-plan-dialog";
 import { EditStudyPlanDialog } from "./_components/edit-study-plan-dialog";
 import { ImportStudyPlansModal } from "./_components/import-study-plans-modal";
+import { PlanDocumentsDialog } from "./_components/plan-documents-dialog";
 
 export default function StudyPlansPage() {
   const [plans, setPlans] = useState<StudyPlan[]>([]);
@@ -62,6 +63,9 @@ export default function StudyPlansPage() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [planToEdit, setPlanToEdit] = useState<StudyPlan | null>(null);
+
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [planForDocuments, setPlanForDocuments] = useState<StudyPlan | null>(null);
 
   useEffect(() => {
     getCampusList()
@@ -104,6 +108,11 @@ export default function StudyPlansPage() {
   const openEditDialog = (plan: StudyPlan) => {
     setPlanToEdit(plan);
     setEditDialogOpen(true);
+  };
+
+  const openDocumentsDialog = (plan: StudyPlan) => {
+    setPlanForDocuments(plan);
+    setDocumentsDialogOpen(true);
   };
 
   const handleDeleteStudyPlan = async () => {
@@ -361,13 +370,14 @@ export default function StudyPlansPage() {
                 <TableHead className="font-semibold text-white text-center">Periodos</TableHead>
                 <TableHead className="font-semibold text-white text-center">RVOE</TableHead>
                 <TableHead className="font-semibold text-white">Estado</TableHead>
+                <TableHead className="font-semibold text-white text-center">Documentos</TableHead>
                 <TableHead className="font-semibold text-white text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedPlans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={8} className="h-32 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <GraduationCap className="h-8 w-8" />
                       <span>No se encontraron planes de estudio</span>
@@ -441,6 +451,17 @@ export default function StudyPlansPage() {
                       >
                         {plan.activo ? "Activo" : "Inactivo"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+                        onClick={() => openDocumentsDialog(plan)}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        Configurar
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
@@ -532,6 +553,12 @@ export default function StudyPlansPage() {
         onOpenChange={setEditDialogOpen}
         plan={planToEdit}
         onSuccess={loadPlans}
+      />
+
+      <PlanDocumentsDialog
+        open={documentsDialogOpen}
+        onOpenChange={setDocumentsDialogOpen}
+        plan={planForDocuments}
       />
     </div>
   );

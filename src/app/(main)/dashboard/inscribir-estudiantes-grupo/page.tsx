@@ -17,7 +17,10 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
+import {
+  createAndDownloadExcel,
+  readExcelAsObjects,
+} from '@/lib/excel'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -174,29 +177,17 @@ export default function InscribirEstudiantesGrupoPage() {
     loadGrupoInfo()
   }, [selectedGrupo, grupos, planes, periodos, selectedPlan, selectedPeriodo])
 
-  const handleDownloadTemplate = () => {
-    const wsData = XLSX.utils.aoa_to_sheet([
+  const handleDownloadTemplate = async () => {
+    const data = [
       PLANTILLA_COLUMNAS,
       ['Juan', 'Pérez', 'López', 'M', 'PELJ900101HDFRPN01', 'juan.perez@email.com', '5551234567', '5559876543', '1990-01-15', ''],
       ['María', 'García', 'Ruiz', 'F', 'GARM850220MDFRRC02', 'maria.garcia@email.com', '', '5558765432', '1985-02-20', ''],
-    ])
-
-    wsData['!cols'] = [
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 12 },
     ]
 
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, wsData, 'Estudiantes')
-    XLSX.writeFile(wb, 'plantilla_importar_estudiantes.xlsx')
+    await createAndDownloadExcel(
+      [{ name: 'Estudiantes', data, columnWidths: [15, 15, 15, 10, 20, 25, 12, 12, 15, 12] }],
+      'plantilla_importar_estudiantes.xlsx',
+    )
     toast.success('Plantilla descargada')
   }
 
@@ -219,11 +210,7 @@ export default function InscribirEstudiantesGrupoPage() {
     setLoading(true)
 
     try {
-      const data = await selectedFile.arrayBuffer()
-      const workbook = XLSX.read(data)
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet)
+      const jsonData = await readExcelAsObjects(selectedFile)
 
       if (jsonData.length === 0) {
         toast.error('El archivo no contiene datos')

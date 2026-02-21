@@ -14,7 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import { createAndDownloadExcel, readExcelAsArrays } from "@/lib/excel";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -108,11 +108,7 @@ export function ImportCampusModal({
     setLoading(true);
 
     try {
-      const data = await selectedFile.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
+      const jsonData = await readExcelAsArrays(selectedFile);
 
       if (jsonData.length < 2) {
         toast.error("El archivo no contiene datos");
@@ -202,17 +198,17 @@ export function ImportCampusModal({
     onOpenChange(false);
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const template = [
       ["ClaveCampus", "Nombre", "Calle", "NumeroExterior", "NumeroInterior", "Telefono", "CodigoPostal", "Colonia"],
       ["USAG-MTY", "Campus Monterrey", "Av. Universidad 123", "456", "A", "8181234567", "64000", "Centro"],
       ["USAG-GDL", "Campus Guadalajara", "Calle Reforma 789", "100", "", "3312345678", "44100", "Zona Centro"],
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Campus");
-    XLSX.writeFile(wb, "plantilla_importacion_campus.xlsx");
+    await createAndDownloadExcel(
+      [{ name: "Campus", data: template }],
+      "plantilla_importacion_campus.xlsx",
+    );
   };
 
   return (

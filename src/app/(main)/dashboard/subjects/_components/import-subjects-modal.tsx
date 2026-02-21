@@ -14,7 +14,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
+import { createAndDownloadExcel, readExcelAsArrays } from '@/lib/excel'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -121,11 +121,7 @@ export function ImportSubjectsModal({
     setLoading(true)
 
     try {
-      const data = await selectedFile.arrayBuffer()
-      const workbook = XLSX.read(data)
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 })
+      const jsonData = await readExcelAsArrays(selectedFile)
 
       if (jsonData.length < 2) {
         toast.error('El archivo no contiene datos')
@@ -226,7 +222,7 @@ export function ImportSubjectsModal({
     onOpenChange(false)
   }
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const template = [
       ['Clave', 'Nombre', 'PlanEstudios', 'ClaveCampus', 'Cuatrimestre', 'Creditos', 'HorasTeoria', 'HorasPractica', 'EsOptativa'],
       ['MAT101', 'Matemáticas I', 'Ingeniería en Software', 'NORTE', '1', '6', '4', '2', 'No'],
@@ -234,10 +230,6 @@ export function ImportSubjectsModal({
       ['FIS101', 'Física I', 'Ingeniería en Software', 'NORTE', '1', '6', '4', '2', 'No'],
       ['MAT201', 'Matemáticas II', 'Ingeniería en Software', 'NORTE', '2', '6', '4', '2', 'No'],
     ]
-
-    const ws = XLSX.utils.aoa_to_sheet(template)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Materias')
 
     const instrucciones = [
       ['INSTRUCCIONES PARA IMPORTACIÓN DE MATERIAS'],
@@ -258,10 +250,14 @@ export function ImportSubjectsModal({
       ['NOTA: Para asignar la misma materia a varios campus,'],
       ['duplica la fila cambiando solo ClaveCampus.'],
     ]
-    const wsInstruc = XLSX.utils.aoa_to_sheet(instrucciones)
-    XLSX.utils.book_append_sheet(wb, wsInstruc, 'Instrucciones')
 
-    XLSX.writeFile(wb, 'plantilla_importacion_materias.xlsx')
+    await createAndDownloadExcel(
+      [
+        { name: 'Materias', data: template },
+        { name: 'Instrucciones', data: instrucciones },
+      ],
+      'plantilla_importacion_materias.xlsx',
+    )
     toast.success('Plantilla descargada')
   }
 

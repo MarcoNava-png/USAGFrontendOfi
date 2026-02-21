@@ -197,7 +197,7 @@ export function GroupSubjectsModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] w-full h-[90vh] flex flex-col">
+        <DialogContent className="!max-w-[95vw] w-full h-[90vh] flex flex-col p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="w-5 h-5" />
@@ -262,134 +262,105 @@ export function GroupSubjectsModal({
             )}
 
             {!loading && subjects.length > 0 && (
-              <div className="space-y-3">
-                {subjects.map((subject) => (
-                  <div
-                    key={subject.idGrupoMateria}
-                    className="border rounded-lg p-4 hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold text-gray-900">
-                            {subject.nombreMateria}
-                          </h4>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 border-b">
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Materia</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Clave</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Profesor</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Horario</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Aula</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-700">Cupo</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-700">Créditos</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-700">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map((subject, index) => (
+                      <tr
+                        key={subject.idGrupoMateria}
+                        className={`border-b last:border-b-0 hover:bg-blue-50/50 transition-colors ${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px]">
+                          <span className="truncate block">{subject.nombreMateria}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap">
                             {subject.claveMateria}
                           </span>
-                          <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                            {subject.creditos} créditos
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          {subject.nombreProfesor && (
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <User className="w-4 h-4" />
-                              <span>{subject.nombreProfesor}</span>
-                            </div>
+                        </td>
+                        <td className="px-4 py-3 max-w-[180px]">
+                          {subject.nombreProfesor ? (
+                            <span className="text-gray-800 truncate block">{subject.nombreProfesor}</span>
+                          ) : (
+                            <span className="text-gray-400 italic">Sin asignar</span>
                           )}
-
-                          {subject.aula && (
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <MapPin className="w-4 h-4" />
-                              <span>{subject.aula}</span>
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600">Cupo:</span>
-                            <span className="font-medium">
-                              {subject.inscritos}/{subject.cupo}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600">Disponibles:</span>
-                            <span
-                              className={`font-medium ${
-                                subject.disponibles === 0
-                                  ? "text-red-600"
-                                  : subject.disponibles < 5
-                                    ? "text-yellow-600"
-                                    : "text-green-600"
-                              }`}
-                            >
-                              {subject.disponibles}
-                            </span>
-                          </div>
-                        </div>
-
-                        {subject.horarioJson && subject.horarioJson.length > 0 ? (
-                          <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Clock className="w-3.5 h-3.5 text-blue-600" />
-                              <span className="text-xs font-semibold text-blue-900">Horarios</span>
-                              <Badge variant="secondary" className="text-xs bg-blue-200 text-blue-800">
-                                {calculateWeeklyHours(subject.horarioJson)} hrs/sem
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-gray-700">
+                        </td>
+                        <td className="px-4 py-3 max-w-[220px]">
+                          {subject.horarioJson && subject.horarioJson.length > 0 ? (
+                            <span className="text-gray-700 text-xs block">
                               {generateScheduleSummary(subject.horarioJson)}
-                            </p>
-                          </div>
-                        ) : subject.horario ? (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Horario (legacy): {subject.horario}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAssignTeacher(subject)}
-                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                          title="Asignar profesor"
-                        >
-                          <User className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditSchedule(subject)}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          title="Editar horarios"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveSubject(subject.idGrupoMateria, subject.nombreMateria)}
-                          disabled={deletingId === subject.idGrupoMateria}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Eliminar materia"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
+                            </span>
+                          ) : (
+                            <span className="text-yellow-600 italic text-xs">Sin horario</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-gray-700">{subject.aula || "—"}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`font-medium ${
                             subject.disponibles === 0
-                              ? "bg-red-500"
+                              ? "text-red-600"
                               : subject.disponibles < 5
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                          }`}
-                          style={{
-                            width: `${subject.cupo > 0 ? (subject.inscritos / subject.cupo) * 100 : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                                ? "text-yellow-600"
+                                : "text-gray-800"
+                          }`}>
+                            {subject.inscritos}/{subject.cupo}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700">
+                          {subject.creditos}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleAssignTeacher(subject)}
+                              className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                              title="Asignar profesor"
+                            >
+                              <User className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditSchedule(subject)}
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Editar horarios"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveSubject(subject.idGrupoMateria, subject.nombreMateria)}
+                              disabled={deletingId === subject.idGrupoMateria}
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Eliminar materia"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             </TabsContent>

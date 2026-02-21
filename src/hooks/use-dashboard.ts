@@ -76,7 +76,7 @@ export function isAdmisionesDashboard(dashboard: DashboardData, rol: RoleDashboa
 }
 
 export function isCoordinadorDashboard(dashboard: DashboardData, rol: RoleDashboard | null): dashboard is import("@/types/dashboard").CoordinadorDashboard {
-  return rol === "coordinador";
+  return rol === "coordinador" || rol === "academico";
 }
 
 export function isDocenteDashboard(dashboard: DashboardData, rol: RoleDashboard | null): dashboard is import("@/types/dashboard").DocenteDashboard {

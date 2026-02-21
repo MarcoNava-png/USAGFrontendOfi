@@ -97,6 +97,10 @@ export async function uploadApplicantDocument(formData: CargarDocumentoFormData)
   return data;
 }
 
+export async function resetApplicantDocument(idDocumento: number): Promise<void> {
+  await apiClient.delete(`/Aspirante/documentos/${idDocumento}`);
+}
+
 export async function getDocumentById(idDocumento: number): Promise<AspiranteDocumentoDto> {
   const { data } = await apiClient.get<AspiranteDocumentoDto>(`/Aspirante/documentos/${idDocumento}`);
   return data;
@@ -119,36 +123,58 @@ export async function getApplicantAdmissionSheet(aspiranteId: number): Promise<F
 }
 
 export async function downloadApplicantEnrollmentSheet(aspiranteId: number, openInNewTab: boolean = false): Promise<void> {
-  const response = await apiClient.get(`/Aspirante/${aspiranteId}/hoja-inscripcion/pdf`, {
-    responseType: "blob",
-  });
+  try {
+    const response = await apiClient.get(`/Aspirante/${aspiranteId}/hoja-inscripcion/pdf`, {
+      responseType: "blob",
+    });
 
-  const blob = new Blob([response.data], { type: "application/pdf" });
-  const url = window.URL.createObjectURL(blob);
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
 
-  if (openInNewTab) {
-    window.open(url, "_blank");
-  } else {
-    const link = document.createElement("a");
-    link.href = url;
+    if (openInNewTab) {
+      // No revocar el blob URL cuando se abre en nueva pestaña,
+      // ya que la pestaña necesita tiempo para cargar el contenido.
+      // El navegador liberara la memoria cuando se cierre la pestaña.
+      window.open(url, "_blank");
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
 
-    const contentDisposition = response.headers["content-disposition"];
-    let fileName = `HojaInscripcion_${aspiranteId}_${new Date().toISOString().split("T")[0]}.pdf`;
+      const contentDisposition = response.headers["content-disposition"];
+      let fileName = `HojaInscripcion_${aspiranteId}_${new Date().toISOString().split("T")[0]}.pdf`;
 
-    if (contentDisposition) {
-      const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (fileNameMatch && fileNameMatch[1]) {
-        fileName = fileNameMatch[1].replace(/['"]/g, "");
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1].replace(/['"]/g, "");
+        }
+      }
+
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: Blob; status?: number }; message?: string };
+
+    // Cuando responseType es "blob", el error del servidor viene como Blob - hay que leerlo
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const parsed = JSON.parse(text);
+        throw new Error(parsed.Error ?? parsed.error ?? parsed.mensaje ?? "Error al generar el PDF de inscripcion");
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message !== "Error al generar el PDF de inscripcion") {
+          throw new Error(`Error del servidor (${err.response?.status ?? "desconocido"}): No se pudo generar el PDF de inscripcion`);
+        }
+        throw parseError;
       }
     }
 
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    throw new Error(err?.message ?? "Error al generar el PDF. Verifique su conexion e intente nuevamente.");
   }
-
-  window.URL.revokeObjectURL(url);
 }
 
 export async function enrollApplicantAsStudent(
@@ -164,6 +190,10 @@ export async function enrollApplicantAsStudent(
 
 export async function cancelApplicant(aspiranteId: number, request: CancelarAspiranteRequest): Promise<void> {
   await apiClient.patch(`/Aspirante/${aspiranteId}/cancelar`, request);
+}
+
+export async function hideApplicant(aspiranteId: number): Promise<void> {
+  await apiClient.patch(`/Aspirante/${aspiranteId}/ocultar`);
 }
 
 export async function generateApplicantReceipt(
@@ -232,6 +262,51 @@ export async function generarRecibosDesdeePlantilla(
     `/Aspirante/${aspiranteId}/generar-recibos-plantilla`,
     { idPlantillaCobro, eliminarPendientesExistentes }
   );
+  return data;
+}
+
+export interface ComisionReporteDto {
+  fechaDesde: string;
+  fechaHasta: string;
+  comisionPorRegistro: number;
+  porcentajePorPago: number;
+  totalComisionesGlobal: number;
+  comisiones: UsuarioComisionDto[];
+}
+
+export interface UsuarioComisionDto {
+  usuarioId: string;
+  nombreUsuario: string;
+  totalRegistros: number;
+  comisionRegistros: number;
+  totalPagosRecibidos: number;
+  comisionPagos: number;
+  totalComision: number;
+  detalle: AspiranteComisionDetalleDto[];
+}
+
+export interface AspiranteComisionDetalleDto {
+  idAspirante: number;
+  nombreCompleto: string;
+  fechaRegistro: string;
+  estatus: string;
+  totalPagado: number;
+  comisionGenerada: number;
+}
+
+export async function getCommissionReport(params: {
+  fechaDesde?: string;
+  fechaHasta?: string;
+  comisionPorRegistro?: number;
+  porcentajePorPago?: number;
+}): Promise<ComisionReporteDto> {
+  const searchParams = new URLSearchParams();
+  if (params.fechaDesde) searchParams.append("fechaDesde", params.fechaDesde);
+  if (params.fechaHasta) searchParams.append("fechaHasta", params.fechaHasta);
+  if (params.comisionPorRegistro !== undefined) searchParams.append("comisionPorRegistro", params.comisionPorRegistro.toString());
+  if (params.porcentajePorPago !== undefined) searchParams.append("porcentajePorPago", params.porcentajePorPago.toString());
+
+  const { data } = await apiClient.get<ComisionReporteDto>(`/Aspirante/comisiones?${searchParams.toString()}`);
   return data;
 }
 

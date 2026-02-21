@@ -335,6 +335,7 @@ export default function UsersPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         onSuccess={loadUsers}
+        existingEmails={users.map(u => u.email.toLowerCase())}
       />
 
       {selectedUser && (

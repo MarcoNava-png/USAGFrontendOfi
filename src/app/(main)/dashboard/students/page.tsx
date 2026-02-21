@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 
-import { BookOpen, Building2, ExternalLink, GraduationCap, Mail, Phone, Search, Users } from "lucide-react";
+import { BookOpen, Building2, ExternalLink, GraduationCap, Loader2, Mail, Phone, Search, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getGrupos, getStudyPlans } from "@/services/catalogs-service";
+import { buscarEstudiantes } from "@/services/estudiante-panel-service";
 import { getEstudiantesDelGrupoDirecto, getStudentsInGroup } from "@/services/groups-service";
 import { Campus } from "@/types/campus";
 import { AcademicPeriod, Grupo, StudyPlan } from "@/types/catalog";
+import { EstudianteListaDto } from "@/types/estudiante-panel";
 
 interface StudentDisplay {
   idEstudiante: number;
@@ -43,6 +45,13 @@ export default function StudentsPage() {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const [selectedGrupoId, setSelectedGrupoId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Búsqueda global
+  const [globalSearchTerm, setGlobalSearchTerm] = useState("");
+  const [globalSearchResults, setGlobalSearchResults] = useState<EstudianteListaDto[]>([]);
+  const [globalSearchTotal, setGlobalSearchTotal] = useState(0);
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [showGlobalResults, setShowGlobalResults] = useState(false);
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -188,6 +197,39 @@ export default function StudentsPage() {
     }
   }, [selectedGrupoId]);
 
+  const handleGlobalSearch = async () => {
+    const term = globalSearchTerm.trim();
+    if (!term) {
+      toast.error("Escribe un nombre, apellido o matrícula para buscar");
+      return;
+    }
+    setGlobalSearchLoading(true);
+    setShowGlobalResults(true);
+    try {
+      const result = await buscarEstudiantes({
+        busqueda: term,
+        pagina: 1,
+        tamanoPagina: 50,
+      });
+      setGlobalSearchResults(result.estudiantes || []);
+      setGlobalSearchTotal(result.totalRegistros || 0);
+    } catch (error) {
+      console.error("Error en búsqueda global:", error);
+      toast.error("Error al buscar estudiantes");
+      setGlobalSearchResults([]);
+      setGlobalSearchTotal(0);
+    } finally {
+      setGlobalSearchLoading(false);
+    }
+  };
+
+  const clearGlobalSearch = () => {
+    setGlobalSearchTerm("");
+    setGlobalSearchResults([]);
+    setGlobalSearchTotal(0);
+    setShowGlobalResults(false);
+  };
+
   useEffect(() => {
     if (selectedPeriodId) {
       loadGrupos();
@@ -240,6 +282,144 @@ export default function StudentsPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Consulta los estudiantes inscritos en cada grupo</p>
         </div>
+      </div>
+
+      {/* Búsqueda rápida global */}
+      <div className="p-4 bg-white rounded-lg border shadow-sm">
+        <Label className="text-sm font-medium !text-gray-900 flex items-center gap-2 mb-3">
+          <Search className="w-4 h-4" style={{ color: "#14356F" }} />
+          Búsqueda rápida de estudiante
+        </Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, apellido o matrícula..."
+              value={globalSearchTerm}
+              onChange={(e) => setGlobalSearchTerm(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleGlobalSearch(); }}
+              className="pl-9 bg-white"
+            />
+          </div>
+          <Button
+            onClick={handleGlobalSearch}
+            disabled={globalSearchLoading}
+            style={{ backgroundColor: "#14356F" }}
+            className="text-white hover:opacity-90"
+          >
+            {globalSearchLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Search className="w-4 h-4 mr-2" />
+            )}
+            Buscar
+          </Button>
+          {showGlobalResults && (
+            <Button
+              onClick={clearGlobalSearch}
+              variant="outline"
+              className="hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Limpiar
+            </Button>
+          )}
+        </div>
+
+        {/* Resultados de búsqueda global */}
+        {showGlobalResults && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-600">
+                {globalSearchLoading ? (
+                  "Buscando..."
+                ) : (
+                  <>
+                    Se encontraron <span className="font-semibold" style={{ color: "#14356F" }}>{globalSearchTotal}</span> resultado{globalSearchTotal !== 1 ? "s" : ""} para &quot;{globalSearchTerm}&quot;
+                  </>
+                )}
+              </p>
+            </div>
+
+            {globalSearchLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#14356F" }} />
+              </div>
+            ) : globalSearchResults.length === 0 ? (
+              <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed">
+                <Users className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 font-medium">No se encontraron estudiantes</p>
+                <p className="text-gray-500 text-sm mt-1">Intenta con otro término de búsqueda</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {globalSearchResults.map((student) => (
+                  <div
+                    key={student.idEstudiante}
+                    className="border rounded-lg p-3 bg-gray-50 hover:shadow-md transition-shadow hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h4 className="font-semibold text-gray-900">{student.nombreCompleto}</h4>
+                          <Badge
+                            variant="outline"
+                            className="font-mono"
+                            style={{
+                              background: "rgba(20, 53, 111, 0.05)",
+                              color: "#14356F",
+                              borderColor: "rgba(20, 53, 111, 0.2)",
+                            }}
+                          >
+                            {student.matricula}
+                          </Badge>
+                          {student.activo ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Activo</Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactivo</Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-1">
+                          {student.email && (
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Mail className="w-3 h-3" /> {student.email}
+                            </span>
+                          )}
+                          {student.telefono && (
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Phone className="w-3 h-3" /> {student.telefono}
+                            </span>
+                          )}
+                          {student.planEstudios && (
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <GraduationCap className="w-3 h-3" /> {student.planEstudios}
+                            </span>
+                          )}
+                          {student.grupo && (
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Users className="w-3 h-3" /> {student.grupo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="hover:bg-[#14356F] hover:text-white transition-colors ml-3"
+                      >
+                        <Link href={`/dashboard/students/${student.idEstudiante}/panel`}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Ver Panel
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-lg border shadow-sm">

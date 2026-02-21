@@ -307,7 +307,7 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] !max-w-[80vw] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Recibos y Pagos - {applicant.nombreCompleto}

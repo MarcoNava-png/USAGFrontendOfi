@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UserPlus, Loader2, ShieldCheck } from "lucide-react";
+import { UserPlus, Loader2, ShieldCheck, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -67,9 +67,40 @@ interface CreateUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  existingEmails?: string[];
 }
 
-export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserModalProps) {
+const DEFAULT_DOMAIN = "usaguanajuato.edu.mx";
+
+const normalizeText = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
+function generateEmail(nombres: string, apellidos: string, existingEmails: string[]): string {
+  if (!nombres.trim() || !apellidos.trim()) return "";
+
+  const primerNombre = normalizeText(nombres.trim().split(/\s+/)[0]);
+  const partsApellido = apellidos.trim().split(/\s+/);
+  const primerApellido = normalizeText(partsApellido[0]);
+  const segundoApellido = partsApellido[1] ? normalizeText(partsApellido[1]) : "";
+
+  const emailCorto = `${primerNombre}.${primerApellido}@${DEFAULT_DOMAIN}`;
+
+  if (!existingEmails.includes(emailCorto.toLowerCase())) {
+    return emailCorto;
+  }
+
+  if (segundoApellido) {
+    return `${primerNombre}.${primerApellido}${segundoApellido}@${DEFAULT_DOMAIN}`;
+  }
+
+  return emailCorto;
+}
+
+export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails = [] }: CreateUserModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -84,6 +115,19 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
       biografia: "",
     },
   });
+
+  const nombres = form.watch("nombres");
+  const apellidos = form.watch("apellidos");
+
+  const suggestedEmail = generateEmail(nombres || "", apellidos || "", existingEmails);
+
+  useEffect(() => {
+    if (!suggestedEmail) return;
+    const currentEmail = form.getValues("email");
+    if (!currentEmail || currentEmail.endsWith(`@${DEFAULT_DOMAIN}`)) {
+      form.setValue("email", suggestedEmail);
+    }
+  }, [suggestedEmail, form]);
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -137,90 +181,6 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge style={{ background: '#14356F' }}>Informacion de Cuenta</Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Correo Electronico <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="usuario@ejemplo.com"
-                          className="focus-visible:ring-[#14356F]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Contrasena <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="********"
-                          className="focus-visible:ring-[#14356F]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>Minimo 7 caracteres</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="rol"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Rol del Usuario <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="focus-visible:ring-[#14356F]">
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {ROLES.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-[#14356F]" />
-                              <span>{role.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Define los permisos del usuario en el sistema
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Badge style={{ background: '#1e4a8f' }}>Informacion Personal</Badge>
@@ -303,6 +263,106 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
                       />
                     </FormControl>
                     <FormDescription>Opcional</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Badge style={{ background: '#14356F' }}>Informacion de Cuenta</Badge>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Correo institucional sugerido</label>
+                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <Mail className="h-4 w-4 text-blue-500 shrink-0" />
+                  {suggestedEmail ? (
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                      {suggestedEmail}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">
+                      Escribe nombre y apellido para generar el correo
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Correo Electronico <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="usuario@ejemplo.com"
+                          className="focus-visible:ring-[#14356F]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Contrasena <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="********"
+                          className="focus-visible:ring-[#14356F]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>Minimo 7 caracteres</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="rol"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Rol del Usuario <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="focus-visible:ring-[#14356F]">
+                          <SelectValue placeholder="Selecciona un rol" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {ROLES.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-[#14356F]" />
+                              <span>{role.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Define los permisos del usuario en el sistema
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
