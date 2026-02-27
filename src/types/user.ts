@@ -18,6 +18,7 @@ export interface CreateUserRequest {
   biografia?: string;
   photoUrl?: string;
   roles: string[];
+  crearCorreoAzure?: boolean;
 }
 
 export interface UpdateUserRequest {

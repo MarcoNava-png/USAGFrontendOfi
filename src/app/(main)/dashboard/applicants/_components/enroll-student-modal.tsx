@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer } from "lucide-react";
+import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer, BookOpen, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
   const [idPeriodoAcademico, setIdPeriodoAcademico] = useState<string>("");
   const [forzarInscripcion, setForzarInscripcion] = useState(false);
   const [observaciones, setObservaciones] = useState("");
+  const [crearCorreoAzure, setCrearCorreoAzure] = useState(true);
 
   const [canEnroll, setCanEnroll] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -96,7 +97,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
       errors.push(`Tiene un saldo pendiente de ${formatCurrency(saldoPendiente)}`);
     }
 
-    const estatusValidos = ["PAGO COMPLETO", "INSCRITO", "PAGADO", "ACEPTADO"];
+    const estatusValidos = ["EN PROCESO", "PAGO COMPLETO", "PAGADO", "ACEPTADO"];
     const estatusActual = ficha.estatusActual.toUpperCase();
     if (!estatusValidos.some((e) => estatusActual.includes(e))) {
       errors.push(`El estatus actual "${ficha.estatusActual}" no es válido para inscripción`);
@@ -110,6 +111,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     setIdPeriodoAcademico("");
     setForzarInscripcion(false);
     setObservaciones("");
+    setCrearCorreoAzure(true);
     setFichaAdmision(null);
     setValidationErrors([]);
     setCanEnroll(false);
@@ -119,6 +121,11 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     e.preventDefault();
 
     if (!applicant) return;
+
+    if (!idPeriodoAcademico) {
+      toast.error("Debe seleccionar un periodo académico para inscribir.");
+      return;
+    }
 
     if (!canEnroll && !forzarInscripcion) {
       toast.error("No se cumplen los requisitos para inscribir. Active 'Forzar inscripción' si desea continuar.");
@@ -131,6 +138,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
         idPeriodoAcademico: idPeriodoAcademico ? parseInt(idPeriodoAcademico) : null,
         forzarInscripcion,
         observaciones: observaciones || null,
+        crearCorreoAzure,
       };
 
       console.log("📤 Inscribiendo aspirante:", request);
@@ -306,14 +314,58 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
             <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
               <h3 className="font-semibold text-sm">Parámetros de Inscripción</h3>
 
+              {fichaAdmision && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white border rounded-md">
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase">Plan de Estudios</p>
+                      <p className="text-xs font-medium">
+                        {fichaAdmision.informacionAcademica.nombrePlan || "No asignado"}
+                      </p>
+                      {fichaAdmision.informacionAcademica.clavePlan && (
+                        <p className="text-[10px] text-gray-400">{fichaAdmision.informacionAcademica.clavePlan}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <GraduationCap className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase">Modalidad</p>
+                      <p className="text-xs font-medium">
+                        {fichaAdmision.informacionAcademica.modalidad || "No especificada"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase">Turno</p>
+                      <p className="text-xs font-medium">
+                        {fichaAdmision.informacionAcademica.turno || "No especificado"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <FileText className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase">Dias</p>
+                      <p className="text-xs font-medium">
+                        {fichaAdmision.informacionAcademica.dias || "No especificados"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="idPeriodoAcademico" className="text-xs">
-                    Periodo Académico (Opcional)
+                    Periodo Académico <span className="text-red-500">*</span>
                   </Label>
                   <Select value={idPeriodoAcademico} onValueChange={setIdPeriodoAcademico}>
                     <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Detectar automáticamente" />
+                      <SelectValue placeholder="Seleccione un periodo académico" />
                     </SelectTrigger>
                     <SelectContent>
                       {academicPeriods.map((period) => (
@@ -323,9 +375,6 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-gray-500">
-                    Si no se especifica, el sistema usará el periodo académico vigente
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -363,12 +412,35 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
               </div>
             </div>
 
+            <div className="border rounded-lg p-4 bg-indigo-50 border-indigo-200 space-y-3">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-indigo-600" />
+                <h3 className="font-semibold text-sm text-indigo-900">Correo Microsoft 365</h3>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="crearCorreoAzure"
+                  checked={crearCorreoAzure}
+                  onCheckedChange={(checked) => setCrearCorreoAzure(checked as boolean)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="crearCorreoAzure" className="text-xs font-semibold cursor-pointer">
+                    Crear correo institucional en Microsoft 365
+                  </Label>
+                  <p className="text-[10px] text-indigo-700">
+                    Se creara automaticamente el correo [matricula]@usaguanajuato.edu.mx en Azure AD con la matricula como contrasena temporal
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
               <h4 className="font-semibold text-sm text-blue-900">¿Qué sucederá al inscribir?</h4>
               <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
                 <li>Se generará una matrícula automáticamente según el programa de estudios</li>
                 <li>Se creará el registro del estudiante en el sistema</li>
                 <li>Se crearán credenciales de acceso (usuario y contraseña temporal)</li>
+                {crearCorreoAzure && <li>Se creara el correo institucional en Microsoft 365 / Azure AD</li>}
                 <li>El estatus del aspirante cambiará a &quot;INSCRITO&quot;</li>
                 <li>Se registrará la acción en la bitácora de seguimiento</li>
               </ul>
@@ -391,7 +463,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submitting || (!canEnroll && !forzarInscripcion)}
+                  disabled={submitting || !idPeriodoAcademico || (!canEnroll && !forzarInscripcion)}
                   className="text-xs"
                 >
                   {submitting ? "Procesando..." : "Inscribir como Estudiante"}

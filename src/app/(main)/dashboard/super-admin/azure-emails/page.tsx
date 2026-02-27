@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+
+import DOMPurify from "dompurify"
 
 import {
   Mail,
@@ -510,7 +512,7 @@ export default function AzureEmailsPage() {
                     {selectedEmail.bodyContentType === "html" ? (
                       <div
                         className="prose prose-sm dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: selectedEmail.body }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedEmail.body) }}
                       />
                     ) : (
                       <pre className="whitespace-pre-wrap font-sans text-sm">

@@ -165,8 +165,8 @@ function getBasicPermissionsForRole(role: string): UserPermissions {
     [SYSTEM_ROLES.FINANZAS]: ['Dashboard', 'Finanzas', 'Estudiantes', 'Admisiones'],
     [SYSTEM_ROLES.ADMISIONES]: ['Dashboard', 'Admisiones', 'Finanzas'],
     [SYSTEM_ROLES.ACADEMICO]: ['Dashboard', 'Academico', 'Estudiantes', 'Catalogos', 'Admisiones'],
-    [SYSTEM_ROLES.DOCENTE]: ['Dashboard', 'Academico'],
-    [SYSTEM_ROLES.ALUMNO]: ['Dashboard'],
+    [SYSTEM_ROLES.DOCENTE]: ['Dashboard', 'Academico', 'PortalDocente'],
+    [SYSTEM_ROLES.ALUMNO]: ['Dashboard', 'PortalAlumno'],
   }
 
   const modules = moduleAccess[role] || ['Dashboard']

@@ -2,6 +2,7 @@ import {
   Applicant,
   ApplicantsResponse,
   AspiranteDocumentoDto,
+  AspiranteEditDto,
   CambiarEstatusDocumentoDto,
   CancelarAspiranteRequest,
   CargarDocumentoFormData,
@@ -38,6 +39,11 @@ export async function getApplicantById(applicantId: number | string): Promise<Ap
   return data;
 }
 
+export async function getApplicantForEdit(applicantId: number): Promise<AspiranteEditDto> {
+  const { data } = await apiClient.get<AspiranteEditDto>(`/Aspirante/${applicantId}/editar`);
+  return data;
+}
+
 export async function createApplicant(payload: PayloadCreateApplicant): Promise<Applicant> {
   const { data } = await apiClient.post<Applicant>(`/Aspirante`, payload);
   return data;
@@ -64,7 +70,7 @@ export async function getApplicantDocuments(aspiranteId: number): Promise<Aspira
 }
 
 export async function getDocumentRequirements(): Promise<DocumentoRequisitoDto[]> {
-  const { data } = await apiClient.get<DocumentoRequisitoDto[]>(`/Aspirante/0/documentos/requisitos`);
+  const { data } = await apiClient.get<DocumentoRequisitoDto[]>(`/Aspirante/documentos/requisitos`);
   return data;
 }
 

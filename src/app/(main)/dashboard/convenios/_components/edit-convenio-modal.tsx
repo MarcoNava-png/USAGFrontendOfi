@@ -311,19 +311,12 @@ export const EditConvenioModal: React.FC<EditConvenioModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="aplicaA">Aplica a</Label>
-                <Select
+                <Input
+                  id="aplicaA"
+                  placeholder="Ej: TODOS, INSCRIPCION, COLEGIATURA, EXAMEN..."
                   value={aplicaA}
-                  onValueChange={(v) => setAplicaA(v as AplicaA)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TODOS">Todos los pagos</SelectItem>
-                    <SelectItem value="INSCRIPCION">Solo Inscripcion</SelectItem>
-                    <SelectItem value="COLEGIATURA">Solo Colegiaturas</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setAplicaA(e.target.value.toUpperCase())}
+                />
               </div>
 
               <div className="space-y-2">

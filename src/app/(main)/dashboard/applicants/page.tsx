@@ -11,7 +11,7 @@ import {
   Updater,
   PaginationState,
 } from "@tanstack/react-table";
-import { Users, Trash2, DollarSign } from "lucide-react";
+import { Users, DollarSign, MoreHorizontal, FileText, CreditCard, ClipboardList, Handshake, EyeOff, Pencil, GraduationCap, Printer } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -29,9 +29,16 @@ import { DataTablePagination } from "@/components/data-table/data-table-paginati
 import { withDndColumn } from "@/components/data-table/table-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getApplicantsList, hideApplicant } from "@/services/applicants-service";
+import { getApplicantsList, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
 import { getCampusList } from "@/services/campus-service";
 import {
   getAcademicPeriods,
@@ -54,6 +61,7 @@ import { ApplicantLogsModal } from "./_components/applicant-logs-modal";
 import { ConveniosAspiranteModal } from "./_components/convenios-aspirante-modal";
 import { CreateApplicantModal } from "./_components/create-applicant-modal";
 import { DocumentsManagementModal } from "./_components/documents-management-modal";
+import { EditApplicantModal } from "./_components/edit-applicant-modal";
 import { EnrollStudentModal } from "./_components/enroll-student-modal";
 import { ReceiptsManagementModal } from "./_components/receipts-management-modal";
 
@@ -126,6 +134,8 @@ function Page() {
   const [states, setStates] = useState<State[]>([]);
   const [modalidades, setModalidades] = useState<Modalidad[]>([]);
   const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [applicantToEdit, setApplicantToEdit] = useState<Applicant | null>(null);
   const [hideDialogOpen, setHideDialogOpen] = useState(false);
   const [applicantToHide, setApplicantToHide] = useState<Applicant | null>(null);
   const [hiding, setHiding] = useState(false);
@@ -335,6 +345,28 @@ function Page() {
         }}
       />
 
+      <EditApplicantModal
+        open={editModalOpen}
+        applicantId={applicantToEdit?.idAspirante ?? null}
+        genres={genres}
+        civilStatus={civilStatus}
+        campus={campus}
+        studyPlans={studyPlans}
+        contactMethods={contactMethods}
+        schedules={schedules}
+        applicantStatus={applicantStatus}
+        states={states}
+        modalidades={modalidades}
+        academicPeriods={academicPeriods}
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) setApplicantToEdit(null);
+        }}
+        onApplicantUpdated={() => {
+          loadApplicants();
+        }}
+      />
+
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -352,7 +384,7 @@ function Page() {
                 <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[85px]">Registro</th>
                 <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[90px]">Pagos</th>
                 <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[95px]">Documentos</th>
-                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[220px]">Acciones</th>
+                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[180px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -393,57 +425,19 @@ function Page() {
                   </span>
                 </td>
                 <td className="px-2 py-2">
-                  <div className="flex items-center justify-center gap-0.5">
+                  <div className="flex items-center justify-center gap-1">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        setApplicantForDocuments(applicant);
-                        setDocumentsModalOpen(true);
+                        setApplicantToEdit(applicant);
+                        setEditModalOpen(true);
                       }}
-                      title="Gestionar documentos"
-                      className="h-6 px-1.5 text-[10px]"
+                      title="Editar aspirante"
+                      className="h-6 px-1.5 text-[10px] gap-1"
                     >
-                      Docs
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setApplicantForReceipts(applicant);
-                        setReceiptsModalOpen(true);
-                      }}
-                      title="Ver recibos y pagos"
-                      className="h-6 px-1.5 text-[10px]"
-                    >
-                      Pagos
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setApplicantForBitacoras(applicant);
-                        setBitacorasModalOpen(true);
-                      }}
-                      title="Ver seguimiento"
-                      className="h-6 px-1.5 text-[10px]"
-                    >
-                      Seg
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setApplicantForConvenios(applicant);
-                        setConveniosModalOpen(true);
-                      }}
-                      title="Gestionar convenios/promociones"
-                      className="h-6 px-1.5 text-[10px]"
-                    >
-                      Conv
+                      <Pencil className="h-3 w-3" />
+                      Editar
                     </Button>
 
                     <Button
@@ -454,26 +448,75 @@ function Page() {
                         setEnrollModalOpen(true);
                       }}
                       title="Inscribir como estudiante"
-                      className="h-6 px-1.5 text-[10px] text-white"
+                      className="h-6 px-1.5 text-[10px] text-white gap-1"
                       style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
                     >
+                      <GraduationCap className="h-3 w-3" />
                       Inscribir
                     </Button>
 
-                    {canHideApplicants && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setApplicantToHide(applicant);
-                          setHideDialogOpen(true);
-                        }}
-                        title="Ocultar aspirante"
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
+                          setApplicantForDocuments(applicant);
+                          setDocumentsModalOpen(true);
+                        }}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Documentos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setApplicantForReceipts(applicant);
+                          setReceiptsModalOpen(true);
+                        }}>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Pagos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setApplicantForBitacoras(applicant);
+                          setBitacorasModalOpen(true);
+                        }}>
+                          <ClipboardList className="mr-2 h-4 w-4" />
+                          Seguimiento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setApplicantForConvenios(applicant);
+                          setConveniosModalOpen(true);
+                        }}>
+                          <Handshake className="mr-2 h-4 w-4" />
+                          Convenios
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={async () => {
+                          try {
+                            await downloadApplicantEnrollmentSheet(applicant.idAspirante, true);
+                          } catch {
+                            toast.error("Error al generar el formato");
+                          }
+                        }}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Formato del Aspirante
+                        </DropdownMenuItem>
+                        {canHideApplicants && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setApplicantToHide(applicant);
+                                setHideDialogOpen(true);
+                              }}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              Ocultar
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </td>
               </tr>

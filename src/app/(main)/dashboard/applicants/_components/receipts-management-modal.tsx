@@ -38,8 +38,14 @@ import {
   generarRecibosDesdeePlantilla,
 } from "@/services/applicants-service";
 import { listarConceptosPago } from "@/services/conceptos-pago-service";
+import {
+  listarTarifasAdmision,
+  generarRecibosAdmision,
+  descargarCotizacionAdmisionPdf,
+} from "@/services/tarifas-admision-service";
 import { Applicant, ReciboDto, EstatusRecibo, PlantillaCobroAspirante } from "@/types/applicant";
 import { ConceptoPago } from "@/types/receipt";
+import { TarifaAdmisionDto } from "@/types/tarifa-admision";
 
 import { PaymentRegistrationModal } from "./payment-registration-modal";
 
@@ -72,6 +78,13 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
   const [loadingPlantilla, setLoadingPlantilla] = useState(false);
   const [generatingFromPlantilla, setGeneratingFromPlantilla] = useState(false);
 
+  // Estados para Tarifa de Admisión
+  const [tarifas, setTarifas] = useState<TarifaAdmisionDto[]>([]);
+  const [selectedTarifa, setSelectedTarifa] = useState<string>("");
+  const [pagoCompleto, setPagoCompleto] = useState(false);
+  const [generatingFromTarifa, setGeneratingFromTarifa] = useState(false);
+  const [downloadingCotizacion, setDownloadingCotizacion] = useState(false);
+
   useEffect(() => {
     if (open && applicant) {
       loadAll();
@@ -83,12 +96,14 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
 
     setLoading(true);
     try {
-      const [recibosData, conceptosData] = await Promise.all([
+      const [recibosData, conceptosData, tarifasData] = await Promise.all([
         getApplicantReceipts(applicant.idAspirante),
         listarConceptosPago({ soloActivos: true }),
+        listarTarifasAdmision(true),
       ]);
       setReceipts(recibosData);
       setConceptos(conceptosData);
+      setTarifas(tarifasData);
     } catch (error) {
       toast.error("Error al cargar datos");
       console.error(error);
@@ -163,6 +178,53 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
       console.error(error);
     } finally {
       setGeneratingFromPlantilla(false);
+    }
+  };
+
+  // Generar recibos desde Tarifa de Admisión
+  const handleGenerateFromTarifa = async () => {
+    if (!applicant || !selectedTarifa) return;
+
+    setGeneratingFromTarifa(true);
+    try {
+      const result = await generarRecibosAdmision(
+        parseInt(selectedTarifa),
+        applicant.idAspirante,
+        pagoCompleto
+      );
+      const total = result.totalRecibos;
+      toast.success(`Se generaron ${total} recibo(s) de admisión`);
+      loadReceipts();
+      onPaymentRegistered?.();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message ?? "Error al generar recibos desde tarifa");
+    } finally {
+      setGeneratingFromTarifa(false);
+    }
+  };
+
+  // Descargar cotización de admisión PDF
+  const handleDescargarCotizacion = async () => {
+    if (!applicant || !selectedTarifa) return;
+    setDownloadingCotizacion(true);
+    try {
+      const blob = await descargarCotizacionAdmisionPdf(
+        parseInt(selectedTarifa),
+        applicant.idAspirante
+      );
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `CotizacionAdmision_${applicant.idAspirante}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Error al descargar la cotización");
+    } finally {
+      setDownloadingCotizacion(false);
     }
   };
 
@@ -362,12 +424,112 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                 Generar Nuevo Recibo
               </h3>
 
-              <Tabs defaultValue="concepto" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+              <Tabs defaultValue="tarifa" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="tarifa">Tarifa del Plan</TabsTrigger>
                   <TabsTrigger value="concepto">Por Concepto</TabsTrigger>
                   <TabsTrigger value="plantilla">Desde Plantilla</TabsTrigger>
                   <TabsTrigger value="manual">Manual</TabsTrigger>
                 </TabsList>
+
+                {/* Tab: Tarifa del Plan */}
+                <TabsContent value="tarifa" className="space-y-4 mt-4">
+                  {tarifas.length === 0 ? (
+                    <Alert className="border-yellow-300 bg-yellow-50">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <AlertDescription className="text-yellow-700">
+                        No hay tarifas de admisión activas configuradas. Crea una en la sección de Tarifas de Admisión.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Tarifa de Admisión</Label>
+                        <Select value={selectedTarifa} onValueChange={setSelectedTarifa}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una tarifa de admisión" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tarifas.map((t) => (
+                              <SelectItem key={t.idTarifaAdmision} value={String(t.idTarifaAdmision)}>
+                                {t.nombre} — {t.clavePlanEstudios}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedTarifa && (() => {
+                        const tarifa = tarifas.find((t) => String(t.idTarifaAdmision) === selectedTarifa);
+                        if (!tarifa) return null;
+                        const totalAdmision = tarifa.detalles.filter((d) => d.esAplicable).reduce((s, d) => s + d.monto, 0);
+                        return (
+                          <div className="rounded-lg border p-4 bg-white space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold text-sm">{tarifa.nombre}</p>
+                                <p className="text-xs text-muted-foreground">{tarifa.nombrePlanEstudios}</p>
+                              </div>
+                              {tarifa.aplicaConvenioMensualidad && (
+                                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Aplica convenio</span>
+                              )}
+                            </div>
+                            <div className="space-y-1 border-t pt-2">
+                              {tarifa.detalles.filter((d) => d.esAplicable).map((d) => (
+                                <div key={d.idTarifaAdmisionDetalle} className="flex justify-between text-xs">
+                                  <span>{d.nombreConcepto}</span>
+                                  <span className="font-medium">{formatCurrency(d.monto)}</span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between text-sm font-semibold pt-1 border-t">
+                                <span>Total admisión</span>
+                                <span>{formatCurrency(totalAdmision)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-medium">Pago Completo (incluir mensualidades)</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Genera también los recibos de mensualidad del primer cuatrimestre
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs ${pagoCompleto ? "text-muted-foreground" : "font-medium"}`}>No</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={pagoCompleto}
+                            onClick={() => setPagoCompleto(!pagoCompleto)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${pagoCompleto ? "bg-primary" : "bg-gray-200"}`}
+                          >
+                            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${pagoCompleto ? "translate-x-6" : "translate-x-1"}`} />
+                          </button>
+                          <span className={`text-xs ${pagoCompleto ? "font-medium" : "text-muted-foreground"}`}>Sí</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={handleDescargarCotizacion}
+                          disabled={!selectedTarifa || downloadingCotizacion}
+                        >
+                          {downloadingCotizacion ? "Descargando..." : "Descargar Cotización PDF"}
+                        </Button>
+                        <Button
+                          onClick={handleGenerateFromTarifa}
+                          disabled={!selectedTarifa || generatingFromTarifa}
+                        >
+                          {generatingFromTarifa ? "Generando..." : "Generar Recibos de Admisión"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
 
                 {/* Tab: Por Concepto */}
                 <TabsContent value="concepto" className="space-y-4 mt-4">

@@ -16,6 +16,7 @@ import {
   GraduationCap,
   HandCoins,
   LayoutDashboard,
+  LifeBuoy,
   Mail,
   Receipt,
   Shield,
@@ -24,6 +25,7 @@ import {
   Users,
   School,
   Upload,
+  NotebookPen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,7 @@ export interface NavGroup {
   label?: string;
   items: NavMainItem[];
   requiredModule?: string;
+  requiredRole?: string;
 }
 
 export const sidebarItems: NavGroup[] = [
@@ -67,6 +70,56 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/default",
         icon: LayoutDashboard,
         requiredModule: "Dashboard",
+      },
+    ],
+  },
+  {
+    id: 10,
+    label: "MI PORTAL",
+    requiredModule: "PortalDocente",
+    requiredRole: "docente",
+    items: [
+      {
+        title: "Mi Portal",
+        url: "/dashboard/portal-docente",
+        icon: LayoutDashboard,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Mi Perfil",
+        url: "/dashboard/portal-docente/perfil",
+        icon: UserCircle,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Mis Grupos",
+        url: "/dashboard/portal-docente/mis-grupos",
+        icon: Users,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Asistencia",
+        url: "/dashboard/portal-docente/asistencia",
+        icon: ClipboardList,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Calificaciones",
+        url: "/dashboard/portal-docente/calificaciones",
+        icon: GraduationCap,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Planeaciones",
+        url: "/dashboard/portal-docente/planeaciones",
+        icon: FileText,
+        requiredModule: "PortalDocente",
+      },
+      {
+        title: "Tareas",
+        url: "/dashboard/portal-docente/tareas",
+        icon: NotebookPen,
+        requiredModule: "PortalDocente",
       },
     ],
   },
@@ -250,6 +303,7 @@ export const sidebarItems: NavGroup[] = [
           { title: "Corte de Caja", url: "/dashboard/cashier/corte", newTab: false, isNew: true, requiredModule: "Finanzas" },
           { title: "Plantillas de Cobro", url: "/dashboard/payment-templates", newTab: false, isNew: true, requiredModule: "Finanzas" },
           { title: "Conceptos de Pago", url: "/dashboard/payment-concepts", newTab: false, isNew: true, requiredModule: "Finanzas" },
+          { title: "Tarifas de Admisión", url: "/dashboard/tarifas-admision", newTab: false, isNew: true, requiredModule: "Finanzas" },
           { title: "Becas", url: "/dashboard/scholarships", newTab: false, isNew: true, requiredModule: "Finanzas" },
           { title: "Pagos", url: "/dashboard/payments", newTab: false, requiredModule: "Finanzas" },
           { title: "Reportes", url: "/dashboard/reports", newTab: false, requiredModule: "Finanzas" },
@@ -267,6 +321,17 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/bitacora",
         icon: ScrollText,
         requiredModule: "Bitacora",
+      },
+    ],
+  },
+  {
+    id: 12,
+    label: "SOPORTE",
+    items: [
+      {
+        title: "Tickets",
+        url: "/dashboard/tickets",
+        icon: LifeBuoy,
       },
     ],
   },
@@ -338,11 +403,27 @@ export const sidebarItems: NavGroup[] = [
       },
     ],
   },
+  {
+    id: 11,
+    label: "MI PORTAL",
+    requiredModule: "PortalAlumno",
+    requiredRole: "alumno",
+    items: [
+      {
+        title: "Mis Tareas",
+        url: "/dashboard/portal-alumno/tareas",
+        icon: NotebookPen,
+        requiredModule: "PortalAlumno",
+        isNew: true,
+      },
+    ],
+  },
 ];
 
-export function filterSidebarByModules(accessibleModules: string[]): NavGroup[] {
+export function filterSidebarByModules(accessibleModules: string[], userRole?: string): NavGroup[] {
   return sidebarItems
     .filter((group) => {
+      if (group.requiredRole && userRole !== group.requiredRole) return false;
       if (!group.requiredModule) return true;
       return accessibleModules.includes(group.requiredModule);
     })

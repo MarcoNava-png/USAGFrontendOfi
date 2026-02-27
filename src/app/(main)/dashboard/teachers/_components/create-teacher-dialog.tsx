@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, Search, User, MapPin, Briefcase, Phone } from "lucide-react";
+import { Check, ChevronsUpDown, Search, User, MapPin, Briefcase, Phone, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
   CommandEmpty,
@@ -24,9 +25,11 @@ import {
   FormItem,
   FormLabel,
   FormControl,
+  FormDescription,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -41,9 +44,19 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getMunicipalities, getTownships } from "@/services/location-service";
+import microsoftGraphService from "@/services/microsoft-graph-service";
 import { createTeacher } from "@/services/teacher-service";
 import { CivilStatus, Genres } from "@/types/catalog";
 import { State, Municipality, Township } from "@/types/location";
+
+const DEFAULT_DOMAIN = "usaguanajuato.edu.mx";
+
+const normalizeText = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 
 const createTeacherSchema = z.object({
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -65,6 +78,7 @@ const createTeacherSchema = z.object({
   noEmpleado: z.string().min(1, "El número de empleado es requerido"),
   rfc: z.string().min(12, "El RFC debe tener al menos 12 caracteres").max(13, "El RFC no puede tener más de 13 caracteres"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  crearCorreoAzure: z.boolean().default(true),
 });
 
 type CreateTeacherFormData = z.infer<typeof createTeacherSchema>;
@@ -93,6 +107,8 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
   const [townships, setTownships] = useState<Township[]>([]);
   const [openColoniaPopover, setOpenColoniaPopover] = useState(false);
   const [coloniaSearch, setColoniaSearch] = useState("");
+  const [domains, setDomains] = useState<string[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState(DEFAULT_DOMAIN);
 
   const form = useForm<CreateTeacherFormData>({
     resolver: zodResolver(createTeacherSchema),
@@ -116,6 +132,7 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
       noEmpleado: "",
       rfc: "",
       password: "",
+      crearCorreoAzure: true,
     },
   });
 
@@ -123,13 +140,34 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
   const watchedMunicipalityId = form.watch("municipalityId");
   const watchedCodigoPostalId = form.watch("codigoPostalId");
 
+  const watchedNombre = form.watch("nombre");
+  const watchedApellidoPaterno = form.watch("apellidoPaterno");
+  const crearCorreoAzure = form.watch("crearCorreoAzure");
+
   useEffect(() => {
     if (open) {
       form.reset();
       setMunicipalities([]);
       setTownships([]);
+      microsoftGraphService.getDomains().then((d) => {
+        setDomains(d);
+        if (d.length > 0 && !d.includes(selectedDomain)) {
+          setSelectedDomain(d[0]);
+        }
+      }).catch(() => {});
     }
   }, [open, form]);
+
+  useEffect(() => {
+    if (!watchedNombre?.trim() || !watchedApellidoPaterno?.trim()) return;
+    const primerNombre = normalizeText(watchedNombre.trim().split(/\s+/)[0]);
+    const primerApellido = normalizeText(watchedApellidoPaterno.trim().split(/\s+/)[0]);
+    const generatedEmail = `${primerNombre}.${primerApellido}@${selectedDomain}`;
+    const currentEmail = form.getValues("emailInstitucional");
+    if (!currentEmail || domains.some(d => currentEmail.endsWith(`@${d}`)) || currentEmail.endsWith(`@${DEFAULT_DOMAIN}`)) {
+      form.setValue("emailInstitucional", generatedEmail);
+    }
+  }, [watchedNombre, watchedApellidoPaterno, selectedDomain, form]);
 
   useEffect(() => {
     if (watchedStateId) {
@@ -179,6 +217,7 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
       const payload = {
         ...data,
         campusId: campusId,
+        crearCorreoAzure: data.crearCorreoAzure,
       };
 
       await createTeacher(payload);
@@ -634,6 +673,54 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
                     </FormItem>
                   )}
                 />
+              </div>
+            </div>
+
+            {/* Sección: Correo Microsoft 365 */}
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <Mail className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-indigo-900">Correo Microsoft 365</h3>
+              </div>
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="crearCorreoAzure"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="cursor-pointer">
+                          Crear correo institucional en Microsoft 365
+                        </FormLabel>
+                        <FormDescription>
+                          Se creara automaticamente una cuenta de correo en Azure AD
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {crearCorreoAzure && domains.length > 1 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">Dominio</Label>
+                    <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona dominio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {domains.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
 

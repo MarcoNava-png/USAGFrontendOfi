@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createUser } from "@/services/users-service";
+import microsoftGraphService from "@/services/microsoft-graph-service";
 import type { CreateUserRequest } from "@/types/user";
 
 const ROLES = [
@@ -47,6 +49,7 @@ const ROLES = [
   { value: "finanzas", label: "Finanzas" },
   { value: "admisiones", label: "Admisiones" },
   { value: "academico", label: "Académico" },
+  { value: "cajero", label: "Cajero" },
   { value: "docente", label: "Docente/Profesor" },
   { value: "alumno", label: "Alumno/Estudiante" },
 ] as const;
@@ -56,9 +59,10 @@ const formSchema = z.object({
   password: z.string().min(7, "La contrasena debe tener al menos 7 caracteres"),
   nombres: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   apellidos: z.string().min(2, "Los apellidos deben tener al menos 2 caracteres"),
-  rol: z.string().min(1, "Debes seleccionar un rol"),
+  roles: z.array(z.string()).min(1, "Debes seleccionar al menos un rol"),
   telefono: z.string().optional(),
   biografia: z.string().optional(),
+  crearCorreoAzure: z.boolean().default(true),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -79,7 +83,7 @@ const normalizeText = (text: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
-function generateEmail(nombres: string, apellidos: string, existingEmails: string[]): string {
+function generateEmail(nombres: string, apellidos: string, existingEmails: string[], domain: string): string {
   if (!nombres.trim() || !apellidos.trim()) return "";
 
   const primerNombre = normalizeText(nombres.trim().split(/\s+/)[0]);
@@ -87,14 +91,14 @@ function generateEmail(nombres: string, apellidos: string, existingEmails: strin
   const primerApellido = normalizeText(partsApellido[0]);
   const segundoApellido = partsApellido[1] ? normalizeText(partsApellido[1]) : "";
 
-  const emailCorto = `${primerNombre}.${primerApellido}@${DEFAULT_DOMAIN}`;
+  const emailCorto = `${primerNombre}.${primerApellido}@${domain}`;
 
   if (!existingEmails.includes(emailCorto.toLowerCase())) {
     return emailCorto;
   }
 
   if (segundoApellido) {
-    return `${primerNombre}.${primerApellido}${segundoApellido}@${DEFAULT_DOMAIN}`;
+    return `${primerNombre}.${primerApellido}${segundoApellido}@${domain}`;
   }
 
   return emailCorto;
@@ -102,6 +106,8 @@ function generateEmail(nombres: string, apellidos: string, existingEmails: strin
 
 export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails = [] }: CreateUserModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [domains, setDomains] = useState<string[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState(DEFAULT_DOMAIN);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -110,24 +116,40 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
       password: "",
       nombres: "",
       apellidos: "",
-      rol: "",
+      roles: [],
       telefono: "",
       biografia: "",
+      crearCorreoAzure: true,
     },
   });
 
   const nombres = form.watch("nombres");
   const apellidos = form.watch("apellidos");
+  const crearCorreoAzure = form.watch("crearCorreoAzure");
 
-  const suggestedEmail = generateEmail(nombres || "", apellidos || "", existingEmails);
+  useEffect(() => {
+    if (open) {
+      microsoftGraphService.getDomains().then((d) => {
+        setDomains(d);
+        if (d.length > 0 && !d.includes(selectedDomain)) {
+          setSelectedDomain(d[0]);
+        }
+      }).catch(() => {});
+    }
+  }, [open]);
+
+  const suggestedEmail = generateEmail(nombres || "", apellidos || "", existingEmails, selectedDomain);
 
   useEffect(() => {
     if (!suggestedEmail) return;
     const currentEmail = form.getValues("email");
-    if (!currentEmail || currentEmail.endsWith(`@${DEFAULT_DOMAIN}`)) {
+    const domainSuffix = domains.length > 0
+      ? domains.some(d => currentEmail.endsWith(`@${d}`))
+      : currentEmail.endsWith(`@${DEFAULT_DOMAIN}`);
+    if (!currentEmail || domainSuffix) {
       form.setValue("email", suggestedEmail);
     }
-  }, [suggestedEmail, form]);
+  }, [suggestedEmail, form, selectedDomain]);
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -140,7 +162,8 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
         apellidos: values.apellidos,
         telefono: values.telefono || undefined,
         biografia: values.biografia || undefined,
-        roles: [values.rol],
+        roles: values.roles,
+        crearCorreoAzure: values.crearCorreoAzure,
       };
 
       await createUser(userData);
@@ -274,6 +297,45 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
                 <Badge style={{ background: '#14356F' }}>Informacion de Cuenta</Badge>
               </div>
 
+              <FormField
+                control={form.control}
+                name="crearCorreoAzure"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Crear correo institucional en Microsoft 365
+                      </FormLabel>
+                      <FormDescription>
+                        Se creara automaticamente una cuenta de correo en Azure AD con las credenciales ingresadas
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {crearCorreoAzure && domains.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Dominio</label>
+                  <Select value={selectedDomain} onValueChange={(val) => setSelectedDomain(val)}>
+                    <SelectTrigger className="focus-visible:ring-[#14356F]">
+                      <SelectValue placeholder="Selecciona dominio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {domains.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Correo institucional sugerido</label>
                 <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -337,31 +399,44 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
 
               <FormField
                 control={form.control}
-                name="rol"
-                render={({ field }) => (
+                name="roles"
+                render={() => (
                   <FormItem>
                     <FormLabel>
-                      Rol del Usuario <span className="text-red-500">*</span>
+                      Roles del Usuario <span className="text-red-500">*</span>
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="focus-visible:ring-[#14356F]">
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {ROLES.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-[#14356F]" />
-                              <span>{role.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                      {ROLES.map((role) => (
+                        <FormField
+                          key={role.value}
+                          control={form.control}
+                          name="roles"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(role.value)}
+                                  onCheckedChange={(checked) => {
+                                    const current = field.value || [];
+                                    field.onChange(
+                                      checked
+                                        ? [...current, role.value]
+                                        : current.filter((v: string) => v !== role.value)
+                                    );
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal cursor-pointer flex items-center gap-1.5">
+                                <ShieldCheck className="h-3.5 w-3.5 text-[#14356F]" />
+                                {role.label}
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
                     <FormDescription>
-                      Define los permisos del usuario en el sistema
+                      Puedes asignar uno o varios roles. Los permisos se combinan automaticamente.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -17,6 +17,11 @@ import {
   resetApplicantDocument,
 } from "@/services/applicants-service";
 import {
+  validateAndPrepareFile,
+  ALLOWED_EXTENSIONS_STRING,
+  MAX_FILE_SIZE_MB,
+} from "@/lib/file-validation";
+import {
   AspiranteDocumentoDto,
   DocumentoRequisitoDto,
   EstatusDocumentoEnum,
@@ -100,10 +105,12 @@ function DocumentActions({
         )}
         <Input
           type="file"
+          accept={ALLOWED_EXTENSIONS_STRING}
           onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
           disabled={isUploading}
           className="text-sm"
         />
+        <p className="text-xs text-gray-500">Formatos: PDF, JPG, PNG, DOC, DOCX. Max {MAX_FILE_SIZE_MB} MB</p>
         <Textarea
           placeholder="Notas (opcional)"
           value={notas}
@@ -297,12 +304,20 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
   const handleUpload = async (idDocumentoRequisito: number) => {
     if (!selectedFile || !applicant) return;
 
+    const result = await validateAndPrepareFile(selectedFile);
+    if (result.error !== null) {
+      toast.error(result.error);
+      return;
+    }
+
+    const preparedFile = result.file;
+
     setUploadingDocId(idDocumentoRequisito);
     try {
       await uploadApplicantDocument({
         idAspirante: applicant.idAspirante,
         idDocumentoRequisito,
-        archivo: selectedFile,
+        archivo: preparedFile,
         notas: notas || undefined,
       });
 
@@ -310,8 +325,10 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
       setSelectedFile(null);
       setNotas("");
       loadData();
-    } catch (error) {
-      toast.error("Error al cargar documento");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Error al cargar documento";
+      toast.error(message);
       console.error(error);
     } finally {
       setUploadingDocId(null);

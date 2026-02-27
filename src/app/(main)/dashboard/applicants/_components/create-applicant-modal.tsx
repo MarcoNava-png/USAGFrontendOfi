@@ -76,6 +76,7 @@ export function CreateApplicantModal({
       horarioId: 0,
       stateId: "",
       municipalityId: "",
+      celular: "",
       nombreContactoEmergencia: "",
       telefonoContactoEmergencia: "",
       parentescoContactoEmergencia: "",

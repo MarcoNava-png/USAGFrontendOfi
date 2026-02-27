@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 import { Briefcase, Check, ChevronsUpDown, Search, User, MapPin, GraduationCap, Phone } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
@@ -69,6 +69,7 @@ interface ApplicantFormProps {
   academicPeriods: AcademicPeriod[];
   onSubmit: (data: PayloadCreateApplicant) => void;
   onCancel: () => void;
+  isEditMode?: boolean;
 }
 
 export function ApplicantCreateForm({
@@ -85,19 +86,23 @@ export function ApplicantCreateForm({
   academicPeriods,
   onSubmit,
   onCancel,
+  isEditMode,
 }: ApplicantFormProps) {
   const { user } = useCurrentUser();
 
   useEffect(() => {
-    if (user?.userId) {
+    if (user?.userId && !isEditMode) {
       form.setValue("atendidoPorUsuarioId", user.userId);
     }
-  }, [user, form]);
+  }, [user, form, isEditMode]);
 
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [townships, setTownships] = useState<Township[]>([]);
   const [openColoniaPopover, setOpenColoniaPopover] = useState(false);
   const [coloniaSearch, setColoniaSearch] = useState("");
+
+  const skipStateResetRef = useRef(isEditMode ?? false);
+  const skipMunicipalityResetRef = useRef(isEditMode ?? false);
 
   const watchedStateId = form.watch("stateId");
   const watchedMunicipalityId = form.watch("municipalityId");
@@ -109,8 +114,12 @@ export function ApplicantCreateForm({
   useEffect(() => {
     if (watchedStateId) {
       getMunicipalities(watchedStateId).then(setMunicipalities);
-      form.setValue("municipalityId", "", { shouldValidate: false });
-      form.setValue("codigoPostalId", 0, { shouldValidate: false });
+      if (skipStateResetRef.current) {
+        skipStateResetRef.current = false;
+      } else {
+        form.setValue("municipalityId", "", { shouldValidate: false });
+        form.setValue("codigoPostalId", 0, { shouldValidate: false });
+      }
     } else {
       setMunicipalities([]);
     }
@@ -120,7 +129,11 @@ export function ApplicantCreateForm({
   useEffect(() => {
     if (watchedMunicipalityId) {
       getTownships(watchedMunicipalityId).then(setTownships);
-      form.setValue("codigoPostalId", 0, { shouldValidate: false });
+      if (skipMunicipalityResetRef.current) {
+        skipMunicipalityResetRef.current = false;
+      } else {
+        form.setValue("codigoPostalId", 0, { shouldValidate: false });
+      }
     } else {
       setTownships([]);
     }
@@ -145,6 +158,32 @@ export function ApplicantCreateForm({
     if (!selectedPlan) return [];
     return academicPeriods.filter((p) => p.idPeriodicidad === selectedPlan.idPeriodicidad);
   }, [academicPeriods, selectedPlan]);
+
+  const periodoInfo = useMemo(() => {
+    const etiquetas: Record<string, string> = {
+      Semestral: "Semestre",
+      Cuatrimestral: "Cuatrimestre",
+      Trimestral: "Trimestre",
+      Bimestral: "Bimestre",
+      Mensual: "Mes",
+      Anual: "Año",
+    };
+    const mesesPorPeriodo: Record<string, number> = {
+      Semestral: 6,
+      Cuatrimestral: 4,
+      Trimestral: 3,
+      Bimestral: 2,
+      Mensual: 1,
+      Anual: 12,
+    };
+    const periodicidad = selectedPlan?.periodicidad ?? "";
+    const etiqueta = etiquetas[periodicidad] ?? "Período";
+    const meses = mesesPorPeriodo[periodicidad] ?? 4;
+    const total = selectedPlan?.duracionMeses && meses > 0
+      ? Math.ceil(selectedPlan.duracionMeses / meses)
+      : 9;
+    return { etiqueta, total: Math.min(Math.max(total, 1), 99) };
+  }, [selectedPlan]);
 
   const [diasImparticion, setDiasImparticion] = useState<string>("");
 
@@ -377,6 +416,34 @@ export function ApplicantCreateForm({
 
             <FormField
               control={form.control}
+              name="celular"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teléfono Alterno</FormLabel>
+                  <FormControl>
+                    <Input placeholder="10 dígitos (opcional)" maxLength={10} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="parentescoContactoEmergencia"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Parentesco</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Padre, Madre, Hermano" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="medioContactoId"
               render={({ field }) => (
                 <FormItem>
@@ -404,52 +471,6 @@ export function ApplicantCreateForm({
             />
           </div>
 
-          <div className="mt-3 border-t border-green-200 pt-3">
-            <h4 className="mb-2 text-sm font-semibold text-green-800">Contacto de Emergencia</h4>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="nombreContactoEmergencia"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nombre completo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="telefonoContactoEmergencia"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input placeholder="10 dígitos" maxLength={20} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="parentescoContactoEmergencia"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parentesco</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: Padre, Madre, Hermano" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
         </div>
 
         <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-4">
@@ -726,20 +747,20 @@ export function ApplicantCreateForm({
               name="cuatrimestreInteres"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cuatrimestre de Interés</FormLabel>
+                  <FormLabel>{periodoInfo.etiqueta} de Interés</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
                     value={field.value ? String(field.value) : ""}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona cuatrimestre" />
+                        <SelectValue placeholder={`Selecciona ${periodoInfo.etiqueta.toLowerCase()}`} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      {Array.from({ length: periodoInfo.total }, (_, i) => i + 1).map((num) => (
                         <SelectItem key={num} value={String(num)}>
-                          {num}° Cuatrimestre
+                          {num}° {periodoInfo.etiqueta}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -854,33 +875,14 @@ export function ApplicantCreateForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="aspiranteStatusId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estatus <span className="text-red-500">*</span></FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    value={field.value ? String(field.value) : ""}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona estatus" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {applicantStatus.map((status) => (
-                        <SelectItem key={status.idAspiranteEstatus} value={String(status.idAspiranteEstatus)}>
-                          {status.descEstatus}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormItem>
+              <FormLabel>Estatus</FormLabel>
+              <Input
+                value="En Proceso"
+                disabled
+                className="bg-muted"
+              />
+            </FormItem>
 
             <FormField
               control={form.control}
@@ -997,7 +999,7 @@ export function ApplicantCreateForm({
             Cancelar
           </Button>
           <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-            Crear Aspirante
+            {isEditMode ? "Guardar Cambios" : "Crear Aspirante"}
           </Button>
         </div>
       </form>

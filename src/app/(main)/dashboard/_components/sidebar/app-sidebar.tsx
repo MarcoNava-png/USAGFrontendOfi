@@ -16,13 +16,15 @@ import { sidebarItems, filterSidebarByModules } from "@/navigation/sidebar/sideb
 import { NavMain } from "./nav-main";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { accessibleModules, isLoading, isAdmin } = usePermissions();
+  const { accessibleModules, isLoading, isAdmin, primaryRole } = usePermissions();
 
   const filteredItems = useMemo(() => {
-    if (isAdmin) return sidebarItems;
-    if (isLoading) return filterSidebarByModules(["Dashboard"]);
-    return filterSidebarByModules(accessibleModules);
-  }, [accessibleModules, isLoading, isAdmin]);
+    if (isAdmin) {
+      return sidebarItems.filter((group) => !group.requiredRole);
+    }
+    if (isLoading) return filterSidebarByModules(["Dashboard"], primaryRole ?? undefined);
+    return filterSidebarByModules(accessibleModules, primaryRole ?? undefined);
+  }, [accessibleModules, isLoading, isAdmin, primaryRole]);
 
   return (
     <Sidebar

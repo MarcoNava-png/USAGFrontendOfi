@@ -15,9 +15,10 @@ export function useSidebarBadges() {
   const [loading, setLoading] = useState(true)
 
   const fetchBadges = useCallback(async () => {
-    // Superadmin no necesita badges del sidebar
+    // Roles que no necesitan badges del sidebar
     const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
-    if (storedUser?.role === 'superadmin') {
+    const skipRoles = ['superadmin', 'docente', 'alumno']
+    if (skipRoles.includes(storedUser?.role)) {
       setLoading(false)
       return
     }

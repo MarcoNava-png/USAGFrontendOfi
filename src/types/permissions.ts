@@ -70,6 +70,8 @@ export const MODULE_ROUTES: Record<string, string[]> = {
   Finanzas: ['/dashboard/cashier', '/dashboard/receipts', '/dashboard/payment-templates', '/dashboard/payment-concepts', '/dashboard/scholarships', '/dashboard/payments', '/dashboard/reports', '/dashboard/cashier/corte'],
   Configuracion: ['/dashboard/users', '/dashboard/roles', '/dashboard/bitacora'],
   Bitacora: ['/dashboard/bitacora'],
+  PortalDocente: ['/dashboard/portal-docente', '/dashboard/portal-docente/perfil', '/dashboard/portal-docente/mis-grupos', '/dashboard/portal-docente/asistencia', '/dashboard/portal-docente/calificaciones', '/dashboard/portal-docente/planeaciones', '/dashboard/portal-docente/tareas'],
+  PortalAlumno: ['/dashboard/portal-alumno/tareas'],
 }
 
 export const SYSTEM_ROLES = {

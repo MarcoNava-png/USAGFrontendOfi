@@ -42,6 +42,7 @@ export interface PayloadCreateTeacher {
   rfc: string;
   emailInstitucional: string;
   campusId: number;
+  crearCorreoAzure?: boolean;
 }
 
 export interface PayloadUpdateTeacher extends PayloadCreateTeacher {

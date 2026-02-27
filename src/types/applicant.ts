@@ -57,13 +57,56 @@ export interface PayloadCreateApplicant {
   domicilioEmpresa?: string;
   puestoEmpresa?: string;
   quienCubreGastos?: string;
+  celular?: string;
   nombreContactoEmergencia?: string;
   telefonoContactoEmergencia?: string;
   parentescoContactoEmergencia?: string;
 }
 
-export interface PayloadUpdateApplicant {
+export interface PayloadUpdateApplicant extends PayloadCreateApplicant {
   aspiranteId: number;
+  aspiranteStatusId: number;
+}
+
+export interface AspiranteEditDto {
+  idAspirante: number;
+  nombre?: string | null;
+  apellidoPaterno?: string | null;
+  apellidoMaterno?: string | null;
+  fechaNacimiento?: string | null;
+  generoId?: number | null;
+  correo?: string | null;
+  telefono?: string | null;
+  curp?: string | null;
+  calle?: string | null;
+  numeroExterior?: string | null;
+  numeroInterior?: string | null;
+  codigoPostalId?: number | null;
+  idEstadoCivil?: number | null;
+  nacionalidad?: string | null;
+  campusId?: number | null;
+  planEstudiosId: number;
+  medioContactoId: number;
+  notas?: string | null;
+  horarioId?: number | null;
+  cuatrimestreInteres?: number | null;
+  institucionProcedencia?: string | null;
+  idModalidad?: number | null;
+  idPeriodoAcademico?: number | null;
+  recorridoPlantel?: boolean | null;
+  trabaja?: boolean | null;
+  nombreEmpresa?: string | null;
+  domicilioEmpresa?: string | null;
+  puestoEmpresa?: string | null;
+  quienCubreGastos?: string | null;
+  atendidoPorUsuarioId?: string | null;
+  celular?: string | null;
+  nombreContactoEmergencia?: string | null;
+  telefonoContactoEmergencia?: string | null;
+  parentescoContactoEmergencia?: string | null;
+  idAspiranteEstatus: number;
+  estadoId?: string | null;
+  municipioId?: string | null;
 }
 
 export interface TrackingLog {
@@ -223,6 +266,9 @@ export interface InformacionAcademicaDto {
   nivelEducativo: string;
   institucionProcedencia?: string | null;
   modalidad?: string | null;
+  periodicidad?: string | null;
+  periodoAcademico?: string | null;
+  dias?: string | null;
   recorridoPlantel?: boolean | null;
 }
 
@@ -367,6 +413,7 @@ export interface InscribirAspiranteRequest {
   idPeriodoAcademico?: number | null;
   forzarInscripcion?: boolean;
   observaciones?: string | null;
+  crearCorreoAzure?: boolean;
 }
 
 export interface CancelarAspiranteRequest {

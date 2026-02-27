@@ -11,9 +11,9 @@ export async function login({ email, password }: { email: string; password: stri
     if (data.isSuccess && data.data?.token) {
       localStorage.setItem("access_token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data));
-      document.cookie = `access_token=${data.data.token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `access_token=${data.data.token}; path=/; max-age=86400; SameSite=Strict; Secure`;
       if (data.data.mustChangePassword) {
-        document.cookie = "must_change_password=1; path=/; max-age=86400; SameSite=Lax";
+        document.cookie = "must_change_password=1; path=/; max-age=86400; SameSite=Strict; Secure";
       }
       return { success: true, token: data.data.token, user: data.data };
     }
@@ -26,8 +26,8 @@ export async function login({ email, password }: { email: string; password: stri
 export function logout() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("user");
-  document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
-  document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Lax";
+  document.cookie = "access_token=; path=/; max-age=0; SameSite=Strict; Secure";
+  document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Strict; Secure";
 }
 
 export async function refreshToken(): Promise<{ success: boolean; error?: string }> {
@@ -36,7 +36,7 @@ export async function refreshToken(): Promise<{ success: boolean; error?: string
     if (data.isSuccess && data.data?.token) {
       localStorage.setItem("access_token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data));
-      document.cookie = `access_token=${data.data.token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `access_token=${data.data.token}; path=/; max-age=86400; SameSite=Strict; Secure`;
       return { success: true };
     }
     return { success: false, error: "No se pudo renovar la sesión" };

@@ -44,14 +44,19 @@ import {
   subirDocumentoPersonal,
   validarDocumentoPersonal,
 } from "@/services/estudiante-panel-service";
+import {
+  validateAndPrepareFile,
+  ALLOWED_EXTENSIONS_STRING,
+  MAX_FILE_SIZE_MB,
+} from "@/lib/file-validation";
 import { formatDate, type DocumentoPersonalDto, type DocumentosPersonalesEstudianteDto } from "@/types/estudiante-panel";
 
 interface DocumentosPersonalesTabProps {
   idEstudiante: number;
 }
 
-const EXTENSIONES_PERMITIDAS = ".pdf,.jpg,.jpeg,.png,.doc,.docx";
-const MAX_SIZE_MB = 10;
+const EXTENSIONES_PERMITIDAS = ALLOWED_EXTENSIONS_STRING;
+const MAX_SIZE_MB = MAX_FILE_SIZE_MB;
 
 type ModalType = "subir" | "validar" | null;
 
@@ -127,12 +132,18 @@ export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTa
   async function handleSubir() {
     if (!archivo || !docSeleccionado) return;
 
+    const validationResult = await validateAndPrepareFile(archivo);
+    if (validationResult.error !== null) {
+      toast.error(validationResult.error);
+      return;
+    }
+
     setSubiendo(true);
     try {
       const resultado = await subirDocumentoPersonal(
         idEstudiante,
         docSeleccionado.idDocumentoRequisito,
-        archivo,
+        validationResult.file,
         notas || undefined
       );
 

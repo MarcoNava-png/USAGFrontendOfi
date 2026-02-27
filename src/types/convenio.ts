@@ -1,6 +1,6 @@
 export type TipoBeneficio = "PORCENTAJE" | "MONTO" | "EXENCION";
 
-export type AplicaA = "INSCRIPCION" | "COLEGIATURA" | "TODOS";
+export type AplicaA = string;
 
 export type EstatusConvenioAspirante = "Pendiente" | "Aprobado" | "Rechazado";
 
