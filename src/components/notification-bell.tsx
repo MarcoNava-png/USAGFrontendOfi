@@ -9,7 +9,6 @@ import { Bell, BellRing, CheckCheck, Info, AlertTriangle, CheckCircle, XCircle }
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   getNotificaciones,
   getNotificacionesNoLeidas,
@@ -34,7 +33,7 @@ const TIPO_COLOR: Record<string, string> = {
 
 function timeAgo(dateStr: string): string {
   const now = new Date()
-  const date = new Date(dateStr)
+  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z')
   const diffMs = now.getTime() - date.getTime()
   const diffMin = Math.floor(diffMs / 60000)
 
@@ -128,7 +127,7 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0" align="end" sideOffset={8} collisionPadding={16}>
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h4 className="text-sm font-semibold">Notificaciones</h4>
           {count > 0 && (
@@ -144,7 +143,7 @@ export function NotificationBell() {
           )}
         </div>
 
-        <ScrollArea className="max-h-80">
+        <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, calc(var(--radix-popover-content-available-height, 400px) - 100px))' }}>
           {loading ? (
             <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
               Cargando...
@@ -195,7 +194,7 @@ export function NotificationBell() {
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   )

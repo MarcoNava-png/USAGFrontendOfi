@@ -24,6 +24,7 @@ import type { StudentInGroup } from "@/types/group";
 
 interface TablaCalificacionesMatricialProps {
   grupoMateriaId: number;
+  minimaAprobatoria?: number;
 }
 
 interface CalificacionPorParcial {
@@ -37,7 +38,7 @@ interface EstudianteConCalificaciones extends StudentInGroup {
   calificacionFinal?: number;
 }
 
-export function TablaCalificacionesMatricial({ grupoMateriaId }: TablaCalificacionesMatricialProps) {
+export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria = 7 }: TablaCalificacionesMatricialProps) {
   const [loading, setLoading] = useState(false);
   const [estudiantes, setEstudiantes] = useState<EstudianteConCalificaciones[]>([]);
   const [parciales, setParciales] = useState<Parcial[]>([]);
@@ -347,8 +348,8 @@ export function TablaCalificacionesMatricial({ grupoMateriaId }: TablaCalificaci
                     </TableCell>
                     <TableCell className="text-center">
                       {estudiante.calificacionFinal !== undefined ? (
-                        <Badge variant={estudiante.calificacionFinal >= 70 ? "default" : "destructive"}>
-                          {estudiante.calificacionFinal >= 70 ? "Aprobado" : "Reprobado"}
+                        <Badge variant={estudiante.calificacionFinal >= minimaAprobatoria ? "default" : "destructive"}>
+                          {estudiante.calificacionFinal >= minimaAprobatoria ? "Aprobado" : "Reprobado"}
                         </Badge>
                       ) : (
                         <Badge variant="secondary">Pendiente</Badge>

@@ -1,16 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { BookOpen, CalendarCheck, ClipboardCheck, UserCheck, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getCampusList } from "@/services/campus-service";
+import { getStudyPlansList } from "@/services/study-plans-service";
+import { getAcademicPeriods } from "@/services/catalogs-service";
+import type { Campus } from "@/types/campus";
+import type { StudyPlan } from "@/types/study-plan";
+import type { AcademicPeriod } from "@/types/academic-period";
 
 import { GruposAcordeonAsistencias } from "./_components/grupos-acordeon-asistencias";
-import { SelectPlanEstudios } from "./_components/select-plan-estudios";
 
 export default function AttendancesPage() {
-  const [selectedPlanEstudios, setSelectedPlanEstudios] = useState<number | null>(null);
+  const [campusList, setCampusList] = useState<Campus[]>([]);
+  const [planes, setPlanes] = useState<StudyPlan[]>([]);
+  const [periodos, setPeriodos] = useState<AcademicPeriod[]>([]);
+  const [selectedCampus, setSelectedCampus] = useState<number | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+  const [selectedPeriodo, setSelectedPeriodo] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      const [campusRes, planesRes, periodosRes] = await Promise.all([
+        getCampusList(),
+        getStudyPlansList(),
+        getAcademicPeriods(),
+      ]);
+      setCampusList(campusRes?.items || []);
+      setPlanes(planesRes?.items || []);
+      setPeriodos((periodosRes as any) || []);
+
+      const activo = periodosRes?.find((p: any) => p.esPeriodoActual);
+      if (activo) setSelectedPeriodo(activo.idPeriodoAcademico);
+    } catch {
+      toast.error("Error al cargar los datos iniciales");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredPlanes = useMemo(() => {
+    if (!selectedCampus) return planes;
+    return planes.filter((p) => p.idCampus === selectedCampus);
+  }, [planes, selectedCampus]);
+
+  const handleCampusChange = (v: string) => {
+    const campusId = parseInt(v);
+    setSelectedCampus(campusId);
+    if (selectedPlan) {
+      const planActual = planes.find((p) => p.idPlanEstudios === selectedPlan);
+      if (planActual && planActual.idCampus !== campusId) {
+        setSelectedPlan(null);
+      }
+    }
+  };
+
+  const handlePlanChange = (v: string) => {
+    setSelectedPlan(parseInt(v));
+  };
+
+  const handlePeriodoChange = (v: string) => {
+    setSelectedPeriodo(parseInt(v));
+  };
+
+  const ready = selectedPlan && selectedPeriodo;
 
   return (
     <div className="space-y-6">
@@ -29,46 +93,46 @@ export default function AttendancesPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="pb-2">
-            <CardDescription className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+            <CardDescription className="text-blue-600 flex items-center gap-1">
               <BookOpen className="h-4 w-4" />
               Plan Seleccionado
             </CardDescription>
-            <CardTitle className="text-lg text-blue-700 dark:text-blue-300 truncate">
-              {selectedPlanEstudios ? "Activo" : "Ninguno"}
+            <CardTitle className="text-lg text-blue-700 truncate">
+              {selectedPlan ? "Activo" : "Ninguno"}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="pb-2">
-            <CardDescription className="text-green-600 dark:text-green-400 flex items-center gap-1">
+            <CardDescription className="text-green-600 flex items-center gap-1">
               <UserCheck className="h-4 w-4" />
               Estado
             </CardDescription>
-            <CardTitle className="text-lg text-green-700 dark:text-green-300">
+            <CardTitle className="text-lg text-green-700">
               Presente / Falta / Justificado
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardHeader className="pb-2">
-            <CardDescription className="text-purple-600 dark:text-purple-400 flex items-center gap-1">
+            <CardDescription className="text-purple-600 flex items-center gap-1">
               <CalendarCheck className="h-4 w-4" />
               Días de Clase
             </CardDescription>
-            <CardTitle className="text-4xl text-purple-700 dark:text-purple-300">
-              L-V
+            <CardTitle className="text-4xl text-purple-700">
+              L-D
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800">
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardHeader className="pb-2">
-            <CardDescription className="text-orange-600 dark:text-orange-400 flex items-center gap-1">
+            <CardDescription className="text-orange-600 flex items-center gap-1">
               <Users className="h-4 w-4" />
               Mín. Asistencia
             </CardDescription>
-            <CardTitle className="text-4xl text-orange-700 dark:text-orange-300">
+            <CardTitle className="text-4xl text-orange-700">
               80%
             </CardTitle>
           </CardHeader>
@@ -79,22 +143,82 @@ export default function AttendancesPage() {
         <CardHeader className="border-b bg-muted/40">
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            Seleccionar Plan de Estudios
+            Filtros
           </CardTitle>
           <CardDescription>
-            Selecciona el plan de estudios para ver los grupos y materias disponibles
+            Selecciona campus, plan de estudios y periodo para ver los grupos disponibles
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
-          <SelectPlanEstudios
-            value={selectedPlanEstudios}
-            onChange={setSelectedPlanEstudios}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Campus</Label>
+              <Select
+                value={selectedCampus?.toString() ?? ""}
+                onValueChange={handleCampusChange}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Cargando..." : "Todos los campus"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {campusList.map((c) => (
+                    <SelectItem key={c.idCampus} value={c.idCampus.toString()}>
+                      {c.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Plan de Estudios</Label>
+              <Select
+                value={selectedPlan?.toString() ?? ""}
+                onValueChange={handlePlanChange}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredPlanes.map((p) => (
+                    <SelectItem key={p.idPlanEstudios} value={p.idPlanEstudios.toString()}>
+                      {p.clavePlanEstudios} - {p.nombrePlanEstudios}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Periodo Académico</Label>
+              <Select
+                value={selectedPeriodo?.toString() ?? ""}
+                onValueChange={handlePeriodoChange}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un periodo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {periodos.map((p: any) => (
+                    <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
+                      {p.nombre} {p.esPeriodoActual && "(Actual)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {selectedPlanEstudios ? (
-        <GruposAcordeonAsistencias planEstudiosId={selectedPlanEstudios} />
+      {ready ? (
+        <GruposAcordeonAsistencias
+          planEstudiosId={selectedPlan!}
+          periodoAcademicoId={selectedPeriodo!}
+        />
       ) : (
         <Card>
           <CardContent className="py-16 text-center">
@@ -104,7 +228,7 @@ export default function AttendancesPage() {
               </div>
               <div>
                 <p className="text-lg font-medium text-muted-foreground">
-                  Selecciona un plan de estudios para comenzar
+                  Selecciona campus, plan y periodo para comenzar
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Los grupos se organizarán por cuatrimestre y podrás tomar asistencia por materia

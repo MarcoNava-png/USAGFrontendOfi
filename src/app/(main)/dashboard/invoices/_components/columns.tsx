@@ -7,6 +7,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { parseDateLocal } from "@/lib/payment-utils";
 import { ReciboExtendido } from "@/services/receipts-service";
 
 const estatusColors: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -75,7 +76,7 @@ export function getReceiptsColumns(
       accessorKey: "fechaEmision",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Emisión" />,
       cell: ({ row }) => {
-        const fecha = new Date(row.getValue("fechaEmision"));
+        const fecha = parseDateLocal(row.getValue("fechaEmision"));
         return (
           <div className="text-sm">
             {fecha.toLocaleDateString("es-MX", {
@@ -91,7 +92,7 @@ export function getReceiptsColumns(
       accessorKey: "fechaVencimiento",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Vencimiento" />,
       cell: ({ row }) => {
-        const fecha = new Date(row.getValue("fechaVencimiento"));
+        const fecha = parseDateLocal(row.getValue("fechaVencimiento"));
         const isVencido = row.original.estaVencido;
         return (
           <div className={isVencido ? "text-red-600 font-medium text-sm" : "text-sm"}>

@@ -26,6 +26,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -60,6 +67,8 @@ export default function ConveniosPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [convenioToEdit, setConvenioToEdit] = useState<ConvenioDto | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filtroCampus, setFiltroCampus] = useState<string>("TODOS");
+  const [filtroPlan, setFiltroPlan] = useState<string>("TODOS");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [convenioToDelete, setConvenioToDelete] = useState<ConvenioDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -90,7 +99,7 @@ export default function ConveniosPage() {
 
   const handleCreateConvenio = async (convenioCreated: ConvenioDto) => {
     setConvenios((prev) => [...prev, convenioCreated]);
-    toast.success("Convenio creado exitosamente");
+    toast.success("Promoción creada exitosamente");
   };
 
   const openDeleteDialog = (convenio: ConvenioDto) => {
@@ -107,12 +116,12 @@ export default function ConveniosPage() {
       setConvenios((prev) =>
         prev.filter((item) => item.idConvenio !== convenioToDelete.idConvenio)
       );
-      toast.success("Convenio eliminado exitosamente");
+      toast.success("Promoción eliminada exitosamente");
       setDeleteDialogOpen(false);
       setConvenioToDelete(null);
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Error al eliminar el convenio";
+        error instanceof Error ? error.message : "Error al eliminar la promoción";
       if (typeof error === "object" && error !== null && "response" in error) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         if (axiosError.response?.data?.message) {
@@ -135,19 +144,30 @@ export default function ConveniosPage() {
         )
       );
       toast.success(
-        `Convenio ${!convenio.activo ? "activado" : "desactivado"} exitosamente`
+        `Promoción ${!convenio.activo ? "activada" : "desactivada"} exitosamente`
       );
     } catch {
-      toast.error("Error al cambiar el estado del convenio");
+      toast.error("Error al cambiar el estado de la promoción");
     }
   };
 
-  const filteredConvenios =
-    convenios.filter(
-      (c) =>
-        c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.claveConvenio.toLowerCase().includes(searchTerm.toLowerCase())
-    ) ?? [];
+  const planesFiltradosPorCampus = filtroCampus === "TODOS"
+    ? planesEstudio
+    : planesEstudio.filter((p) => String(p.idCampus) === filtroCampus);
+
+  const filteredConvenios = convenios.filter((c) => {
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      if (!c.nombre.toLowerCase().includes(term) && !c.claveConvenio.toLowerCase().includes(term)) return false;
+    }
+    if (filtroCampus !== "TODOS") {
+      if (c.alcances.length > 0 && !c.alcances.some((a) => !a.idCampus || String(a.idCampus) === filtroCampus)) return false;
+    }
+    if (filtroPlan !== "TODOS") {
+      if (c.alcances.length > 0 && !c.alcances.some((a) => !a.idPlanEstudios || String(a.idPlanEstudios) === filtroPlan)) return false;
+    }
+    return true;
+  });
 
   const stats = {
     total: convenios.length,
@@ -160,7 +180,7 @@ export default function ConveniosPage() {
       <div className="flex h-[50vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="text-muted-foreground">Cargando convenios...</span>
+          <span className="text-muted-foreground">Cargando promociones...</span>
         </div>
       </div>
     );
@@ -195,16 +215,16 @@ export default function ConveniosPage() {
             >
               <HandCoins className="h-8 w-8" style={{ color: "#14356F" }} />
             </div>
-            Convenios
+            Promociones
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestiona los convenios y promociones de la institucion
+            Gestiona las promociones de la institución
           </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setModalOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Nuevo Convenio
+            Nueva Promoción
           </Button>
         </div>
       </div>
@@ -219,7 +239,7 @@ export default function ConveniosPage() {
         >
           <CardHeader className="pb-2">
             <CardDescription style={{ color: "#1e4a8f" }}>
-              Total Convenios
+              Total Promociones
             </CardDescription>
             <CardTitle className="text-4xl" style={{ color: "#14356F" }}>
               {stats.total}
@@ -249,21 +269,55 @@ export default function ConveniosPage() {
       </div>
       <Card>
         <CardHeader className="border-b bg-muted/40">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle>Listado de Convenios</CardTitle>
-              <CardDescription>
-                {filteredConvenios.length} convenios encontrados
-              </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Listado de Promociones</CardTitle>
+                <CardDescription>
+                  {filteredConvenios.length} promociones encontradas
+                </CardDescription>
+              </div>
+              <div className="relative w-full md:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre, clave..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, clave..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-4">
+              <div className="w-56">
+                <Select value={filtroCampus} onValueChange={(v) => { setFiltroCampus(v); setFiltroPlan("TODOS"); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por campus..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todos los Campus</SelectItem>
+                    {campusList.map((c) => (
+                      <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-72">
+                <Select value={filtroPlan} onValueChange={setFiltroPlan}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por plan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todos los Planes</SelectItem>
+                    {planesFiltradosPorCampus.map((p) => (
+                      <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
+                        {p.nombrePlanEstudios}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -298,7 +352,7 @@ export default function ConveniosPage() {
                   <TableCell colSpan={8} className="h-32 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <HandCoins className="h-8 w-8" />
-                      <span>No se encontraron convenios</span>
+                      <span>No se encontraron promociones</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -469,7 +523,7 @@ export default function ConveniosPage() {
             );
             setEditModalOpen(false);
             setConvenioToEdit(null);
-            toast.success("Convenio actualizado exitosamente");
+            toast.success("Promoción actualizada exitosamente");
           }}
         />
       )}
@@ -477,8 +531,8 @@ export default function ConveniosPage() {
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Eliminar Convenio"
-        description="Esta accion no se puede deshacer. Se eliminara permanentemente el convenio:"
+        title="Eliminar Promoción"
+        description="Esta acción no se puede deshacer. Se eliminará permanentemente la promoción:"
         itemName={convenioToDelete?.nombre}
         onConfirm={handleDeleteConvenio}
         isDeleting={isDeleting}

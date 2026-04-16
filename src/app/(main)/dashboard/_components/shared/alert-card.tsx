@@ -87,9 +87,10 @@ export function AlertCard({
       <CardContent className="space-y-3">
         {displayAlerts.map((alert, index) => {
           const Icon = alertIcons[alert.tipo];
+          const alertKey = alert.link ?? `${alert.tipo}-${index}`;
           const content = (
             <div
-              key={index}
+              key={alertKey}
               className={cn(
                 "p-3 rounded-lg border transition-all",
                 alertBgColors[alert.tipo],
@@ -119,7 +120,7 @@ export function AlertCard({
 
           if (alert.link) {
             return (
-              <Link key={index} href={alert.link}>
+              <Link key={alertKey} href={alert.link}>
                 {content}
               </Link>
             );

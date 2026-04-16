@@ -45,16 +45,14 @@ export function useAuth() {
       setIsAuthenticated(true);
       setToken(accessToken);
       setUser(storedUser);
+    } else if (accessToken) {
+      setIsAuthenticated(false);
+      setToken(null);
+      setUser(null);
     } else {
       setIsAuthenticated(false);
       setToken(null);
       setUser(null);
-
-      if (accessToken) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user");
-        document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
-      }
     }
 
     setIsLoading(false);

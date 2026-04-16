@@ -14,6 +14,7 @@ import {
   Loader2,
   ShieldCheck,
   ShieldX,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,6 +44,7 @@ import {
   obtenerDocumentosPersonales,
   subirDocumentoPersonal,
   validarDocumentoPersonal,
+  resetearDocumentoPersonal,
 } from "@/services/estudiante-panel-service";
 import {
   validateAndPrepareFile,
@@ -58,7 +60,7 @@ interface DocumentosPersonalesTabProps {
 const EXTENSIONES_PERMITIDAS = ALLOWED_EXTENSIONS_STRING;
 const MAX_SIZE_MB = MAX_FILE_SIZE_MB;
 
-type ModalType = "subir" | "validar" | null;
+type ModalType = "subir" | "validar" | "resetear" | null;
 
 export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTabProps) {
   const [loading, setLoading] = useState(true);
@@ -106,6 +108,38 @@ export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTa
     setAccionValidar(aprobar);
     setNotas("");
     setModalType("validar");
+  }
+
+  function abrirModalReseteo(doc: DocumentoPersonalDto) {
+    setDocSeleccionado(doc);
+    setNotas("");
+    setModalType("resetear");
+  }
+
+  async function handleResetear() {
+    if (!docSeleccionado || docSeleccionado.idAspiranteDocumento === 0) return;
+
+    setProcesando(true);
+    try {
+      const resultado = await resetearDocumentoPersonal(
+        idEstudiante,
+        docSeleccionado.idAspiranteDocumento,
+        notas || undefined
+      );
+
+      if (resultado.exitoso) {
+        toast.success(resultado.mensaje);
+        cerrarModal();
+        await cargarDocumentos();
+      } else {
+        toast.error(resultado.mensaje || "Error al resetear el documento");
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Error al resetear el documento";
+      toast.error(msg);
+    } finally {
+      setProcesando(false);
+    }
   }
 
   function cerrarModal() {
@@ -221,6 +255,7 @@ export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTa
 
   const puedeSubir = (estatus: string) => estatus === "PENDIENTE" || estatus === "RECHAZADO";
   const puedeValidar = (estatus: string) => estatus === "SUBIDO";
+  const puedeResetear = (estatus: string) => estatus === "VALIDADO" || estatus === "SUBIDO";
 
   if (loading) {
     return (
@@ -401,6 +436,18 @@ export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTa
                           </Button>
                         </>
                       )}
+                      {puedeResetear(doc.estatus) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => abrirModalReseteo(doc)}
+                          className="gap-1 text-orange-700 border-orange-300 hover:bg-orange-50"
+                          title="Eliminar documento y regresar a pendiente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Eliminar
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -478,6 +525,65 @@ export function DocumentosPersonalesTab({ idEstudiante }: DocumentosPersonalesTa
                 <>
                   <Upload className="w-4 h-4 mr-2" />
                   Subir Documento
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de eliminar/resetear documento */}
+      <Dialog open={modalType === "resetear"} onOpenChange={(open) => { if (!open) cerrarModal(); }}>
+        <DialogContent className="sm:max-w-lg w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-orange-600" />
+              Eliminar Documento
+            </DialogTitle>
+            <DialogDescription>
+              {docSeleccionado?.nombreDocumento} ({docSeleccionado?.claveDocumento})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <p className="text-sm text-orange-800">
+                El archivo sera eliminado y el documento regresara a estatus <strong>PENDIENTE</strong>.
+                El estudiante o el area de control escolar podra subir un nuevo archivo.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notas-resetear">Motivo de la eliminacion</Label>
+              <Textarea
+                id="notas-resetear"
+                placeholder="Ej: El documento no corresponde al alumno, se subio por error..."
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                disabled={procesando}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button variant="outline" onClick={cerrarModal} disabled={procesando}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleResetear}
+              disabled={procesando || !notas.trim()}
+              className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {procesando ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Confirmar Eliminacion
                 </>
               )}
             </Button>

@@ -5,6 +5,8 @@ export interface StudyPlan {
   clavePlanEstudios: string;
   nombrePlanEstudios: string;
   rvoe: string;
+  fechaExpedicionRvoe?: string | null;
+  idCarreraSEP?: number | null;
   permiteAdelantar: boolean;
   version: string;
   duracionMeses: number;
@@ -16,12 +18,15 @@ export interface StudyPlan {
   idCampus: number;
   nombreCampus?: string;
   activo: boolean;
+  esOficial: boolean;
 }
 
 export interface PayloadCreateStudyPlan {
   clavePlanEstudios: string;
   nombrePlanEstudios: string;
   rvoe: string;
+  fechaExpedicionRvoe?: string | null;
+  idCarreraSEP?: number | null;
   permiteAdelantar: boolean;
   version: string;
   duracionMeses: number;
@@ -30,6 +35,7 @@ export interface PayloadCreateStudyPlan {
   idPeriodicidad: number;
   idNivelEducativo: number;
   idCampus: number;
+  esOficial: boolean;
 }
 
 export interface PayloadUpdateStudyPlan extends PayloadCreateStudyPlan {

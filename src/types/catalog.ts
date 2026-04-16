@@ -67,6 +67,7 @@ export interface PaymentMethod {
   idMedioPago: number;
   clave: string;
   descripcion?: string;
+  requiereReferencia?: boolean;
   activo: boolean;
 }
 

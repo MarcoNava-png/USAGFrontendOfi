@@ -18,7 +18,7 @@ import { superAdminAuthService } from "@/services/super-admin-auth-service"
 
 const FormSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un correo electronico valido." }),
-  password: z.string().min(6, { message: "La contrasena debe tener al menos 6 caracteres." }),
+  password: z.string().min(1, { message: "La contraseña es requerida." }),
 })
 
 export default function SuperAdminLoginPage() {
@@ -35,9 +35,9 @@ export default function SuperAdminLoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard/super-admin")
+      window.location.href = "/dashboard/super-admin"
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading])
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     try {
@@ -56,7 +56,7 @@ export default function SuperAdminLoginPage() {
         description: `Bienvenido ${res.superAdmin?.nombreCompleto ?? ""}`,
       })
 
-      router.push("/dashboard/super-admin")
+      window.location.href = "/dashboard/super-admin"
     } catch (error: unknown) {
       let message = "Error desconocido"
       if (error instanceof Error) message = error.message

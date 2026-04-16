@@ -11,7 +11,7 @@ import {
   Updater,
   PaginationState,
 } from "@tanstack/react-table";
-import { Users, DollarSign, MoreHorizontal, FileText, CreditCard, ClipboardList, Handshake, EyeOff, Pencil, GraduationCap, Printer } from "lucide-react";
+import { Users, DollarSign, MoreHorizontal, FileText, CreditCard, ClipboardList, EyeOff, Pencil, GraduationCap, Printer, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getApplicantsList, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
+import { getApplicantsList, getApplicantCounters, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
 import { getCampusList } from "@/services/campus-service";
 import {
   getAcademicPeriods,
@@ -58,7 +58,6 @@ import { State } from "@/types/location";
 import { StudyPlan } from "@/types/study-plan";
 
 import { ApplicantLogsModal } from "./_components/applicant-logs-modal";
-import { ConveniosAspiranteModal } from "./_components/convenios-aspirante-modal";
 import { CreateApplicantModal } from "./_components/create-applicant-modal";
 import { DocumentsManagementModal } from "./_components/documents-management-modal";
 import { EditApplicantModal } from "./_components/edit-applicant-modal";
@@ -122,8 +121,6 @@ function Page() {
   const [applicantForDocuments, setApplicantForDocuments] = useState<Applicant | null>(null);
   const [receiptsModalOpen, setReceiptsModalOpen] = useState(false);
   const [applicantForReceipts, setApplicantForReceipts] = useState<Applicant | null>(null);
-  const [conveniosModalOpen, setConveniosModalOpen] = useState(false);
-  const [applicantForConvenios, setApplicantForConvenios] = useState<Applicant | null>(null);
   const [genres, setGenres] = useState<Genres[]>([]);
   const [civilStatus, setCivilStatus] = useState<CivilStatus[]>([]);
   const [campus, setCampus] = useState<Campus[]>([]);
@@ -144,6 +141,8 @@ function Page() {
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
+  const [counters, setCounters] = useState<Record<string, number>>({ total: 0, inscritos: 0, aceptados: 0, pendientes: 0 });
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
@@ -158,9 +157,14 @@ function Page() {
   const loadApplicants = () => {
     const filterToSend: string | undefined = debouncedFilter.trim() === "" ? undefined : debouncedFilter;
     setLoading(true);
-    getApplicantsList({ page: pageIndex + 1, pageSize, filter: filterToSend })
-      .then((res: ApplicantsResponse) => {
+    Promise.all([
+      getApplicantsList({ page: pageIndex + 1, pageSize, filter: filterToSend }),
+      getApplicantCounters(),
+    ])
+      .then(([res, counts]) => {
         setData(res.items);
+        setTotalRows(res.totalItems ?? 0);
+        setCounters(counts);
       })
       .finally(() => setLoading(false));
   };
@@ -232,6 +236,8 @@ function Page() {
     state: {
       pagination: { pageIndex, pageSize },
     },
+    manualPagination: true,
+    rowCount: totalRows,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onPaginationChange: (updater: Updater<PaginationState>) => {
@@ -297,7 +303,7 @@ function Page() {
           <CardHeader className="pb-2">
             <CardDescription style={{ color: '#1e4a8f' }}>Total Aspirantes</CardDescription>
             <CardTitle className="text-4xl" style={{ color: '#14356F' }}>
-              {data.length}
+              {counters.total}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -305,7 +311,7 @@ function Page() {
           <CardHeader className="pb-2">
             <CardDescription className="text-green-600 dark:text-green-400">Inscritos</CardDescription>
             <CardTitle className="text-4xl text-green-700 dark:text-green-300">
-              {data.filter(a => a.aspiranteEstatus === "Inscrito").length}
+              {counters.inscritos}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -313,7 +319,7 @@ function Page() {
           <CardHeader className="pb-2">
             <CardDescription className="text-blue-600 dark:text-blue-400">Aceptados</CardDescription>
             <CardTitle className="text-4xl text-blue-700 dark:text-blue-300">
-              {data.filter(a => a.aspiranteEstatus === "Aceptado").length}
+              {counters.aceptados}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -321,7 +327,7 @@ function Page() {
           <CardHeader className="pb-2">
             <CardDescription className="text-yellow-600 dark:text-yellow-400">Pendientes</CardDescription>
             <CardTitle className="text-4xl text-yellow-700 dark:text-yellow-300">
-              {data.filter(a => a.aspiranteEstatus !== "Inscrito" && a.aspiranteEstatus !== "Aceptado" && a.aspiranteEstatus !== "Rechazado").length}
+              {counters.pendientes}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -396,7 +402,12 @@ function Page() {
                   <div className="text-[10px] text-gray-500 leading-tight">{applicant.email}</div>
                 </td>
                 <td className="px-2 py-2 text-gray-700 text-xs">{applicant.planEstudios}</td>
-                <td className="px-2 py-2 text-gray-700 text-xs">{applicant.telefono}</td>
+                <td className="px-2 py-2 text-gray-700 text-xs">
+                  <div>{applicant.telefono}</div>
+                  {applicant.celular && (
+                    <div className="text-[10px] text-gray-400">{applicant.celular}</div>
+                  )}
+                </td>
                 <td className="px-2 py-2">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusBadgeClass(applicant.aspiranteEstatus)}`}>
                     {applicant.aspiranteEstatus}
@@ -426,34 +437,40 @@ function Page() {
                 </td>
                 <td className="px-2 py-2">
                   <div className="flex items-center justify-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setApplicantToEdit(applicant);
-                        setEditModalOpen(true);
-                      }}
-                      title="Editar aspirante"
-                      className="h-6 px-1.5 text-[10px] gap-1"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Editar
-                    </Button>
+                    {applicant.aspiranteEstatus === "Inscrito" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-medium"><CheckCircle className="h-3 w-3" /> Inscrito</span>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setApplicantToEdit(applicant);
+                            setEditModalOpen(true);
+                          }}
+                          title="Editar aspirante"
+                          className="h-6 px-1.5 text-[10px] gap-1"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Editar
+                        </Button>
 
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => {
-                        setApplicantToEnroll(applicant);
-                        setEnrollModalOpen(true);
-                      }}
-                      title="Inscribir como estudiante"
-                      className="h-6 px-1.5 text-[10px] text-white gap-1"
-                      style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
-                    >
-                      <GraduationCap className="h-3 w-3" />
-                      Inscribir
-                    </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => {
+                            setApplicantToEnroll(applicant);
+                            setEnrollModalOpen(true);
+                          }}
+                          title="Inscribir como estudiante"
+                          className="h-6 px-1.5 text-[10px] text-white gap-1"
+                          style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                        >
+                          <GraduationCap className="h-3 w-3" />
+                          Inscribir
+                        </Button>
+                      </>
+                    )}
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -482,13 +499,6 @@ function Page() {
                         }}>
                           <ClipboardList className="mr-2 h-4 w-4" />
                           Seguimiento
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setApplicantForConvenios(applicant);
-                          setConveniosModalOpen(true);
-                        }}>
-                          <Handshake className="mr-2 h-4 w-4" />
-                          Convenios
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={async () => {
                           try {
@@ -563,18 +573,6 @@ function Page() {
           setApplicantForReceipts(null);
         }}
         onPaymentRegistered={() => {
-          loadApplicants();
-        }}
-      />
-
-      <ConveniosAspiranteModal
-        open={conveniosModalOpen}
-        applicant={applicantForConvenios}
-        onClose={() => {
-          setConveniosModalOpen(false);
-          setApplicantForConvenios(null);
-        }}
-        onConvenioChanged={() => {
           loadApplicants();
         }}
       />

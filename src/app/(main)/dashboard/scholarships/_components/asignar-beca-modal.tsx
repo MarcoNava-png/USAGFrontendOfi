@@ -344,7 +344,7 @@ export function AsignarBecaModal({ open, onClose, idEstudiante }: Props) {
               id="observaciones"
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Ej: Beca otorgada por convenio con empresa X"
+              placeholder="Ej: Beca otorgada por promoción con empresa X"
               rows={2}
             />
           </div>

@@ -239,7 +239,7 @@ export function TablaCalificaciones({ grupoMateriaId, parcialId }: TablaCalifica
                       ) : estudiante.calificacion !== undefined ? (
                         <span
                           className={`font-semibold ${
-                            estudiante.calificacion >= 70
+                            estudiante.calificacion >= 7
                               ? "text-green-600"
                               : estudiante.calificacion >= 60
                                 ? "text-yellow-600"
@@ -254,8 +254,8 @@ export function TablaCalificaciones({ grupoMateriaId, parcialId }: TablaCalifica
                     </TableCell>
                     <TableCell className="text-center">
                       {estudiante.calificacion !== undefined ? (
-                        <Badge variant={estudiante.calificacion >= 70 ? "default" : "destructive"}>
-                          {estudiante.calificacion >= 70 ? "Aprobado" : "Reprobado"}
+                        <Badge variant={estudiante.calificacion >= 7 ? "default" : "destructive"}>
+                          {estudiante.calificacion >= 7 ? "Aprobado" : "Reprobado"}
                         </Badge>
                       ) : (
                         <Badge variant="secondary">Pendiente</Badge>

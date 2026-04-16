@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { APP_CONFIG } from "@/config/app-config"
 import { tenantAdminService, type DashboardGlobal, type TenantListItem } from "@/services/tenant-admin-service"
 
 function formatCurrency(value: number) {
@@ -95,7 +96,7 @@ function TenantCard({ tenant }: { tenant: TenantListItem }) {
         </div>
         <div>
           <p className="font-medium">{tenant.nombreCorto}</p>
-          <p className="text-xs text-muted-foreground">{tenant.subdominio}.saciusag.com.mx</p>
+          <p className="text-xs text-muted-foreground">{tenant.subdominio}.{APP_CONFIG.domain}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">

@@ -83,6 +83,12 @@ export interface RecibosParaCobro {
   }[];
 }
 
+export interface MetodoPagoItem {
+  idMedioPago: number;
+  monto: number;
+  referencia?: string;
+}
+
 export interface RegistrarPagoRequest {
   idUsuarioCaja?: string;
   idCaja?: number;
@@ -100,6 +106,7 @@ export interface RegistrarPagoRequest {
     autorizadoPor: string;
     motivo: string;
   };
+  metodosPago?: MetodoPagoItem[];
 }
 
 export interface PagoRegistrado {

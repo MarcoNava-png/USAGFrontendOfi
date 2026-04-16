@@ -522,7 +522,9 @@ export default function DocumentosSolicitudesPage() {
                                 className={`text-[10px] px-1.5 py-0 ${
                                   solicitud.estatusRecibo === 'PAGADO'
                                     ? 'border-green-500 text-green-600'
-                                    : 'border-yellow-500 text-yellow-600'
+                                    : solicitud.estatusRecibo === 'CANCELADO'
+                                      ? 'border-red-500 text-red-600'
+                                      : 'border-yellow-500 text-yellow-600'
                                 }`}
                               >
                                 {solicitud.estatusRecibo}

@@ -24,6 +24,9 @@ import { updateStudyPlan } from "@/services/study-plans-service";
 import { Campus } from "@/types/campus";
 import { EducationLevel, Periodicity } from "@/types/catalog";
 import { StudyPlan, PayloadUpdateStudyPlan } from "@/types/study-plan";
+import apiClient from "@/services/api-client";
+
+interface CarreraSEP { id: number; idCarrera: string; claveCarrera: string; nombreCarrera: string; }
 
 interface EditStudyPlanDialogProps {
   open: boolean;
@@ -36,11 +39,14 @@ const defaultValues = {
   clavePlanEstudios: "",
   nombrePlanEstudios: "",
   rvoe: "",
+  fechaExpedicionRvoe: "",
+  idCarreraSEP: "",
   version: "",
   duracionMeses: "",
   minimaAprobatoriaParcial: "",
   minimaAprobatoriaFinal: "",
   permiteAdelantar: "false",
+  esOficial: "true",
   idPeriodicidad: "",
   idNivelEducativo: "",
   idCampus: "",
@@ -51,12 +57,14 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
   const [campus, setCampus] = useState<Campus[]>([]);
   const [periodicity, setPeriodicity] = useState<Periodicity[]>([]);
   const [educationLevels, setEducationLevels] = useState<EducationLevel[]>([]);
+  const [carrerasSEP, setCarrerasSEP] = useState<CarreraSEP[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getCampusList().then((res) => setCampus(res.items));
     getPeriodicity().then((res) => setPeriodicity(res));
     getEducationLevels().then((res) => setEducationLevels(res));
+    apiClient.get("/titulacion/certificados/catalogos/carreras-sep").then((res) => setCarrerasSEP(res.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -65,6 +73,8 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
         clavePlanEstudios: plan.clavePlanEstudios || "",
         nombrePlanEstudios: plan.nombrePlanEstudios || "",
         rvoe: plan.rvoe || "",
+        fechaExpedicionRvoe: plan.fechaExpedicionRvoe ? plan.fechaExpedicionRvoe.split("T")[0] : "",
+        idCarreraSEP: plan.idCarreraSEP?.toString() || "",
         version: plan.version || "",
         duracionMeses: plan.duracionMeses?.toString() || "",
         minimaAprobatoriaParcial: plan.minimaAprobatoriaParcial?.toString() || "",
@@ -73,6 +83,7 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
         idPeriodicidad: plan.idPeriodicidad?.toString() || "",
         idNivelEducativo: plan.idNivelEducativo?.toString() || "",
         idCampus: plan.idCampus?.toString() || "",
+        esOficial: plan.esOficial ? "true" : "false",
       });
     } else if (!open) {
       form.reset(defaultValues);
@@ -88,6 +99,8 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
         clavePlanEstudios: data.clavePlanEstudios,
         nombrePlanEstudios: data.nombrePlanEstudios,
         rvoe: data.rvoe,
+        fechaExpedicionRvoe: data.fechaExpedicionRvoe || null,
+        idCarreraSEP: data.idCarreraSEP ? Number(data.idCarreraSEP) : null,
         version: data.version,
         permiteAdelantar: data.permiteAdelantar === "true",
         duracionMeses: Number(data.duracionMeses),
@@ -97,6 +110,7 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
         idNivelEducativo: Number(data.idNivelEducativo),
         idCampus: Number(data.idCampus),
         status: plan.activo ? 1 : 0,
+        esOficial: data.esOficial === "true",
       };
       await updateStudyPlan(payload);
       toast.success("Plan de estudios actualizado exitosamente");
@@ -112,7 +126,7 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar plan de estudio</DialogTitle>
         </DialogHeader>
@@ -150,6 +164,36 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
                     render={({ field }) => <Input {...field} value={field.value ?? ""} placeholder="RVOE" required className="w-full" />}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Fecha Expedición RVOE</Label>
+                  <FormField
+                    name="fechaExpedicionRvoe"
+                    render={({ field }) => <Input {...field} value={field.value ?? ""} type="date" className="w-full" />}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Carrera SEP (Titulación)</Label>
+                <FormField
+                  name="idCarreraSEP"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sin asignar" />
+                      </SelectTrigger>
+                      <SelectContent className="w-full">
+                        <SelectItem value="0">Sin asignar</SelectItem>
+                        {carrerasSEP.map((c) => (
+                          <SelectItem key={c.id} value={c.id.toString()}>
+                            {c.nombreCarrera} ({c.claveCarrera})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Duracion (meses)</Label>
                   <FormField
@@ -200,6 +244,24 @@ export function EditStudyPlanDialog({ open, onOpenChange, plan, onSuccess }: Edi
                         <SelectContent className="w-full">
                           <SelectItem value="true">Si</SelectItem>
                           <SelectItem value="false">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Es Oficial</Label>
+                  <FormField
+                    control={form.control}
+                    name="esOficial"
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value || "true"}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Es Oficial" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Oficial</SelectItem>
+                          <SelectItem value="false">No Oficial</SelectItem>
                         </SelectContent>
                       </Select>
                     )}

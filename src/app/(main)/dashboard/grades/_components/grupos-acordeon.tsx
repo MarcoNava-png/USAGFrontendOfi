@@ -15,6 +15,7 @@ import { TablaCalificacionesMatricial } from "./tabla-calificaciones-matricial";
 
 interface GruposAcordeonProps {
   planEstudiosId: number;
+  minimaAprobatoria?: number;
 }
 
 interface GrupoConMaterias {
@@ -29,7 +30,7 @@ interface GrupoConMaterias {
   materias: GrupoMateria[];
 }
 
-export function GruposAcordeon({ planEstudiosId }: GruposAcordeonProps) {
+export function GruposAcordeon({ planEstudiosId, minimaAprobatoria = 7 }: GruposAcordeonProps) {
   const [loading, setLoading] = useState(false);
   const [grupos, setGrupos] = useState<GrupoConMaterias[]>([]);
   const [gruposExpandidos, setGruposExpandidos] = useState<Set<number>>(new Set());
@@ -147,7 +148,7 @@ export function GruposAcordeon({ planEstudiosId }: GruposAcordeonProps) {
           </CardHeader>
         </Card>
 
-        <TablaCalificacionesMatricial grupoMateriaId={materiaSeleccionada.grupoMateriaId} />
+        <TablaCalificacionesMatricial grupoMateriaId={materiaSeleccionada.grupoMateriaId} minimaAprobatoria={minimaAprobatoria} />
       </div>
     );
   }

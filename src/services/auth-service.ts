@@ -1,6 +1,6 @@
 import { LoginResponse } from "@/types/auth";
 
-import apiClient from "./api-client";
+import apiClient, { rawAxios } from "./api-client";
 
 export async function login({ email, password }: { email: string; password: string }) {
   if (!email || !password) {
@@ -17,9 +17,16 @@ export async function login({ email, password }: { email: string; password: stri
       }
       return { success: true, token: data.data.token, user: data.data };
     }
-    return { success: false, error: data.messageError ?? "Invalid credentials" };
-  } catch {
-    return { success: false, error: "Network error" };
+    return { success: false, error: data.messageError ?? "Credenciales incorrectas" };
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { messageError?: string }; status?: number }; message?: string };
+    if (err?.response?.data?.messageError) {
+      return { success: false, error: err.response.data.messageError };
+    }
+    if (err?.response?.status === 429) {
+      return { success: false, error: "Demasiados intentos. Espere un momento antes de intentar de nuevo." };
+    }
+    return { success: false, error: "Error de conexion. Verifique su red e intente de nuevo." };
   }
 }
 
@@ -32,7 +39,12 @@ export function logout() {
 
 export async function refreshToken(): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data }: { data: LoginResponse } = await apiClient.post("/auth/refresh");
+    const currentToken = localStorage.getItem("access_token");
+    if (!currentToken) return { success: false, error: "No hay token" };
+
+    const { data }: { data: LoginResponse } = await rawAxios.post("/auth/refresh", null, {
+      headers: { Authorization: `Bearer ${currentToken}` },
+    });
     if (data.isSuccess && data.data?.token) {
       localStorage.setItem("access_token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data));
@@ -45,23 +57,17 @@ export async function refreshToken(): Promise<{ success: boolean; error?: string
   }
 }
 
-export async function register({ name, email, password }: { name: string; email: string; password: string }) {
-  await new Promise((resolve) => setTimeout(resolve, 700));
-  if (name && email && password) {
-    return { success: true };
-  }
-  return { success: false, error: "Invalid registration data" };
-}
-
 export async function changePassword({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
   const response = await apiClient.post("/auth/change-password", { currentPassword, newPassword });
   return response.data;
 }
 
 export async function forgotPassword({ email }: { email: string }) {
-  await new Promise((resolve) => setTimeout(resolve, 700));
-  if (email) {
-    return { success: true };
+  if (!email) return { success: false, error: "El correo es requerido" };
+  try {
+    const { data } = await rawAxios.post("/auth/forgot-password", { email });
+    return { success: data.success, message: data.message };
+  } catch {
+    return { success: false, error: "Error al procesar la solicitud" };
   }
-  return { success: false, error: "Email required" };
 }

@@ -129,6 +129,7 @@ export interface GrupoResumen {
   capacidadMaxima: number;
   totalMaterias: number;
   idPlanEstudios?: number;
+  idPeriodoAcademico?: number;
 }
 
 export interface GrupoConMaterias extends GrupoResumen {

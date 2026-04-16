@@ -340,13 +340,13 @@ export default function DocumentacionAspirantesPage() {
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => openDetail(aspirante)}
                       >
-                        <TableCell className="max-w-[200px] truncate font-medium">
+                        <TableCell className="max-w-[250px] truncate font-medium" title={aspirante.nombreCompleto}>
                           {aspirante.nombreCompleto}
                         </TableCell>
                         <TableCell className="font-mono">
                           {aspirante.matricula ?? <span className="text-muted-foreground text-xs">Sin matricula</span>}
                         </TableCell>
-                        <TableCell className="max-w-[180px] truncate">
+                        <TableCell className="max-w-[300px] truncate" title={aspirante.planEstudios}>
                           {aspirante.planEstudios}
                         </TableCell>
                         <TableCell>
@@ -400,7 +400,7 @@ export default function DocumentacionAspirantesPage() {
 
       {/* Detail Dialog */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[70vw] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5" />
@@ -488,6 +488,34 @@ export default function DocumentacionAspirantesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={doc.estatus === 'VALIDADO' ? 'default' : 'outline'}
+                        className={`text-xs gap-1 ${doc.estatus === 'VALIDADO' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          try {
+                            const result = await documentacionAspirantesService.toggleRecibido(doc.idAspiranteDocumento)
+                            toast.success(result.recibido ? 'Documento marcado como recibido' : 'Documento desmarcado')
+                            loadData()
+                            if (selectedAspirante) {
+                              const updatedDocs = selectedAspirante.documentos.map(d =>
+                                d.idAspiranteDocumento === doc.idAspiranteDocumento
+                                  ? { ...d, estatus: result.estatus }
+                                  : d
+                              )
+                              setSelectedAspirante({
+                                ...selectedAspirante,
+                                documentos: updatedDocs,
+                                documentosCompletos: updatedDocs.filter(d => d.estatus === 'VALIDADO').length
+                              })
+                            }
+                          } catch { toast.error('Error al actualizar') }
+                        }}
+                      >
+                        {doc.estatus === 'VALIDADO' ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        {doc.estatus === 'VALIDADO' ? 'Recibido' : 'Marcar recibido'}
+                      </Button>
                       {doc.estatus === 'PENDIENTE' && (
                         <Button
                           size="sm"

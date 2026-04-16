@@ -8,6 +8,7 @@ import {
   DirectorDashboard,
   DocenteDashboard,
   FinanzasDashboard,
+  FinanzasIndicadores,
 } from "@/types/dashboard";
 
 import apiClient from "./api-client";
@@ -58,5 +59,10 @@ export async function getDocenteDashboard(): Promise<DocenteDashboard> {
 
 export async function getAlumnoDashboard(): Promise<AlumnoDashboard> {
   const response = await apiClient.get<ApiResponse<AlumnoDashboard>>("/dashboard/alumno");
+  return response.data.data;
+}
+
+export async function getFinanzasIndicadores(): Promise<FinanzasIndicadores> {
+  const response = await apiClient.get<ApiResponse<FinanzasIndicadores>>("/dashboard/finanzas/indicadores");
   return response.data.data;
 }

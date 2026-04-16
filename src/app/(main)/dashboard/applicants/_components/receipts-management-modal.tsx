@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
-import { Receipt, DollarSign, Calendar, FileText, Plus, FileSpreadsheet, Trash2, AlertTriangle, HandCoins } from "lucide-react";
+import { Receipt, DollarSign, Calendar, FileText, Plus, FileSpreadsheet, Trash2, AlertTriangle, HandCoins, Building } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -38,12 +40,18 @@ import {
   generarRecibosDesdeePlantilla,
 } from "@/services/applicants-service";
 import { listarConceptosPago } from "@/services/conceptos-pago-service";
+import { obtenerPromocionesActivas, formatearBeneficio } from "@/services/convenios-service";
+import { listarEmpresas } from "@/services/empresas-service";
 import {
   listarTarifasAdmision,
   generarRecibosAdmision,
+  generarRecibosAdmisionV2,
   descargarCotizacionAdmisionPdf,
+  descargarCotizacionAdmisionPdfV2,
 } from "@/services/tarifas-admision-service";
 import { Applicant, ReciboDto, EstatusRecibo, PlantillaCobroAspirante } from "@/types/applicant";
+import { ConvenioDisponibleDto } from "@/types/convenio";
+import { EmpresaDto } from "@/types/empresa";
 import { ConceptoPago } from "@/types/receipt";
 import { TarifaAdmisionDto } from "@/types/tarifa-admision";
 
@@ -84,6 +92,15 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
   const [pagoCompleto, setPagoCompleto] = useState(false);
   const [generatingFromTarifa, setGeneratingFromTarifa] = useState(false);
   const [downloadingCotizacion, setDownloadingCotizacion] = useState(false);
+  const [conceptosSeleccionados, setConceptosSeleccionados] = useState<number[]>([]);
+  const [descuentoPorcentaje, setDescuentoPorcentaje] = useState<string>("0");
+
+  // Nuevos estados Phase 3E + 5
+  const [tipoTarifa, setTipoTarifa] = useState<"normal" | "convenio">("normal");
+  const [empresas, setEmpresas] = useState<EmpresaDto[]>([]);
+  const [empresaSeleccionada, setEmpresaSeleccionada] = useState<string>("");
+  const [promociones, setPromociones] = useState<ConvenioDisponibleDto[]>([]);
+  const [promocionPorConcepto, setPromocionPorConcepto] = useState<Record<number, number | null>>({});
 
   useEffect(() => {
     if (open && applicant) {
@@ -96,14 +113,27 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
 
     setLoading(true);
     try {
-      const [recibosData, conceptosData, tarifasData] = await Promise.all([
+      const [recibosData, conceptosData, tarifasData, empresasData, promocionesData] = await Promise.all([
         getApplicantReceipts(applicant.idAspirante),
         listarConceptosPago({ soloActivos: true }),
         listarTarifasAdmision(true),
+        listarEmpresas(true),
+        obtenerPromocionesActivas(),
       ]);
       setReceipts(recibosData);
       setConceptos(conceptosData);
       setTarifas(tarifasData);
+      setEmpresas(empresasData);
+      setPromociones(promocionesData);
+
+      // Phase 5: Auto-selección si el aspirante tiene empresa
+      if (applicant.idEmpresa) {
+        setTipoTarifa("convenio");
+        setEmpresaSeleccionada(String(applicant.idEmpresa));
+      } else {
+        setTipoTarifa("normal");
+        setEmpresaSeleccionada("");
+      }
     } catch (error) {
       toast.error("Error al cargar datos");
       console.error(error);
@@ -181,16 +211,32 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
     }
   };
 
-  // Generar recibos desde Tarifa de Admisión
+  // Generar recibos desde Tarifa de Admisión (V2 con promociones por concepto)
   const handleGenerateFromTarifa = async () => {
     if (!applicant || !selectedTarifa) return;
+    if (conceptosSeleccionados.length === 0) {
+      toast.error("Selecciona al menos un concepto");
+      return;
+    }
 
     setGeneratingFromTarifa(true);
     try {
-      const result = await generarRecibosAdmision(
+      const conceptos = conceptosSeleccionados.map((idConceptoPago) => ({
+        idConceptoPago,
+        idPromocion: promocionPorConcepto[idConceptoPago] ?? null,
+      }));
+      const idEmpresa = tipoTarifa === "convenio" && empresaSeleccionada
+        ? parseInt(empresaSeleccionada)
+        : null;
+
+      const result = await generarRecibosAdmisionV2(
         parseInt(selectedTarifa),
         applicant.idAspirante,
-        pagoCompleto
+        {
+          pagoCompleto,
+          idEmpresa,
+          conceptos,
+        }
       );
       const total = result.totalRecibos;
       toast.success(`Se generaron ${total} recibo(s) de admisión`);
@@ -204,14 +250,23 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
     }
   };
 
-  // Descargar cotización de admisión PDF
+  // Descargar cotización de admisión PDF (V2 con promociones)
   const handleDescargarCotizacion = async () => {
     if (!applicant || !selectedTarifa) return;
     setDownloadingCotizacion(true);
     try {
-      const blob = await descargarCotizacionAdmisionPdf(
+      const conceptos = conceptosSeleccionados.map((idConceptoPago) => ({
+        idConceptoPago,
+        idPromocion: promocionPorConcepto[idConceptoPago] ?? null,
+      }));
+      const idEmpresa = tipoTarifa === "convenio" && empresaSeleccionada
+        ? parseInt(empresaSeleccionada)
+        : null;
+
+      const blob = await descargarCotizacionAdmisionPdfV2(
         parseInt(selectedTarifa),
-        applicant.idAspirante
+        applicant.idAspirante,
+        { conceptos, idEmpresa }
       );
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -425,11 +480,8 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
               </h3>
 
               <Tabs defaultValue="tarifa" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-1">
                   <TabsTrigger value="tarifa">Tarifa del Plan</TabsTrigger>
-                  <TabsTrigger value="concepto">Por Concepto</TabsTrigger>
-                  <TabsTrigger value="plantilla">Desde Plantilla</TabsTrigger>
-                  <TabsTrigger value="manual">Manual</TabsTrigger>
                 </TabsList>
 
                 {/* Tab: Tarifa del Plan */}
@@ -443,26 +495,134 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                     </Alert>
                   ) : (
                     <div className="space-y-4">
+                      {/* Tipo de tarifa */}
+                      <div className="space-y-2">
+                        <Label>Tipo de Tarifa</Label>
+                        <RadioGroup
+                          value={tipoTarifa}
+                          onValueChange={(val) => {
+                            setTipoTarifa(val as "normal" | "convenio");
+                            setSelectedTarifa("");
+                            setConceptosSeleccionados([]);
+                            setPromocionPorConcepto({});
+                            if (val === "normal") setEmpresaSeleccionada("");
+                          }}
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="normal" id="tipo-normal" />
+                            <Label htmlFor="tipo-normal" className="cursor-pointer font-normal">Normal</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="convenio" id="tipo-convenio" />
+                            <Label htmlFor="tipo-convenio" className="cursor-pointer font-normal flex items-center gap-1">
+                              <Building className="h-3.5 w-3.5" />
+                              Costos convenio
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {/* Empresa dropdown (solo si convenio) */}
+                      {tipoTarifa === "convenio" && (
+                        <div className="space-y-2">
+                          <Label>Empresa</Label>
+                          <Select value={empresaSeleccionada} onValueChange={setEmpresaSeleccionada}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una empresa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {empresas.map((e) => (
+                                <SelectItem key={e.idEmpresa} value={String(e.idEmpresa)}>
+                                  {e.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {/* Tarifa dropdown filtrada */}
                       <div className="space-y-2">
                         <Label>Tarifa de Admisión</Label>
-                        <Select value={selectedTarifa} onValueChange={setSelectedTarifa}>
+                        <Select value={selectedTarifa} onValueChange={(val) => {
+                          setSelectedTarifa(val);
+                          const tarifa = tarifas.find((t) => String(t.idTarifaAdmision) === val);
+                          if (tarifa) {
+                            const yaGenerados = new Set(
+                              receipts.flatMap((r) => r.detalles.map((d) => d.idConceptoPago))
+                            );
+                            const aplicables = tarifa.detalles.filter((d) => d.esAplicable);
+                            const mensualidades = aplicables.filter((d) =>
+                              d.nombreConcepto?.toUpperCase().includes("MENSUALIDAD") || d.nombreConcepto?.toUpperCase().includes("COLEGIATURA")
+                            );
+                            let seleccionados = aplicables
+                              .filter((d) => !yaGenerados.has(d.idConceptoPago))
+                              .map((d) => d.idConceptoPago);
+                            if (mensualidades.length > 1) {
+                              const excluir = mensualidades.slice(1).map((d) => d.idConceptoPago);
+                              seleccionados = seleccionados.filter((id) => !excluir.includes(id));
+                            }
+                            setConceptosSeleccionados(seleccionados);
+                          } else {
+                            setConceptosSeleccionados([]);
+                          }
+                          setPromocionPorConcepto({});
+                          setDescuentoPorcentaje("0");
+                        }}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona una tarifa de admisión" />
                           </SelectTrigger>
                           <SelectContent>
-                            {tarifas.map((t) => (
-                              <SelectItem key={t.idTarifaAdmision} value={String(t.idTarifaAdmision)}>
-                                {t.nombre} — {t.clavePlanEstudios}
-                              </SelectItem>
-                            ))}
+                            {tarifas
+                              .filter((t) => t.esConvenioEmpresarial === (tipoTarifa === "convenio"))
+                              .filter((t) => !applicant?.planEstudiosId || t.idPlanEstudios === applicant.planEstudiosId)
+                              .map((t) => (
+                                <SelectItem key={t.idTarifaAdmision} value={String(t.idTarifaAdmision)}>
+                                  {t.nombre} — {t.clavePlanEstudios}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
 
+                      {/* Detalle de tarifa con promociones por concepto */}
                       {selectedTarifa && (() => {
                         const tarifa = tarifas.find((t) => String(t.idTarifaAdmision) === selectedTarifa);
                         if (!tarifa) return null;
-                        const totalAdmision = tarifa.detalles.filter((d) => d.esAplicable).reduce((s, d) => s + d.monto, 0);
+                        const detallesAplicables = tarifa.detalles.filter((d) => d.esAplicable);
+                        const conceptosConRecibo = new Set(
+                          receipts.flatMap((r) => r.detalles.map((d) => d.idConceptoPago))
+                        );
+
+                        // Calcular descuento por concepto según la promoción seleccionada
+                        const calcularDescuentoConcepto = (idConceptoPago: number, monto: number): number => {
+                          const idPromo = promocionPorConcepto[idConceptoPago];
+                          if (!idPromo) return 0;
+                          const promo = promociones.find((p) => p.idConvenio === idPromo);
+                          if (!promo) return 0;
+                          switch (promo.tipoBeneficio) {
+                            case "PORCENTAJE":
+                              return Math.round(monto * ((promo.descuentoPct ?? 0) / 100) * 100) / 100;
+                            case "MONTO":
+                              return Math.min(promo.monto ?? 0, monto);
+                            case "EXENCION":
+                              return monto;
+                            default:
+                              return 0;
+                          }
+                        };
+
+                        const conceptosConCalculo = detallesAplicables
+                          .filter((d) => conceptosSeleccionados.includes(d.idConceptoPago))
+                          .map((d) => {
+                            const descuento = calcularDescuentoConcepto(d.idConceptoPago, d.monto);
+                            return { ...d, descuento, montoFinal: d.monto - descuento };
+                          });
+
+                        const totalFinal = conceptosConCalculo.reduce((s, c) => s + c.montoFinal, 0);
+                        const totalDescuento = conceptosConCalculo.reduce((s, c) => s + c.descuento, 0);
+
                         return (
                           <div className="rounded-lg border p-4 bg-white space-y-3">
                             <div className="flex justify-between items-start">
@@ -470,20 +630,108 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                                 <p className="font-semibold text-sm">{tarifa.nombre}</p>
                                 <p className="text-xs text-muted-foreground">{tarifa.nombrePlanEstudios}</p>
                               </div>
-                              {tarifa.aplicaConvenioMensualidad && (
-                                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Aplica convenio</span>
-                              )}
+                              <div className="flex gap-1.5">
+                                {tarifa.aplicaConvenioMensualidad && (
+                                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Aplica convenio</span>
+                                )}
+                                {tarifa.esConvenioEmpresarial && (
+                                  <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">Costos Convenio</span>
+                                )}
+                              </div>
                             </div>
-                            <div className="space-y-1 border-t pt-2">
-                              {tarifa.detalles.filter((d) => d.esAplicable).map((d) => (
-                                <div key={d.idTarifaAdmisionDetalle} className="flex justify-between text-xs">
-                                  <span>{d.nombreConcepto}</span>
-                                  <span className="font-medium">{formatCurrency(d.monto)}</span>
+
+                            {/* Tabla de conceptos con promoción */}
+                            <div className="border-t pt-2 space-y-1">
+                              <div className="grid grid-cols-[auto_1fr_auto_minmax(160px,1fr)_auto] gap-x-3 gap-y-1.5 text-xs items-center">
+                                <span className="font-medium text-muted-foreground"></span>
+                                <span className="font-medium text-muted-foreground">Concepto</span>
+                                <span className="font-medium text-muted-foreground text-right">Monto</span>
+                                <span className="font-medium text-muted-foreground">Convenio</span>
+                                <span className="font-medium text-muted-foreground text-right">Final</span>
+
+                                {detallesAplicables.map((d) => {
+                                  const yaGenerado = conceptosConRecibo.has(d.idConceptoPago);
+                                  const checked = yaGenerado || conceptosSeleccionados.includes(d.idConceptoPago);
+                                  const descConcepto = checked && !yaGenerado ? calcularDescuentoConcepto(d.idConceptoPago, d.monto) : 0;
+                                  const final = d.monto - descConcepto;
+                                  return (
+                                    <React.Fragment key={d.idTarifaAdmisionDetalle}>
+                                      <div>
+                                        <Checkbox
+                                          id={`concepto-${d.idTarifaAdmisionDetalle}`}
+                                          checked={checked}
+                                          disabled={yaGenerado}
+                                          onCheckedChange={(val) => {
+                                            if (yaGenerado) return;
+                                            if (val) {
+                                              setConceptosSeleccionados((prev) => [...prev, d.idConceptoPago]);
+                                            } else {
+                                              setConceptosSeleccionados((prev) => prev.filter((id) => id !== d.idConceptoPago));
+                                              setPromocionPorConcepto((prev) => {
+                                                const next = { ...prev };
+                                                delete next[d.idConceptoPago];
+                                                return next;
+                                              });
+                                            }
+                                          }}
+                                        />
+                                      </div>
+                                      <label
+                                        htmlFor={`concepto-${d.idTarifaAdmisionDetalle}`}
+                                        className={`${yaGenerado ? "text-green-600" : !checked ? "cursor-pointer line-through text-muted-foreground" : "cursor-pointer"}`}
+                                      >
+                                        {d.nombreConcepto} {yaGenerado && "✓"}
+                                      </label>
+                                      <span className={`text-right font-medium ${yaGenerado ? "text-green-600" : !checked ? "line-through text-muted-foreground" : ""}`}>
+                                        {formatCurrency(d.monto)}
+                                      </span>
+                                      <div>
+                                        {checked ? (
+                                          <Select
+                                            value={promocionPorConcepto[d.idConceptoPago] ? String(promocionPorConcepto[d.idConceptoPago]) : "none"}
+                                            onValueChange={(val) => {
+                                              setPromocionPorConcepto((prev) => ({
+                                                ...prev,
+                                                [d.idConceptoPago]: val === "none" ? null : parseInt(val),
+                                              }));
+                                            }}
+                                          >
+                                            <SelectTrigger className="h-7 text-xs">
+                                              <SelectValue placeholder="Sin convenio" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="none">Sin convenio</SelectItem>
+                                              {promociones.map((p) => (
+                                                <SelectItem key={p.idConvenio} value={String(p.idConvenio)}>
+                                                  {p.nombre} — {formatearBeneficio(p)}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          <span className="text-muted-foreground">—</span>
+                                        )}
+                                      </div>
+                                      <span className={`text-right font-semibold ${!checked ? "text-muted-foreground" : descConcepto > 0 ? "text-green-600" : ""}`}>
+                                        {checked ? formatCurrency(final) : "—"}
+                                      </span>
+                                    </React.Fragment>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Totales */}
+                            <div className="border-t pt-2 space-y-1">
+                              {totalDescuento > 0 && (
+                                <div className="flex justify-between text-xs text-green-600">
+                                  <span>Descuento total por promociones</span>
+                                  <span>-{formatCurrency(totalDescuento)}</span>
                                 </div>
-                              ))}
-                              <div className="flex justify-between text-sm font-semibold pt-1 border-t">
+                              )}
+                              <div className="flex justify-between text-sm font-semibold">
                                 <span>Total admisión</span>
-                                <span>{formatCurrency(totalAdmision)}</span>
+                                <span>{formatCurrency(totalFinal)}</span>
                               </div>
                             </div>
                           </div>
@@ -532,136 +780,6 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                 </TabsContent>
 
                 {/* Tab: Por Concepto */}
-                <TabsContent value="concepto" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Concepto de Pago</Label>
-                    <Select value={selectedConcepto} onValueChange={setSelectedConcepto}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un concepto de pago" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {conceptos.map((c) => (
-                          <SelectItem key={c.idConceptoPago} value={c.idConceptoPago.toString()}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{c.nombre}</span>
-                              <span className="text-xs text-muted-foreground">{c.clave}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleGenerateByConcepto}
-                      disabled={!selectedConcepto || generatingReceipt}
-                    >
-                      {generatingReceipt ? "Generando..." : "Generar Recibo"}
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                {/* Tab: Desde Plantilla */}
-                <TabsContent value="plantilla" className="space-y-4 mt-4">
-                  {loadingPlantilla ? (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
-                      Buscando plantilla disponible...
-                    </div>
-                  ) : plantilla ? (
-                    <div className="space-y-3">
-                      <div className="rounded-lg border p-4 bg-white">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-sm">{plantilla.nombrePlantilla}</h4>
-                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                            v{plantilla.version}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          {plantilla.nombrePlanEstudios && (
-                            <p>Plan: {plantilla.nombrePlanEstudios}</p>
-                          )}
-                          <p>Cuatrimestre: {plantilla.numeroCuatrimestre}</p>
-                          <p>Recibos: {plantilla.numeroRecibos} | Vencimiento dia: {plantilla.diaVencimiento}</p>
-                        </div>
-
-                        {plantilla.detalles && plantilla.detalles.length > 0 && (
-                          <div className="mt-3 border-t pt-2">
-                            <p className="text-xs font-medium mb-1">Conceptos:</p>
-                            {plantilla.detalles.map((d) => (
-                              <div key={d.idPlantillaDetalle} className="flex justify-between text-xs">
-                                <span>{d.descripcion || d.nombreConcepto}</span>
-                                <span className="font-medium">{formatCurrency(d.precioUnitario * d.cantidad)}</span>
-                              </div>
-                            ))}
-                            {plantilla.totalConceptos != null && (
-                              <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t">
-                                <span>Total</span>
-                                <span>{formatCurrency(plantilla.totalConceptos)}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={handleGenerateFromPlantilla}
-                          disabled={generatingFromPlantilla}
-                        >
-                          {generatingFromPlantilla ? "Generando..." : "Generar Recibos desde Plantilla"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Alert className="border-yellow-300 bg-yellow-50">
-                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                      <AlertDescription className="text-yellow-700">
-                        No se encontro plantilla de cobro para el plan de estudios y cuatrimestre de este aspirante.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </TabsContent>
-
-                {/* Tab: Manual */}
-                <TabsContent value="manual" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="receiptAmount">Monto</Label>
-                      <Input
-                        id="receiptAmount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={receiptAmount}
-                        onChange={(e) => setReceiptAmount(e.target.value)}
-                        placeholder="600.00"
-                        disabled={generatingReceipt}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="receiptConcept">Concepto</Label>
-                      <Input
-                        id="receiptConcept"
-                        type="text"
-                        value={receiptConcept}
-                        onChange={(e) => setReceiptConcept(e.target.value)}
-                        placeholder="Cuota de Inscripcion"
-                        disabled={generatingReceipt}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleGenerateReceipt}
-                      disabled={generatingReceipt}
-                    >
-                      {generatingReceipt ? "Generando..." : "Generar Recibo"}
-                    </Button>
-                  </div>
-                </TabsContent>
               </Tabs>
             </div>
 
@@ -714,7 +832,7 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                           </div>
                           {recibo.descuento > 0 && (
                             <div className="flex justify-between text-sm text-green-600">
-                              <span>Descuento (Convenio):</span>
+                              <span>Descuento (Promoción):</span>
                               <span>-{formatCurrency(recibo.descuento)}</span>
                             </div>
                           )}

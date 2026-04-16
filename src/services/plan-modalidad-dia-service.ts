@@ -6,6 +6,7 @@ export interface PlanModalidadDiaDto {
   nombrePlan: string;
   idModalidad: number;
   nombreModalidad: string;
+  grupo: number;
   idDiaSemana: number;
   nombreDia: string;
 }
@@ -13,6 +14,7 @@ export interface PlanModalidadDiaDto {
 export interface UpsertPlanModalidadDiaRequest {
   idPlanEstudios: number;
   idModalidad: number;
+  grupo: number;
   diasIds: number[];
 }
 
@@ -35,6 +37,15 @@ export async function getAllPlanModalidadDias(): Promise<PlanModalidadDiaDto[]> 
 
 export async function upsertPlanModalidadDia(
   request: UpsertPlanModalidadDiaRequest
+): Promise<{ mensaje: string; grupo: number }> {
+  const { data } = await apiClient.post(`/PlanModalidadDia`, request);
+  return data;
+}
+
+export async function eliminarGrupoDias(
+  idPlanEstudios: number,
+  idModalidad: number,
+  grupo: number
 ): Promise<void> {
-  await apiClient.post(`/PlanModalidadDia`, request);
+  await apiClient.delete(`/PlanModalidadDia/${idPlanEstudios}/${idModalidad}/${grupo}`);
 }

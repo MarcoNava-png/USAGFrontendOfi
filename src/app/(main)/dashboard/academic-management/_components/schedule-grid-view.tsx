@@ -19,6 +19,7 @@ const DIAS_SEMANA: DiaSemana[] = [
   "Jueves",
   "Viernes",
   "Sábado",
+  "Domingo",
 ];
 
 export function ScheduleGridView({ materias, nombreGrupo }: ScheduleGridViewProps) {

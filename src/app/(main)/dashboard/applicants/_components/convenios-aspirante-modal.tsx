@@ -155,7 +155,7 @@ export function ConveniosAspiranteModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HandCoins className="h-5 w-5" />
-            Convenios - {applicant?.nombreCompleto}
+            Promociones - {applicant?.nombreCompleto}
           </DialogTitle>
         </DialogHeader>
 
@@ -166,14 +166,14 @@ export function ConveniosAspiranteModal({
         ) : (
           <div className="space-y-6">
             <div className="border rounded-lg p-4 space-y-4">
-              <h3 className="font-semibold text-sm">Asignar Convenio</h3>
+              <h3 className="font-semibold text-sm">Asignar Promoción</h3>
 
               {conveniosDisponibles.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded">
                   <AlertCircle className="h-4 w-4" />
                   <span>
-                    No hay convenios disponibles para este aspirante (ya tiene
-                    todos asignados o no hay convenios activos para su plan/campus)
+                    No hay promociones disponibles para este aspirante (ya tiene
+                    todas asignadas o no hay promociones activas para su plan/campus)
                   </span>
                 </div>
               ) : (
@@ -183,7 +183,7 @@ export function ConveniosAspiranteModal({
                     onValueChange={setSelectedConvenio}
                   >
                     <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Selecciona un convenio" />
+                      <SelectValue placeholder="Selecciona una promoción" />
                     </SelectTrigger>
                     <SelectContent>
                       {conveniosDisponibles.map((c) => (
@@ -214,13 +214,13 @@ export function ConveniosAspiranteModal({
             </div>
             <div className="space-y-3">
               <h3 className="font-semibold text-sm">
-                Convenios Asignados ({conveniosAsignados.length})
+                Promociones Asignadas ({conveniosAsignados.length})
               </h3>
 
               {conveniosAsignados.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
                   <HandCoins className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Este aspirante no tiene convenios asignados</p>
+                  <p className="text-sm">Este aspirante no tiene promociones asignadas</p>
                 </div>
               ) : (
                 <div className="space-y-2">

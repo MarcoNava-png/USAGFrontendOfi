@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Calendar, Clock, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -17,15 +17,19 @@ import {
 } from "@/components/ui/select";
 import { getStudyPlans, getAcademicPeriods } from "@/services/catalogs-service";
 import { getAcademicManagement } from "@/services/groups-service";
+import { getCampusList } from "@/services/campus-service";
 import type { AcademicPeriod } from "@/types/academic-period";
+import type { Campus } from "@/types/campus";
 import type { StudyPlan } from "@/types/catalog";
 import type { GestionAcademicaResponse, GrupoMateria } from "@/types/group";
 
 import { ScheduleGridView } from "../academic-management/_components/schedule-grid-view";
 
 export default function SchedulesPage() {
+  const [campusList, setCampusList] = useState<Campus[]>([]);
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
+  const [selectedCampus, setSelectedCampus] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
@@ -45,10 +49,12 @@ export default function SchedulesPage() {
 
   const loadInitialData = async () => {
     try {
-      const [plansData, periodsData] = await Promise.all([
+      const [campusData, plansData, periodsData] = await Promise.all([
+        getCampusList(),
         getStudyPlans(),
         getAcademicPeriods(),
       ]);
+      setCampusList(campusData?.items || []);
       setStudyPlans(plansData || []);
       setPeriods(periodsData as any || []);
 
@@ -103,6 +109,26 @@ export default function SchedulesPage() {
     }
   };
 
+  const filteredPlans = useMemo(() => {
+    if (!selectedCampus) return studyPlans;
+    return studyPlans.filter((p) => p.idCampus === selectedCampus);
+  }, [studyPlans, selectedCampus]);
+
+  const handleCampusChange = (campusId: number | null) => {
+    setSelectedCampus(campusId);
+    setSelectedPlan(null);
+    setSelectedGroup(null);
+    setAcademicData(null);
+    setGroupSubjects([]);
+  };
+
+  const handlePlanChange = (planId: number | null) => {
+    setSelectedPlan(planId);
+    setSelectedGroup(null);
+    setAcademicData(null);
+    setGroupSubjects([]);
+  };
+
   const selectedGroupData = academicData?.gruposPorCuatrimestre
     .flatMap((c) => c.grupos)
     .find((g) => g.idGrupo === selectedGroup);
@@ -122,14 +148,42 @@ export default function SchedulesPage() {
       </div>
       <Card className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="campus" className="text-sm font-medium text-gray-900">
+                Campus
+              </Label>
+              <Select
+                value={selectedCampus?.toString() ?? ""}
+                onValueChange={(v) => handleCampusChange(v ? parseInt(v) : null)}
+              >
+                <SelectTrigger
+                  id="campus"
+                  className="w-full !text-gray-900 !bg-white border-gray-300"
+                >
+                  <SelectValue placeholder="Todos los campus" />
+                </SelectTrigger>
+                <SelectContent>
+                  {campusList.map((campus) => (
+                    <SelectItem
+                      key={campus.idCampus}
+                      value={campus.idCampus.toString()}
+                      className="!text-gray-900 !bg-white hover:!bg-blue-50 data-[highlighted]:!bg-blue-50 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer"
+                    >
+                      {campus.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="plan" className="text-sm font-medium text-gray-900">
                 Plan de Estudios
               </Label>
               <Select
-                value={selectedPlan?.toString()}
-                onValueChange={(v) => setSelectedPlan(parseInt(v))}
+                value={selectedPlan?.toString() ?? ""}
+                onValueChange={(v) => handlePlanChange(v ? parseInt(v) : null)}
               >
                 <SelectTrigger
                   id="plan"
@@ -138,7 +192,7 @@ export default function SchedulesPage() {
                   <SelectValue placeholder="Selecciona un plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  {studyPlans.map((plan) => (
+                  {filteredPlans.map((plan) => (
                     <SelectItem
                       key={plan.idPlanEstudios}
                       value={plan.idPlanEstudios.toString()}
@@ -261,7 +315,7 @@ export default function SchedulesPage() {
       {!loading && !selectedPlan && (
         <Card className="p-12 text-center bg-gray-50 border-dashed">
           <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">Comienza seleccionando un plan de estudios</p>
+          <p className="text-gray-600 font-medium">Comienza seleccionando un campus y plan de estudios</p>
           <p className="text-gray-500 text-sm mt-1">
             Usa los filtros superiores para visualizar horarios
           </p>

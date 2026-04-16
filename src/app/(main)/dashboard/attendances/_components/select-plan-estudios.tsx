@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 import { toast } from "sonner";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getStudyPlansList } from "@/services/study-plans-service";
 import type { StudyPlan } from "@/types/study-plan";
 
@@ -34,23 +34,19 @@ export function SelectPlanEstudios({ value, onChange }: SelectPlanEstudiosProps)
     }
   };
 
+  const options = planes.map((p) => ({
+    value: p.idPlanEstudios.toString(),
+    label: `${p.clavePlanEstudios} - ${p.nombrePlanEstudios}`,
+  }));
+
   return (
-    <Select value={value?.toString()} onValueChange={(val) => onChange(parseInt(val))} disabled={loading}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder={loading ? "Cargando..." : "Selecciona un plan de estudios"} />
-      </SelectTrigger>
-      <SelectContent>
-        {planes.length === 0 && !loading && (
-          <div className="p-2 text-sm text-gray-500 text-center">
-            No hay planes de estudio disponibles
-          </div>
-        )}
-        {planes.map((plan) => (
-          <SelectItem key={plan.idPlanEstudios} value={plan.idPlanEstudios.toString()}>
-            {plan.clavePlanEstudios} - {plan.nombrePlanEstudios}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <SearchableSelect
+      options={options}
+      value={value?.toString() ?? ""}
+      onValueChange={(v) => onChange(parseInt(v))}
+      placeholder={loading ? "Cargando..." : "Buscar plan de estudios..."}
+      searchPlaceholder="Buscar por nombre o clave..."
+      disabled={loading}
+    />
   );
 }

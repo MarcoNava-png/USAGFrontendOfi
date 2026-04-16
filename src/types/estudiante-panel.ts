@@ -7,7 +7,22 @@ export interface EstudiantePanelDto {
   curp: string | null;
   fechaNacimiento: string | null;
   fotografia: string | null;
+  genero: string | null;
+  direccion: string | null;
+  calle: string | null;
+  numeroExterior: string | null;
+  numeroInterior: string | null;
+  colonia: string | null;
+  codigoPostalStr: string | null;
+  municipioStr: string | null;
+  estadoStr: string | null;
   activo: boolean;
+  estatusAcademico: number;
+  estatusAcademicoTexto: string | null;
+  tipoBaja: number | null;
+  estadoBaja: number | null;
+  motivoBaja: string | null;
+  fechaBaja: string | null;
   informacionAcademica: InformacionAcademicaPanelDto;
   resumenKardex: ResumenKardexDto;
   becas: BecaAsignadaDto[];
@@ -34,11 +49,15 @@ export interface InformacionAcademicaPanelDto {
 
 export interface GrupoActualDto {
   idGrupo: number;
+  idEstudianteGrupo: number | null;
   codigoGrupo: string;
   nombreGrupo: string | null;
   turno: string | null;
   cupoMaximo: number | null;
   alumnosInscritos: number | null;
+  numeroCuatrimestre: number | null;
+  idPlanEstudios: number | null;
+  idPeriodoAcademico: number | null;
 }
 
 export interface PeriodoActualDto {
@@ -224,6 +243,10 @@ export interface ActualizarDatosEstudianteRequest {
   fechaNacimiento: string | null;
   genero: string | null;
   direccion: string | null;
+  calle: string | null;
+  numeroExterior: string | null;
+  numeroInterior: string | null;
+  codigoPostalId: number | null;
   nombreContactoEmergencia: string | null;
   telefonoContactoEmergencia: string | null;
   parentescoContactoEmergencia: string | null;

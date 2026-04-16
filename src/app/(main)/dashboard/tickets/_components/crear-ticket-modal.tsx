@@ -42,6 +42,7 @@ export function CrearTicketModal({ open, onClose }: Props) {
   const [categoria, setCategoria] = useState<TicketCategoria>(
     TicketCategoria.General
   )
+  const [areaDestino, setAreaDestino] = useState("")
   const [archivo, setArchivo] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -50,6 +51,7 @@ export function CrearTicketModal({ open, onClose }: Props) {
     setDescripcion("")
     setPrioridad(TicketPrioridad.Baja)
     setCategoria(TicketCategoria.General)
+    setAreaDestino("")
     setArchivo(null)
   }
 
@@ -72,6 +74,7 @@ export function CrearTicketModal({ open, onClose }: Props) {
         descripcion: descripcion.trim(),
         prioridad,
         categoria,
+        areaDestino: areaDestino || undefined,
         archivo: archivo ?? undefined,
       })
       toast.success("Ticket creado exitosamente")
@@ -160,6 +163,24 @@ export function CrearTicketModal({ open, onClose }: Props) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Área destino</Label>
+            <Select value={areaDestino} onValueChange={setAreaDestino}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar área (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Administración</SelectItem>
+                <SelectItem value="controlescolar">Control Escolar</SelectItem>
+                <SelectItem value="finanzas">Finanzas</SelectItem>
+                <SelectItem value="academico">Académico</SelectItem>
+                <SelectItem value="coordinador">Coordinación</SelectItem>
+                <SelectItem value="director">Dirección</SelectItem>
+                <SelectItem value="admisiones">Admisiones</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

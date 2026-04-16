@@ -76,7 +76,7 @@ export function QuickActions({
           const Icon = iconMap[action.icono] || FileText;
 
           return (
-            <Link key={index} href={action.link}>
+            <Link key={action.link} href={action.link}>
               <Button
                 variant="ghost"
                 className="w-full justify-between group hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200"
@@ -143,7 +143,7 @@ export function QuickActionGrid({ actions, columns = 2, className }: QuickAction
         const Icon = iconMap[action.icono] || FileText;
 
         return (
-          <Link key={index} href={action.link}>
+          <Link key={action.link} href={action.link}>
             <Card className="group hover:shadow-md transition-all cursor-pointer hover:border-blue-300 dark:hover:border-blue-700">
               <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                 <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">

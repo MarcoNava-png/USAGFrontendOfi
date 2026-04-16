@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   login as loginService,
   logout as logoutService,
-  register as registerService,
   forgotPassword as forgotPasswordService,
 } from "@/services/auth-service";
 
@@ -32,30 +31,13 @@ export function useAuthActions() {
     logoutService();
   };
 
-  const register = async (data: { name: string; email: string; password: string }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await registerService(data);
-      setLoading(false);
-      if (!res.success) setError(res.error ?? "Registration failed");
-      return res;
-    } catch (err: unknown) {
-      setLoading(false);
-      let message = "Unknown error";
-      if (err instanceof Error) message = err.message;
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
   const forgotPassword = async (data: { email: string }) => {
     setLoading(true);
     setError(null);
     try {
       const res = await forgotPasswordService(data);
       setLoading(false);
-      if (!res.success) setError(res.error ?? "Forgot password failed");
+      if (!res.success) setError(res.error ?? "Error al recuperar contraseña");
       return res;
     } catch (err: unknown) {
       setLoading(false);
@@ -66,5 +48,5 @@ export function useAuthActions() {
     }
   };
 
-  return { login, logout, register, forgotPassword, loading, error };
+  return { login, logout, forgotPassword, loading, error };
 }

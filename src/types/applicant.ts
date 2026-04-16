@@ -6,9 +6,11 @@ export interface Applicant {
   nombreCompleto: string;
   email: string;
   telefono: string;
+  celular?: string | null;
   aspiranteEstatus: string;
   fechaRegistro: string;
   planEstudios: string;
+  planEstudiosId?: number;
   idDireccion: number;
   codigoPostalId: number;
   municipioId: number;
@@ -20,6 +22,8 @@ export interface Applicant {
   estatusPago?: string;
   estatusDocumentos?: string;
   cuatrimestreInteres?: number;
+  idEmpresa?: number | null;
+  nombreEmpresa?: string | null;
 }
 
 export interface PayloadCreateApplicant {
@@ -50,6 +54,7 @@ export interface PayloadCreateApplicant {
   nacionalidad?: string;
   institucionProcedencia?: string;
   idModalidad?: number;
+  grupoDiasImparticion?: number;
   idPeriodoAcademico?: number;
   recorridoPlantel?: boolean;
   trabaja?: boolean;
@@ -61,6 +66,7 @@ export interface PayloadCreateApplicant {
   nombreContactoEmergencia?: string;
   telefonoContactoEmergencia?: string;
   parentescoContactoEmergencia?: string;
+  idEmpresa?: number | null;
 }
 
 export interface PayloadUpdateApplicant extends PayloadCreateApplicant {
@@ -92,6 +98,7 @@ export interface AspiranteEditDto {
   cuatrimestreInteres?: number | null;
   institucionProcedencia?: string | null;
   idModalidad?: number | null;
+  grupoDiasImparticion?: number | null;
   idPeriodoAcademico?: number | null;
   recorridoPlantel?: boolean | null;
   trabaja?: boolean | null;
@@ -99,6 +106,7 @@ export interface AspiranteEditDto {
   domicilioEmpresa?: string | null;
   puestoEmpresa?: string | null;
   quienCubreGastos?: string | null;
+  idEmpresa?: number | null;
   atendidoPorUsuarioId?: string | null;
   celular?: string | null;
   nombreContactoEmergencia?: string | null;

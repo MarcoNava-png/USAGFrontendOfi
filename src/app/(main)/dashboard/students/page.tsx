@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { BookOpen, Building2, ExternalLink, GraduationCap, Loader2, Mail, Phone, Search, Users, X } from "lucide-react";
 import { toast } from "sonner";
@@ -34,16 +35,20 @@ interface StudentDisplay {
 }
 
 export default function StudentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initializedFromUrl = useRef(false);
+
   const [campusList, setCampusList] = useState<Campus[]>([]);
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
   const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [students, setStudents] = useState<StudentDisplay[]>([]);
 
-  const [selectedCampusId, setSelectedCampusId] = useState<string>("all");
-  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
-  const [selectedGrupoId, setSelectedGrupoId] = useState<string>("");
+  const [selectedCampusId, setSelectedCampusId] = useState<string>(searchParams.get("campus") || "all");
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(searchParams.get("plan") || "");
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(searchParams.get("period") || "");
+  const [selectedGrupoId, setSelectedGrupoId] = useState<string>(searchParams.get("grupo") || "");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Búsqueda global
@@ -55,6 +60,17 @@ export default function StudentsPage() {
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!initializedFromUrl.current) return;
+    const params = new URLSearchParams();
+    if (selectedCampusId && selectedCampusId !== "all") params.set("campus", selectedCampusId);
+    if (selectedPlanId) params.set("plan", selectedPlanId);
+    if (selectedPeriodId) params.set("period", selectedPeriodId);
+    if (selectedGrupoId) params.set("grupo", selectedGrupoId);
+    const query = params.toString();
+    router.replace(`/dashboard/students${query ? `?${query}` : ""}`, { scroll: false });
+  }, [selectedCampusId, selectedPlanId, selectedPeriodId, selectedGrupoId]);
 
   const filteredPlans = useMemo(() => {
     if (selectedCampusId === "all") return studyPlans;
@@ -82,6 +98,7 @@ export default function StudentsPage() {
   }, []);
 
   useEffect(() => {
+    if (!initializedFromUrl.current) return;
     if (filteredPlans.length > 0) {
       const currentPlanExists = filteredPlans.some((p) => p.idPlanEstudios.toString() === selectedPlanId);
       if (!currentPlanExists) {
@@ -105,16 +122,27 @@ export default function StudentsPage() {
       setStudyPlans(plansData);
       setAcademicPeriods(periodsData);
 
-      const periodoActual = periodsData.find((p) => p.esPeriodoActual);
-      if (periodoActual) {
-        setSelectedPeriodId(periodoActual.idPeriodoAcademico.toString());
-      } else if (periodsData.length > 0) {
-        setSelectedPeriodId(periodsData[0].idPeriodoAcademico.toString());
+      const urlPeriod = searchParams.get("period");
+      const urlPlan = searchParams.get("plan");
+
+      if (urlPeriod && periodsData.some((p) => p.idPeriodoAcademico.toString() === urlPeriod)) {
+        setSelectedPeriodId(urlPeriod);
+      } else {
+        const periodoActual = periodsData.find((p) => p.esPeriodoActual);
+        if (periodoActual) {
+          setSelectedPeriodId(periodoActual.idPeriodoAcademico.toString());
+        } else if (periodsData.length > 0) {
+          setSelectedPeriodId(periodsData[0].idPeriodoAcademico.toString());
+        }
       }
 
-      if (plansData.length > 0) {
+      if (urlPlan && plansData.some((p) => p.idPlanEstudios.toString() === urlPlan)) {
+        setSelectedPlanId(urlPlan);
+      } else if (plansData.length > 0) {
         setSelectedPlanId(plansData[0].idPlanEstudios.toString());
       }
+
+      initializedFromUrl.current = true;
     } catch (error) {
       console.error("Error loading initial data:", error);
       toast.error("Error al cargar los datos iniciales");
@@ -208,6 +236,7 @@ export default function StudentsPage() {
     try {
       const result = await buscarEstudiantes({
         busqueda: term,
+        soloActivos: false,
         pagina: 1,
         tamanoPagina: 50,
       });
@@ -244,7 +273,12 @@ export default function StudentsPage() {
     }
   }, [selectedGrupoId, loadStudents]);
 
+  const planChangedByUser = useRef(false);
   useEffect(() => {
+    if (!planChangedByUser.current) {
+      planChangedByUser.current = true;
+      return;
+    }
     setSelectedGrupoId("");
     setStudents([]);
   }, [selectedPlanId]);

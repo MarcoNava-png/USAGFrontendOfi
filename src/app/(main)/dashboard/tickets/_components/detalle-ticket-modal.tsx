@@ -61,6 +61,7 @@ export function DetalleTicketModal({
   const [archivoComentario, setArchivoComentario] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [cambiandoEstatus, setCambiandoEstatus] = useState(false)
+  const [huboCambios, setHuboCambios] = useState(false)
   const comentariosEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export function DetalleTicketModal({
       )
       setComentario("")
       setArchivoComentario(null)
+      setHuboCambios(true)
       await cargarTicket()
     } catch {
       toast.error("Error al enviar el comentario")
@@ -113,8 +115,8 @@ export function DetalleTicketModal({
     try {
       await cambiarEstatus(ticket.idTicket, Number(nuevoEstatus) as TicketEstatus)
       toast.success("Estatus actualizado")
+      setHuboCambios(true)
       await cargarTicket()
-      onClose(true)
     } catch {
       toast.error("Error al cambiar el estatus")
     } finally {
@@ -127,18 +129,22 @@ export function DetalleTicketModal({
       setTicket(null)
       setComentario("")
       setArchivoComentario(null)
-      onClose()
+      onClose(huboCambios)
+      setHuboCambios(false)
     }
   }
 
-  const formatFecha = (fecha: string) =>
-    new Date(fecha).toLocaleDateString("es-MX", {
+  const formatFecha = (fecha: string) => {
+    const d = fecha.endsWith("Z") ? new Date(fecha) : new Date(fecha + "Z")
+    return d.toLocaleDateString("es-MX", {
       day: "2-digit",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Mexico_City",
     })
+  }
 
   if (!ticket && !loading) return null
 

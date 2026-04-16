@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { ArrowLeft, ClipboardList, Download, FileSpreadsheet, FileText, GraduationCap, Mail, MoreVertical, RefreshCw, UserCheck, UserX } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, Mail, MoreVertical, RefreshCw, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import { PanelHeader } from "@/components/estudiante-panel/panel-header";
@@ -16,7 +16,17 @@ import { DocumentosPersonalesTab } from "@/components/estudiante-panel/tabs/docu
 import { DocumentosTab } from "@/components/estudiante-panel/tabs/documentos-tab";
 import { RecibosTab } from "@/components/estudiante-panel/tabs/recibos-tab";
 import { SeguimientoAcademicoTab } from "@/components/estudiante-panel/tabs/seguimiento-academico-tab";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,14 +34,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   actualizarEstatusEstudiante,
-  descargarYGuardarBoleta,
-  descargarYGuardarConstancia,
   descargarYGuardarExpediente,
-  descargarYGuardarKardex,
   enviarRecordatorioPago,
   obtenerPanelEstudiante,
 } from "@/services/estudiante-panel-service";
@@ -46,6 +62,11 @@ export default function PanelEstudiantePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("datos");
+  const [bajaModalOpen, setBajaModalOpen] = useState(false);
+  const [bajaTipo, setBajaTipo] = useState<string>("");
+  const [bajaEstado, setBajaEstado] = useState<string>("");
+  const [bajaMotivo, setBajaMotivo] = useState("");
+  const [procesandoBaja, setProcesandoBaja] = useState(false);
 
   const cargarPanel = useCallback(async (showToast = false) => {
     try {
@@ -73,34 +94,6 @@ export default function PanelEstudiantePage() {
     }
   }, [idEstudiante, cargarPanel]);
 
-  const handleDescargarKardex = async () => {
-    if (!panel) return;
-    try {
-      toast.loading("Generando Kardex...");
-      await descargarYGuardarKardex(panel.idEstudiante, panel.matricula);
-      toast.dismiss();
-      toast.success("Kardex descargado exitosamente");
-    } catch (error) {
-      toast.dismiss();
-      toast.error("Error al descargar el Kardex");
-      console.error(error);
-    }
-  };
-
-  const handleDescargarConstancia = async () => {
-    if (!panel) return;
-    try {
-      toast.loading("Generando Constancia...");
-      await descargarYGuardarConstancia(panel.idEstudiante, panel.matricula);
-      toast.dismiss();
-      toast.success("Constancia descargada exitosamente");
-    } catch (error) {
-      toast.dismiss();
-      toast.error("Error al descargar la Constancia");
-      console.error(error);
-    }
-  };
-
   const handleDescargarExpediente = async () => {
     if (!panel) return;
     try {
@@ -111,20 +104,6 @@ export default function PanelEstudiantePage() {
     } catch (error) {
       toast.dismiss();
       toast.error("Error al descargar el Expediente");
-      console.error(error);
-    }
-  };
-
-  const handleDescargarBoleta = async () => {
-    if (!panel) return;
-    try {
-      toast.loading("Generando Boleta...");
-      await descargarYGuardarBoleta(panel.idEstudiante, panel.matricula);
-      toast.dismiss();
-      toast.success("Boleta descargada exitosamente");
-    } catch (error) {
-      toast.dismiss();
-      toast.error("Error al descargar la Boleta");
       console.error(error);
     }
   };
@@ -144,18 +123,49 @@ export default function PanelEstudiantePage() {
     }
   };
 
-  const handleCambiarEstatus = async () => {
-    if (!panel) return;
-    const nuevoEstatus = !panel.activo;
-    const accion = nuevoEstatus ? "activar" : "desactivar";
+  const handleAbrirBaja = () => {
+    setBajaTipo("");
+    setBajaEstado("");
+    setBajaMotivo("");
+    setBajaModalOpen(true);
+  };
 
+  const handleConfirmarBaja = async () => {
+    if (!panel || !bajaTipo || !bajaEstado || !bajaMotivo.trim()) return;
+    setProcesandoBaja(true);
+    try {
+      const { data } = await (await import("@/services/api-client")).default.post(
+        `/solicitudes-baja/${panel.idEstudiante}`,
+        {
+          tipoBaja: Number(bajaTipo),
+          estadoBaja: Number(bajaEstado),
+          motivoBaja: bajaMotivo.trim(),
+        }
+      );
+      if (data.procesada) {
+        toast.success(data.mensaje);
+        setBajaModalOpen(false);
+        cargarPanel(true);
+      } else {
+        toast.warning(data.mensaje, { duration: 8000 });
+        setBajaModalOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || "Error al procesar la baja");
+      console.error(error);
+    } finally {
+      setProcesandoBaja(false);
+    }
+  };
+
+  const handleReactivar = async () => {
+    if (!panel) return;
     try {
       const result = await actualizarEstatusEstudiante(
         panel.idEstudiante,
-        nuevoEstatus,
-        `Cambio de estatus desde panel administrativo`
+        true,
+        "Reactivación desde panel administrativo"
       );
-
       if (result.exitoso) {
         toast.success(result.mensaje);
         cargarPanel(true);
@@ -163,7 +173,7 @@ export default function PanelEstudiantePage() {
         toast.error(result.mensaje);
       }
     } catch (error) {
-      toast.error(`Error al ${accion} al estudiante`);
+      toast.error("Error al reactivar al estudiante");
       console.error(error);
     }
   };
@@ -234,36 +244,14 @@ export default function PanelEstudiantePage() {
             Actualizar
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Documentos
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleDescargarConstancia}>
-                <FileText className="w-4 h-4 mr-2" />
-                Constancia de Estudios
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDescargarKardex}>
-                <GraduationCap className="w-4 h-4 mr-2" />
-                Kardex Académico
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDescargarBoleta}>
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Boleta de Calificaciones
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleDescargarExpediente}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Expediente Completo
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            size="sm"
+            onClick={handleDescargarExpediente}
+            style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Expediente Académico
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -277,28 +265,125 @@ export default function PanelEstudiantePage() {
                 Enviar Recordatorio de Pago
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleCambiarEstatus}
-                className={panel.activo ? "text-red-600" : "text-green-600"}
-              >
-                {panel.activo ? (
-                  <>
-                    <UserX className="w-4 h-4 mr-2" />
-                    Dar de Baja
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    Reactivar Estudiante
-                  </>
-                )}
-              </DropdownMenuItem>
+              {panel.activo ? (
+                <DropdownMenuItem onClick={handleAbrirBaja} className="text-red-600">
+                  <UserX className="w-4 h-4 mr-2" />
+                  Dar de Baja
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleReactivar} className="text-green-600">
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Reactivar Estudiante
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      <PanelHeader panel={panel} />
+      {!panel.activo && (panel.tipoBaja != null || panel.estatusAcademico >= 6) && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-red-700">Estudiante dado de baja</span>
+            {panel.tipoBaja != null && (
+              <Badge variant="outline" className="border-red-300 text-red-700">
+                {panel.tipoBaja === 1 ? "Administrativa" : "Académica"}
+              </Badge>
+            )}
+            {panel.estadoBaja != null && (
+              <Badge variant="outline" className={panel.estadoBaja === 2 ? "border-red-500 text-red-800" : "border-yellow-500 text-yellow-800"}>
+                {panel.estadoBaja === 1 ? "Temporal" : "Definitiva"}
+              </Badge>
+            )}
+            {panel.tipoBaja == null && panel.estadoBaja == null && (
+              <Badge variant="outline" className={panel.estatusAcademico === 7 ? "border-red-500 text-red-800" : "border-yellow-500 text-yellow-800"}>
+                {panel.estatusAcademico === 7 ? "Definitiva" : "Temporal"}
+              </Badge>
+            )}
+            {panel.motivoBaja && (
+              <span className="text-sm text-red-600">— {panel.motivoBaja}</span>
+            )}
+            {panel.fechaBaja && (
+              <span className="text-xs text-red-400">
+                ({new Date(panel.fechaBaja.endsWith("Z") ? panel.fechaBaja : panel.fechaBaja + "Z").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Mexico_City" })})
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Dialog open={bajaModalOpen} onOpenChange={setBajaModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <UserX className="h-5 w-5" />
+              Dar de Baja a Estudiante
+            </DialogTitle>
+            <DialogDescription>
+              {panel.nombreCompleto} — {panel.matricula}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Tipo de Baja</Label>
+              <Select value={bajaTipo} onValueChange={setBajaTipo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Administrativa</SelectItem>
+                  <SelectItem value="2">Académica</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Estado de Baja</Label>
+              <Select value={bajaEstado} onValueChange={setBajaEstado}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Temporal</SelectItem>
+                  <SelectItem value="2">Definitiva</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo</Label>
+              <Textarea
+                placeholder="Describe el motivo de la baja..."
+                value={bajaMotivo}
+                onChange={(e) => setBajaMotivo(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+            {bajaEstado === "2" && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-sm text-red-700">
+                  La baja definitiva implica que el estudiante no podrá ser reactivado fácilmente.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBajaModalOpen(false)} disabled={procesandoBaja}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmarBaja}
+              disabled={!bajaTipo || !bajaEstado || !bajaMotivo.trim() || procesandoBaja}
+            >
+              {procesandoBaja ? "Procesando..." : "Confirmar Baja"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PanelHeader panel={panel} onUpdate={() => cargarPanel(true)} />
 
       <PanelStatsCards panel={panel} />
 

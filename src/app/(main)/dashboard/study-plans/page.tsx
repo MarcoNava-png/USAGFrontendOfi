@@ -75,13 +75,13 @@ export default function StudyPlansPage() {
 
   useEffect(() => {
     loadPlans();
-  }, [selectedCampus, incluirInactivos]);
+  }, [selectedCampus]);
 
   const loadPlans = async () => {
     setLoading(true);
     try {
       const filters: StudyPlanFilters = {
-        incluirInactivos,
+        incluirInactivos: true,
       };
       if (selectedCampus !== "all") {
         filters.idCampus = parseInt(selectedCampus);
@@ -156,10 +156,11 @@ export default function StudyPlansPage() {
     }
   };
 
-  const filteredPlans = plans.filter((p) =>
-    p.nombrePlanEstudios?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.clavePlanEstudios?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPlans = plans.filter((p) => {
+    if (!incluirInactivos && !p.activo) return false;
+    return p.nombrePlanEstudios?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.clavePlanEstudios?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const totalPages = Math.ceil(filteredPlans.length / pageSize);
   const paginatedPlans = filteredPlans.slice(
@@ -443,14 +444,24 @@ export default function StudyPlansPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={plan.activo ? "default" : "secondary"}
-                        className={plan.activo
-                          ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-100"}
-                      >
-                        {plan.activo ? "Activo" : "Inactivo"}
-                      </Badge>
+                      <div className="flex flex-col items-center gap-1">
+                        <Badge
+                          variant={plan.activo ? "default" : "secondary"}
+                          className={plan.activo
+                            ? "bg-green-100 text-green-700 hover:bg-green-100"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-100"}
+                        >
+                          {plan.activo ? "Activo" : "Inactivo"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={plan.esOficial
+                            ? "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
+                            : "bg-orange-50 text-orange-700 border-orange-200 text-[10px]"}
+                        >
+                          {plan.esOficial ? "Oficial" : "No Oficial"}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <Button

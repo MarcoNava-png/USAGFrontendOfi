@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { APP_CONFIG } from "@/config/app-config"
 import { tenantAdminService, type TenantDetail, type PlanLicencia, type UpdateTenantRequest } from "@/services/tenant-admin-service"
 
 export default function EditTenantPage() {
@@ -174,7 +175,7 @@ export default function EditTenantPage() {
             Editar: {tenant.nombreCorto}
           </h1>
           <p className="text-muted-foreground">
-            {tenant.subdominio}.saciusag.com.mx
+            {tenant.subdominio}.{APP_CONFIG.domain}
           </p>
         </div>
       </div>

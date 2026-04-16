@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,8 +32,11 @@ import { DetalleTicketModal } from "./_components/detalle-ticket-modal"
 
 export default function TicketsPage() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const isAdmin =
     user?.role === "admin" || user?.role === "superadmin"
+  const lastOpenedTicketId = useRef<string | null>(null)
 
   const [tickets, setTickets] = useState<TicketResponse[]>([])
   const [stats, setStats] = useState<TicketEstadisticas | null>(null)
@@ -84,6 +88,15 @@ export default function TicketsPage() {
     cargarDatos()
   }, [cargarDatos])
 
+  useEffect(() => {
+    const ticketId = searchParams.get("ticketId")
+    if (ticketId && ticketId !== lastOpenedTicketId.current) {
+      lastOpenedTicketId.current = ticketId
+      setDetalleTicketId(Number(ticketId))
+      setDetalleModalOpen(true)
+    }
+  }, [searchParams])
+
   const handleCrearClose = (reload?: boolean) => {
     setCrearModalOpen(false)
     if (reload) cargarDatos()
@@ -92,6 +105,10 @@ export default function TicketsPage() {
   const handleDetalleClose = (reload?: boolean) => {
     setDetalleModalOpen(false)
     setDetalleTicketId(null)
+    lastOpenedTicketId.current = null
+    if (searchParams.get("ticketId")) {
+      router.replace("/dashboard/tickets")
+    }
     if (reload) cargarDatos()
   }
 
@@ -134,7 +151,7 @@ export default function TicketsPage() {
 
       {/* Estadísticas */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <Card
             className={`cursor-pointer transition-colors ${filtroEstatus === "all" ? "border-primary" : ""}`}
             onClick={() => {
@@ -187,6 +204,20 @@ export default function TicketsPage() {
                 {stats.totalResueltos}
               </p>
               <p className="text-xs text-muted-foreground">Resueltos</p>
+            </CardContent>
+          </Card>
+          <Card
+            className={`cursor-pointer transition-colors ${filtroEstatus === "4" ? "border-primary" : ""}`}
+            onClick={() => {
+              setFiltroEstatus("4")
+              setPage(1)
+            }}
+          >
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-purple-600">
+                {stats.totalEnValidacion}
+              </p>
+              <p className="text-xs text-muted-foreground">En Validación</p>
             </CardContent>
           </Card>
           <Card

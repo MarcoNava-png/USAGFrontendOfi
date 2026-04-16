@@ -161,6 +161,18 @@ export async function validarDocumentoPersonal(
   return response.data;
 }
 
+export async function resetearDocumentoPersonal(
+  idEstudiante: number,
+  idAspiranteDocumento: number,
+  motivo?: string
+): Promise<AccionPanelResponse> {
+  const params = motivo ? `?motivo=${encodeURIComponent(motivo)}` : "";
+  const response = await apiClient.delete<AccionPanelResponse>(
+    `${BASE_URL}/${idEstudiante}/documentos/${idAspiranteDocumento}/resetear${params}`
+  );
+  return response.data;
+}
+
 export async function generarDocumento(
   request: GenerarDocumentoPanelRequest
 ): Promise<AccionPanelResponse> {
@@ -221,11 +233,15 @@ export async function enviarRecordatorioPago(
 export async function actualizarEstatusEstudiante(
   idEstudiante: number,
   activo: boolean,
-  motivo?: string
+  motivo?: string,
+  tipoBaja?: number,
+  estadoBaja?: number
 ): Promise<AccionPanelResponse> {
   const params = new URLSearchParams();
   params.append('activo', activo.toString());
   if (motivo) params.append('motivo', motivo);
+  if (tipoBaja !== undefined) params.append('tipoBaja', tipoBaja.toString());
+  if (estadoBaja !== undefined) params.append('estadoBaja', estadoBaja.toString());
 
   const response = await apiClient.patch<AccionPanelResponse>(
     `${BASE_URL}/${idEstudiante}/estatus?${params.toString()}`
@@ -240,6 +256,17 @@ export async function actualizarDatosEstudiante(
   const response = await apiClient.put<AccionPanelResponse>(
     `${BASE_URL}/${idEstudiante}/datos`,
     datos
+  );
+  return response.data;
+}
+
+export async function cambiarMatricula(
+  idEstudiante: number,
+  nuevaMatricula: string
+): Promise<AccionPanelResponse> {
+  const response = await apiClient.patch<AccionPanelResponse>(
+    `${BASE_URL}/${idEstudiante}/cambiar-matricula`,
+    { nuevaMatricula }
   );
   return response.data;
 }
@@ -325,6 +352,7 @@ const estudiantePanelService = {
   enviarRecordatorioPago,
   actualizarEstatusEstudiante,
   actualizarDatosEstudiante,
+  cambiarMatricula,
   exportarEstudiantesExcel,
   descargarArchivo,
   descargarYGuardarKardex,

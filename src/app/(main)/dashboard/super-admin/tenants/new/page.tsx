@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { APP_CONFIG } from "@/config/app-config"
 import { tenantAdminService, type PlanLicencia, type CreateTenantRequest, type CreateTenantResponse } from "@/services/tenant-admin-service"
 
 function generatePassword() {
@@ -280,7 +281,7 @@ export default function NewTenantPage() {
                       className="rounded-r-none"
                     />
                     <span className="inline-flex items-center px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm">
-                      .saciusag.com.mx
+                      .{APP_CONFIG.domain}
                     </span>
                   </div>
                 </div>

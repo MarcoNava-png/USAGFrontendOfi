@@ -3,6 +3,7 @@ import {
   TarifaAdmisionDto,
   CrearTarifaAdmisionDto,
   ActualizarTarifaAdmisionDto,
+  GenerarRecibosAdmisionRequestV2,
 } from "@/types/tarifa-admision";
 
 import apiClient from "./api-client";
@@ -13,10 +14,13 @@ export interface GenerarRecibosAdmisionResult {
   totalRecibos: number;
 }
 
-export async function listarTarifasAdmision(soloActivas?: boolean): Promise<TarifaAdmisionDto[]> {
+export async function listarTarifasAdmision(soloActivas?: boolean, esConvenioEmpresarial?: boolean): Promise<TarifaAdmisionDto[]> {
   const params = new URLSearchParams();
   if (soloActivas !== undefined) {
     params.append("soloActivas", soloActivas.toString());
+  }
+  if (esConvenioEmpresarial !== undefined) {
+    params.append("esConvenioEmpresarial", esConvenioEmpresarial.toString());
   }
   const { data } = await apiClient.get<TarifaAdmisionDto[]>(`/TarifaAdmision?${params.toString()}`);
   return data;
@@ -65,14 +69,58 @@ export async function descargarCotizacionAdmisionPdf(
   return response.data;
 }
 
+export async function descargarCotizacionAdmisionPdfV2(
+  idTarifaAdmision: number,
+  idAspirante: number,
+  request: { conceptos: { idConceptoPago: number; idPromocion: number | null }[]; idEmpresa: number | null }
+): Promise<Blob> {
+  const response = await apiClient.post(
+    `/TarifaAdmision/${idTarifaAdmision}/aspirante/${idAspirante}/cotizacion-pdf-v2`,
+    {
+      Conceptos: request.conceptos.map((c) => ({
+        IdConceptoPago: c.idConceptoPago,
+        IdPromocion: c.idPromocion,
+      })),
+      IdEmpresa: request.idEmpresa,
+    },
+    { responseType: "blob" }
+  );
+  return response.data;
+}
+
 export async function generarRecibosAdmision(
   idTarifaAdmision: number,
   idAspirante: number,
-  pagoCompleto: boolean
+  pagoCompleto: boolean,
+  conceptosIncluidos?: number[],
+  descuentoPorcentaje?: number
 ): Promise<GenerarRecibosAdmisionResult> {
   const { data } = await apiClient.post<GenerarRecibosAdmisionResult>(
     `/TarifaAdmision/${idTarifaAdmision}/generar-recibos/${idAspirante}`,
-    { PagoCompleto: pagoCompleto }
+    {
+      PagoCompleto: pagoCompleto,
+      ConceptosIncluidos: conceptosIncluidos ?? null,
+      DescuentoPorcentaje: descuentoPorcentaje ?? 0,
+    }
+  );
+  return data;
+}
+
+export async function generarRecibosAdmisionV2(
+  idTarifaAdmision: number,
+  idAspirante: number,
+  request: GenerarRecibosAdmisionRequestV2
+): Promise<GenerarRecibosAdmisionResult> {
+  const { data } = await apiClient.post<GenerarRecibosAdmisionResult>(
+    `/TarifaAdmision/${idTarifaAdmision}/generar-recibos-v2/${idAspirante}`,
+    {
+      PagoCompleto: request.pagoCompleto,
+      IdEmpresa: request.idEmpresa,
+      Conceptos: request.conceptos.map((c) => ({
+        IdConceptoPago: c.idConceptoPago,
+        IdPromocion: c.idPromocion,
+      })),
+    }
   );
   return data;
 }

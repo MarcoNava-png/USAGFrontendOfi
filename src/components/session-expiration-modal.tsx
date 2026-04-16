@@ -31,8 +31,9 @@ function getTokenExpiration(): number | null {
   }
 }
 
-const INACTIVITY_WARNING_MS = 5 * 60 * 1000; // 5 min sin actividad → mostrar modal
-const COUNTDOWN_SECONDS = 30; // 30 segundos para responder antes de cerrar sesión
+const INACTIVITY_WARNING_MS = 5 * 60 * 1000;
+const COUNTDOWN_SECONDS = 60;
+const TOKEN_RENEW_THRESHOLD_MS = 10 * 60 * 1000;
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "click"] as const;
 
 export function SessionExpirationModal() {
@@ -40,16 +41,25 @@ export function SessionExpirationModal() {
   const [remaining, setRemaining] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const isSuperAdmin = typeof window !== "undefined" && window.location.pathname.startsWith("/dashboard/super-admin");
   const lastActivityRef = useRef(Date.now());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silentRefreshDoneRef = useRef(false);
   const modalOpenedAtRef = useRef<number | null>(null);
+  const isLoggingOutRef = useRef(false);
+
+  const doLogout = useCallback(() => {
+    if (isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
+    setOpen(false);
+    logout();
+    router.push("/auth/v2/login");
+  }, [router]);
 
   const resetActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // Escuchar actividad del usuario
   useEffect(() => {
     for (const event of ACTIVITY_EVENTS) {
       window.addEventListener(event, resetActivity, { passive: true });
@@ -61,7 +71,19 @@ export function SessionExpirationModal() {
     };
   }, [resetActivity]);
 
-  // Renovar silenciosamente si el usuario está activo y el token está por expirar
+  useEffect(() => {
+    const handler = () => {
+      if (isSuperAdmin) return;
+      if (!open) {
+        modalOpenedAtRef.current = Date.now();
+        setRemaining(COUNTDOWN_SECONDS);
+        setOpen(true);
+      }
+    };
+    window.addEventListener("session-expired", handler);
+    return () => window.removeEventListener("session-expired", handler);
+  }, [open, isSuperAdmin]);
+
   const silentRefresh = useCallback(async () => {
     if (silentRefreshDoneRef.current) return;
     silentRefreshDoneRef.current = true;
@@ -71,46 +93,47 @@ export function SessionExpirationModal() {
     }
   }, []);
 
-  // Verificar cada segundo
   const check = useCallback(() => {
+    if (isLoggingOutRef.current) return;
+    if (isSuperAdmin) return;
+
     const exp = getTokenExpiration();
     if (!exp) return;
 
     const tokenRemaining = exp - Date.now();
     const inactiveMs = Date.now() - lastActivityRef.current;
 
-    // Token ya expiró
     if (tokenRemaining <= 0) {
-      logout();
-      router.push("/auth/v2/login");
+      if (!open) {
+        modalOpenedAtRef.current = Date.now();
+        setRemaining(COUNTDOWN_SECONDS);
+        setOpen(true);
+      }
       return;
     }
 
-    // Si el usuario está ACTIVO y faltan menos de 10 min → renovar silenciosamente
-    if (inactiveMs < INACTIVITY_WARNING_MS && tokenRemaining <= 10 * 60 * 1000) {
+    if (inactiveMs < INACTIVITY_WARNING_MS && tokenRemaining <= TOKEN_RENEW_THRESHOLD_MS) {
       silentRefresh();
       return;
     }
 
-    // Si el usuario está INACTIVO por 5+ min → mostrar modal con 30s de cuenta regresiva
     if (inactiveMs >= INACTIVITY_WARNING_MS && !open) {
       modalOpenedAtRef.current = Date.now();
+      setRemaining(COUNTDOWN_SECONDS);
       setOpen(true);
+      return;
     }
 
-    // Cuenta regresiva de 30 segundos desde que se abrió el modal
     if (open && modalOpenedAtRef.current) {
       const elapsed = Math.floor((Date.now() - modalOpenedAtRef.current) / 1000);
       const left = Math.max(0, COUNTDOWN_SECONDS - elapsed);
       setRemaining(left);
 
-      // Se acabó el tiempo → cerrar sesión
       if (left <= 0) {
-        logout();
-        router.push("/auth/v2/login");
+        doLogout();
       }
     }
-  }, [open, router, silentRefresh]);
+  }, [open, silentRefresh, doLogout]);
 
   useEffect(() => {
     intervalRef.current = setInterval(check, 1000);
@@ -129,24 +152,20 @@ export function SessionExpirationModal() {
       modalOpenedAtRef.current = null;
       resetActivity();
       silentRefreshDoneRef.current = false;
+      isLoggingOutRef.current = false;
       toast.success("Sesion renovada exitosamente");
     } else {
       toast.error("No se pudo renovar la sesion. Inicia sesion nuevamente.");
-      logout();
-      router.push("/auth/v2/login");
+      doLogout();
     }
   };
 
   const handleLogout = () => {
-    setOpen(false);
-    logout();
-    router.push("/auth/v2/login");
+    doLogout();
   };
 
-  const displaySeconds = remaining;
-
   return (
-    <AlertDialog open={open}>
+    <AlertDialog open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2 text-xl">
@@ -160,7 +179,7 @@ export function SessionExpirationModal() {
               No hemos detectado actividad reciente. Tu sesion se cerrara automaticamente en:
             </span>
             <span className="block text-center text-3xl font-bold text-amber-600 font-mono">
-              {displaySeconds}s
+              {remaining}s
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>

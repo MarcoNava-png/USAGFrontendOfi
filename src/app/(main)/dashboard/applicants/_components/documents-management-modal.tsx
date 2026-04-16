@@ -2,25 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-import { FileText, Upload, CheckCircle, XCircle, Clock, Eye, RotateCcw } from "lucide-react";
+import { CheckCircle, ClipboardCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   getApplicantDocuments,
   getDocumentRequirements,
-  uploadApplicantDocument,
-  changeDocumentStatus,
-  resetApplicantDocument,
 } from "@/services/applicants-service";
-import {
-  validateAndPrepareFile,
-  ALLOWED_EXTENSIONS_STRING,
-  MAX_FILE_SIZE_MB,
-} from "@/lib/file-validation";
+import apiClient from "@/services/api-client";
 import {
   AspiranteDocumentoDto,
   DocumentoRequisitoDto,
@@ -34,410 +26,116 @@ interface DocumentsManagementModalProps {
   onClose: () => void;
 }
 
-interface DocumentRequirementCardProps {
-  requirement: DocumentoRequisitoDto;
-  document: AspiranteDocumentoDto | undefined;
-  onUpload: (idDocumentoRequisito: number) => void;
-  onValidate: (idDocumento: number, validar: boolean) => void;
-  onReset: (idDocumento: number) => void;
-  uploadingDocId: number | null;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  notas: string;
-  setNotas: (notas: string) => void;
-  getStatusIcon: (estatus: EstatusDocumentoEnum) => JSX.Element;
-  getStatusText: (estatus: EstatusDocumentoEnum) => string;
-}
-
-function getStatusBadgeClass(estatus: EstatusDocumentoEnum): string {
-  switch (estatus) {
-    case EstatusDocumentoEnum.VALIDADO:
-      return "bg-green-100 text-green-700";
-    case EstatusDocumentoEnum.RECHAZADO:
-      return "bg-red-100 text-red-700";
-    case EstatusDocumentoEnum.SUBIDO:
-      return "bg-yellow-100 text-yellow-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-}
-
-interface DocumentActionsProps {
-  doc: AspiranteDocumentoDto | undefined;
-  reqId: number;
-  isUploading: boolean;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  notas: string;
-  setNotas: (notas: string) => void;
-  onUpload: (id: number) => void;
-  onValidate: (idDoc: number, valid: boolean) => void;
-  onReset: (idDoc: number) => void;
-}
-
-function DocumentActions({
-  doc,
-  reqId,
-  isUploading,
-  selectedFile,
-  setSelectedFile,
-  notas,
-  setNotas,
-  onUpload,
-  onValidate,
-  onReset,
-}: DocumentActionsProps) {
-  const isPending = !doc || doc.estatus === EstatusDocumentoEnum.PENDIENTE;
-  const isSubido = doc?.estatus === EstatusDocumentoEnum.SUBIDO;
-  const isRechazado = doc?.estatus === EstatusDocumentoEnum.RECHAZADO;
-
-  // PENDIENTE o RECHAZADO: mostrar formulario de carga
-  if (isPending || isRechazado) {
-    return (
-      <div className="space-y-2">
-        {isRechazado && doc?.urlArchivo && (
-          <Button size="sm" variant="outline" asChild className="w-full mb-1">
-            <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
-              <Eye className="mr-1 h-4 w-4" />
-              Ver documento rechazado
-            </a>
-          </Button>
-        )}
-        <Input
-          type="file"
-          accept={ALLOWED_EXTENSIONS_STRING}
-          onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-          disabled={isUploading}
-          className="text-sm"
-        />
-        <p className="text-xs text-gray-500">Formatos: PDF, JPG, PNG, DOC, DOCX. Max {MAX_FILE_SIZE_MB} MB</p>
-        <Textarea
-          placeholder="Notas (opcional)"
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          disabled={isUploading}
-          rows={2}
-          className="text-sm"
-        />
-        <Button
-          onClick={() => onUpload(reqId)}
-          disabled={!selectedFile || isUploading}
-          size="sm"
-          className="w-full"
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          {isUploading ? "Subiendo..." : isRechazado ? "Re-subir documento" : "Subir"}
-        </Button>
-      </div>
-    );
-  }
-
-  // SUBIDO: mostrar Ver + Validar + Rechazar + Cancelar
-  if (isSubido && doc) {
-    return (
-      <div className="flex flex-col gap-2">
-        {doc.urlArchivo && (
-          <Button size="sm" variant="outline" asChild className="w-full">
-            <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
-              <Eye className="mr-1 h-4 w-4" />
-              Ver documento
-            </a>
-          </Button>
-        )}
-        <div className="flex gap-2">
-          <Button
-            onClick={() => onValidate(doc.idAspiranteDocumento, true)}
-            size="sm"
-            variant="outline"
-            className="border-green-200 text-green-700 hover:bg-green-50"
-          >
-            <CheckCircle className="mr-1 h-4 w-4" />
-            Validar
-          </Button>
-          <Button
-            onClick={() => onValidate(doc.idAspiranteDocumento, false)}
-            size="sm"
-            variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50"
-          >
-            <XCircle className="mr-1 h-4 w-4" />
-            Rechazar
-          </Button>
-        </div>
-        <Button
-          onClick={() => onReset(doc.idAspiranteDocumento)}
-          size="sm"
-          variant="outline"
-          className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
-        >
-          <RotateCcw className="mr-1 h-4 w-4" />
-          Cancelar documento
-        </Button>
-      </div>
-    );
-  }
-
-  // VALIDADO: mostrar Ver + Cancelar
-  if (doc?.urlArchivo) {
-    return (
-      <div className="flex flex-col gap-2">
-        <Button size="sm" variant="outline" asChild>
-          <a href={doc.urlArchivo} target="_blank" rel="noopener noreferrer">
-            <Eye className="mr-1 h-4 w-4" />
-            Ver documento
-          </a>
-        </Button>
-        <Button
-          onClick={() => onReset(doc.idAspiranteDocumento)}
-          size="sm"
-          variant="outline"
-          className="border-orange-200 text-orange-700 hover:bg-orange-50"
-        >
-          <RotateCcw className="mr-1 h-4 w-4" />
-          Cancelar documento
-        </Button>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function DocumentRequirementCard({
-  requirement: req,
-  document: doc,
-  onUpload,
-  onValidate,
-  onReset,
-  uploadingDocId,
-  selectedFile,
-  setSelectedFile,
-  notas,
-  setNotas,
-  getStatusIcon,
-  getStatusText,
-}: DocumentRequirementCardProps) {
-  const isUploading = uploadingDocId === req.idDocumentoRequisito;
-
-  return (
-    <div className="rounded-lg border p-4 transition-colors hover:bg-gray-50">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            {doc && getStatusIcon(doc.estatus)}
-            <h4 className="font-semibold">
-              {req.descripcion}
-              {req.esObligatorio && <span className="ml-1 text-red-500">*</span>}
-            </h4>
-          </div>
-          <p className="text-sm text-gray-500">Clave: {req.clave}</p>
-
-          {doc && (
-            <div className="mt-2">
-              <p className="text-sm">
-                <span className="font-medium">Estatus:</span>{" "}
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(doc.estatus)}`}>
-                  {getStatusText(doc.estatus)}
-                </span>
-              </p>
-              {doc.notas && (
-                <p className="mt-1 text-sm text-gray-600">
-                  <span className="font-medium">Notas:</span> {doc.notas}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="ml-4 flex flex-col gap-2">
-          <DocumentActions
-            doc={doc}
-            reqId={req.idDocumentoRequisito}
-            isUploading={isUploading}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            notas={notas}
-            setNotas={setNotas}
-            onUpload={onUpload}
-            onValidate={onValidate}
-            onReset={onReset}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function DocumentsManagementModal({ open, applicant, onClose }: DocumentsManagementModalProps) {
   const [requirements, setRequirements] = useState<DocumentoRequisitoDto[]>([]);
   const [documents, setDocuments] = useState<AspiranteDocumentoDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploadingDocId, setUploadingDocId] = useState<number | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [notas, setNotas] = useState("");
 
   useEffect(() => {
-    if (open && applicant) {
-      loadData();
-    }
+    if (open && applicant) loadDocuments();
   }, [open, applicant]);
 
-  const loadData = async () => {
+  const loadDocuments = async () => {
     if (!applicant) return;
-
     setLoading(true);
     try {
-      const [reqs, docs] = await Promise.all([
-        getDocumentRequirements(),
-        getApplicantDocuments(applicant.idAspirante),
-      ]);
-      setRequirements(reqs);
+      const docs = await getApplicantDocuments(applicant.idAspirante);
       setDocuments(docs);
-    } catch (error) {
+      const docReqIds = new Set(docs.map(d => d.idDocumentoRequisito));
+      const allReqs = await getDocumentRequirements();
+      setRequirements(allReqs.filter(r => docReqIds.has(r.idDocumentoRequisito)));
+    } catch {
       toast.error("Error al cargar documentos");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpload = async (idDocumentoRequisito: number) => {
-    if (!selectedFile || !applicant) return;
-
-    const result = await validateAndPrepareFile(selectedFile);
-    if (result.error !== null) {
-      toast.error(result.error);
-      return;
-    }
-
-    const preparedFile = result.file;
-
-    setUploadingDocId(idDocumentoRequisito);
+  const handleToggle = async (doc: AspiranteDocumentoDto | undefined, reqId: number) => {
+    if (!doc) return;
     try {
-      await uploadApplicantDocument({
-        idAspirante: applicant.idAspirante,
-        idDocumentoRequisito,
-        archivo: preparedFile,
-        notas: notas || undefined,
-      });
-
-      toast.success("Documento cargado exitosamente");
-      setSelectedFile(null);
-      setNotas("");
-      loadData();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Error al cargar documento";
-      toast.error(message);
-      console.error(error);
-    } finally {
-      setUploadingDocId(null);
+      const { data } = await apiClient.put<{ estatus: string; recibido: boolean }>(
+        `/aspirante/documentos/${doc.idAspiranteDocumento}/toggle-recibido`
+      );
+      setDocuments(prev => prev.map(d =>
+        d.idAspiranteDocumento === doc.idAspiranteDocumento
+          ? { ...d, estatus: data.recibido ? EstatusDocumentoEnum.VALIDADO : EstatusDocumentoEnum.PENDIENTE }
+          : d
+      ));
+      toast.success(data.recibido ? "Documento marcado como recibido" : "Documento desmarcado");
+    } catch {
+      toast.error("Error al actualizar documento");
     }
   };
 
-  const handleValidate = async (idDocumento: number, validar: boolean) => {
-    try {
-      await changeDocumentStatus(idDocumento, {
-        estatus: validar ? EstatusDocumentoEnum.VALIDADO : EstatusDocumentoEnum.RECHAZADO,
-        notas: null,
-      });
+  const getDoc = (reqId: number) => documents.find(d => d.idDocumentoRequisito === reqId);
 
-      toast.success(validar ? "Documento validado" : "Documento rechazado");
-      loadData();
-    } catch (error) {
-      toast.error("Error al actualizar estatus");
-      console.error(error);
-    }
-  };
-
-  const handleReset = async (idDocumento: number) => {
-    if (!confirm("¿Cancelar este documento? Se eliminará el archivo y volverá a estado pendiente.")) return;
-    try {
-      await resetApplicantDocument(idDocumento);
-      toast.success("Documento cancelado, puede volver a subirlo");
-      loadData();
-    } catch (error) {
-      toast.error("Error al cancelar documento");
-      console.error(error);
-    }
-  };
-
-  const getDocumentStatus = (reqId: number): AspiranteDocumentoDto | undefined => {
-    return documents.find((d) => d.idDocumentoRequisito === reqId);
-  };
-
-  const getStatusIcon = (estatus: EstatusDocumentoEnum) => {
-    switch (estatus) {
-      case EstatusDocumentoEnum.VALIDADO:
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case EstatusDocumentoEnum.RECHAZADO:
-        return <XCircle className="h-5 w-5 text-red-600" />;
-      case EstatusDocumentoEnum.SUBIDO:
-        return <Clock className="h-5 w-5 text-yellow-600" />;
-      default:
-        return <FileText className="h-5 w-5 text-gray-400" />;
-    }
-  };
-
-  const getStatusText = (estatus: EstatusDocumentoEnum) => {
-    switch (estatus) {
-      case EstatusDocumentoEnum.VALIDADO:
-        return "Validado";
-      case EstatusDocumentoEnum.RECHAZADO:
-        return "Rechazado";
-      case EstatusDocumentoEnum.SUBIDO:
-        return "Subido";
-      default:
-        return "Pendiente";
-    }
-  };
-
-  if (!applicant) return null;
+  const totalRecibidos = requirements.filter(r => {
+    const doc = getDoc(r.idDocumentoRequisito);
+    return doc?.estatus === EstatusDocumentoEnum.VALIDADO || doc?.estatus === EstatusDocumentoEnum.SUBIDO;
+  }).length;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] !max-w-[80vw] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-[70vw] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            Documentos - {applicant.nombreCompleto}
+          <DialogTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5" />
+            Documentos - {applicant?.nombreCompleto}
           </DialogTitle>
+          <DialogDescription>
+            {totalRecibidos}/{requirements.length} documentos recibidos
+          </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <div className="py-8 text-center">Cargando documentos...</div>
+          <div className="text-center py-8 text-gray-500">Cargando...</div>
         ) : (
-          <div className="space-y-4">
-            {requirements.map((req) => (
-              <DocumentRequirementCard
-                key={req.idDocumentoRequisito}
-                requirement={req}
-                document={getDocumentStatus(req.idDocumentoRequisito)}
-                onUpload={handleUpload}
-                onValidate={handleValidate}
-                onReset={handleReset}
-                uploadingDocId={uploadingDocId}
-                selectedFile={selectedFile}
-                setSelectedFile={setSelectedFile}
-                notas={notas}
-                setNotas={setNotas}
-                getStatusIcon={getStatusIcon}
-                getStatusText={getStatusText}
-              />
-            ))}
+          <div className="space-y-2">
+            {requirements.map((req) => {
+              const doc = getDoc(req.idDocumentoRequisito);
+              const isRecibido = doc?.estatus === EstatusDocumentoEnum.VALIDADO || doc?.estatus === EstatusDocumentoEnum.SUBIDO;
 
-            {requirements.length === 0 && (
-              <div className="py-8 text-center text-gray-500">
-                No hay requisitos de documentos configurados
-              </div>
-            )}
+              return (
+                <div
+                  key={req.idDocumentoRequisito}
+                  className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
+                    isRecibido ? "border-green-200 bg-green-50" : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    {isRecibido ? (
+                      <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-gray-300 shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-medium text-sm">{req.descripcion}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{req.clave}</span>
+                        {req.esObligatorio && (
+                          <Badge variant="outline" className="text-[9px] border-orange-300 text-orange-600 px-1 py-0">
+                            Obligatorio
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant={isRecibido ? "default" : "outline"}
+                    className={`shrink-0 gap-1 text-xs ${isRecibido ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    onClick={() => handleToggle(doc, req.idDocumentoRequisito)}
+                    disabled={!doc}
+                  >
+                    {isRecibido ? "✓ Recibido" : "Marcar"}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
-
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cerrar
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

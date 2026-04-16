@@ -46,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { APP_CONFIG } from "@/config/app-config"
 import { tenantAdminService, type TenantListItem } from "@/services/tenant-admin-service"
 
 function getStatusBadge(status: string) {
@@ -237,7 +238,7 @@ export default function TenantsListPage() {
                       </TableCell>
                       <TableCell>
                         <a
-                          href={`https://${tenant.subdominio}.saciusag.com.mx`}
+                          href={`https://${tenant.subdominio}.${APP_CONFIG.domain}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline flex items-center gap-1"

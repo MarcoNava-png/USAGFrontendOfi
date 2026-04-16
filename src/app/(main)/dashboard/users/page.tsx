@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Pencil, Trash2, Search, UserPlus, KeyRound } from "lucide-react";
+import { Pencil, Trash2, Search, UserPlus, KeyRound, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAllUsers, deleteUser } from "@/services/users-service";
+import { getAllUsers, deleteUser, unlockUser } from "@/services/users-service";
 import type { User } from "@/types/user";
 
 import { CreateUserModal } from "./_components/create-user-modal";
@@ -149,6 +149,15 @@ export default function UsersPage() {
   const handleResetPasswordClick = (user: User) => {
     setSelectedUser(user);
     setIsResetPasswordModalOpen(true);
+  };
+
+  const handleUnlockUser = async (user: User) => {
+    try {
+      await unlockUser(user.email);
+      toast.success(`Usuario ${user.email} desbloqueado exitosamente`);
+    } catch {
+      toast.error("Error al desbloquear usuario");
+    }
   };
 
   return (
@@ -293,6 +302,15 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleUnlockUser(user)}
+                            className="hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-900/30 dark:hover:text-green-400"
+                            title="Desbloquear usuario"
+                          >
+                            <LockOpen className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"

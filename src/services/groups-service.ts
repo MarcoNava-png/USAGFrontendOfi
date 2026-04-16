@@ -310,6 +310,30 @@ export async function eliminarEstudianteDeGrupo(
   await apiClient.delete(`/grupos/estudiante-grupo/${idEstudianteGrupo}`);
 }
 
+export interface CambioGrupoRequest {
+  idEstudianteGrupo: number;
+  idGrupoDestino: number;
+}
+
+export interface CambioGrupoResult {
+  exitoso: boolean;
+  mensaje: string;
+  grupoOrigen: string;
+  grupoDestino: string;
+  nombreEstudiante: string;
+  matricula: string;
+}
+
+export async function cambiarEstudianteDeGrupo(
+  request: CambioGrupoRequest
+): Promise<CambioGrupoResult> {
+  const { data } = await apiClient.post<CambioGrupoResult>(
+    "/grupos/cambio-grupo",
+    request
+  );
+  return data;
+}
+
 export interface EstudianteImportar {
   nombre: string;
   apellidoPaterno: string;

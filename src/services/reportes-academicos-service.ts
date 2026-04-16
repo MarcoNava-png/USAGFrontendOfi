@@ -56,6 +56,33 @@ export async function descargarListaAsistenciaPdf(idGrupoMateria: number): Promi
   return data;
 }
 
+// ──────── Reporte de Bajas ────────
+
+function buildBajasParams(idCampus?: number, idPlanEstudios?: number, idPeriodo?: number, mes?: number, anio?: number) {
+  const params = new URLSearchParams();
+  if (idCampus) params.append("idCampus", idCampus.toString());
+  if (idPlanEstudios) params.append("idPlanEstudios", idPlanEstudios.toString());
+  if (idPeriodo) params.append("idPeriodo", idPeriodo.toString());
+  if (mes) params.append("mes", mes.toString());
+  if (anio) params.append("anio", anio.toString());
+  return params.toString() ? `?${params.toString()}` : "";
+}
+
+export async function getReporteBajas(idCampus?: number, idPlanEstudios?: number, idPeriodo?: number, mes?: number, anio?: number) {
+  const { data } = await apiClient.get(`${BASE}/bajas${buildBajasParams(idCampus, idPlanEstudios, idPeriodo, mes, anio)}`);
+  return data;
+}
+
+export async function descargarReporteBajasPdf(idCampus?: number, idPlanEstudios?: number, idPeriodo?: number, mes?: number, anio?: number): Promise<Blob> {
+  const { data } = await apiClient.get(`${BASE}/bajas/pdf${buildBajasParams(idCampus, idPlanEstudios, idPeriodo, mes, anio)}`, { responseType: "blob" });
+  return data;
+}
+
+export async function descargarReporteBajasExcel(idCampus?: number, idPlanEstudios?: number, idPeriodo?: number, mes?: number, anio?: number): Promise<Blob> {
+  const { data } = await apiClient.get(`${BASE}/bajas/excel${buildBajasParams(idCampus, idPlanEstudios, idPeriodo, mes, anio)}`, { responseType: "blob" });
+  return data;
+}
+
 // ──────── Excel Downloads ────────
 
 export async function descargarEstudiantesGrupoExcel(idGrupo: number): Promise<Blob> {

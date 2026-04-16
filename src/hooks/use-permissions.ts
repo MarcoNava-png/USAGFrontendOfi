@@ -121,7 +121,7 @@ export function usePermissions() {
     }
 
     if (permissions.roles.includes(SYSTEM_ROLES.ADMIN)) {
-      return ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion']
+      return ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion', 'TitulacionDirecta', 'TitulacionEscolarizada', 'Bitacora']
     }
 
     return [...new Set(permissions.permissions.filter((p) => p.canView).map((p) => p.module))]
@@ -158,7 +158,7 @@ function getBasicPermissionsForRole(role: string): UserPermissions {
 
   const moduleAccess: Record<string, string[]> = {
     [SYSTEM_ROLES.SUPER_ADMIN]: ['Bitacora'],
-    [SYSTEM_ROLES.ADMIN]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion'],
+    [SYSTEM_ROLES.ADMIN]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas', 'Configuracion', 'TitulacionDirecta', 'TitulacionEscolarizada'],
     [SYSTEM_ROLES.DIRECTOR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Catalogos', 'Academico', 'Finanzas'],
     [SYSTEM_ROLES.COORDINADOR]: ['Dashboard', 'Estudiantes', 'Catalogos', 'Academico'],
     [SYSTEM_ROLES.CONTROL_ESCOLAR]: ['Dashboard', 'Admisiones', 'Estudiantes', 'Finanzas', 'Catalogos', 'Academico'],

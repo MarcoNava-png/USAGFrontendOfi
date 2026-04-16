@@ -15,8 +15,10 @@ export interface TarifaAdmisionDto {
   idPlanEstudios: number;
   nombrePlanEstudios: string;
   clavePlanEstudios: string;
+  nombreCampus?: string | null;
   nombre: string;
   aplicaConvenioMensualidad: boolean;
+  esConvenioEmpresarial: boolean;
   activo: boolean;
   detalles: TarifaAdmisionDetalleDto[];
 }
@@ -33,6 +35,7 @@ export interface CrearTarifaAdmisionDto {
   idPlanEstudios: number;
   nombre: string;
   aplicaConvenioMensualidad: boolean;
+  esConvenioEmpresarial: boolean;
   activo: boolean;
   detalles: CrearTarifaAdmisionDetalleDto[];
 }
@@ -40,6 +43,18 @@ export interface CrearTarifaAdmisionDto {
 export interface ActualizarTarifaAdmisionDto {
   nombre: string;
   aplicaConvenioMensualidad: boolean;
+  esConvenioEmpresarial: boolean;
   activo: boolean;
   detalles: CrearTarifaAdmisionDetalleDto[];
+}
+
+export interface ConceptoConPromocionDto {
+  idConceptoPago: number;
+  idPromocion: number | null;
+}
+
+export interface GenerarRecibosAdmisionRequestV2 {
+  pagoCompleto: boolean;
+  idEmpresa: number | null;
+  conceptos: ConceptoConPromocionDto[];
 }

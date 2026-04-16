@@ -203,9 +203,9 @@ export function DocenteDashboard({ data }: DocenteDashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data.fechasCierreCalificaciones.map((fecha, index) => (
+              {data.fechasCierreCalificaciones.map((fecha) => (
                 <div
-                  key={index}
+                  key={fecha.descripcion}
                   className="flex items-center justify-between p-3 bg-white dark:bg-background border rounded-lg"
                 >
                   <div>

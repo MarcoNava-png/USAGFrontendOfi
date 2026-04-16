@@ -58,6 +58,7 @@ export interface Receipt {
   recargoCalculado?: number;
   totalAPagarHoy?: number;
   diasVencido?: number;
+  conceptoResumen?: string;
 }
 
 export interface GenerateReceiptsRequest {

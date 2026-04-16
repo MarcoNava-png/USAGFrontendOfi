@@ -15,9 +15,10 @@ import { TablaAsistencias } from "./tabla-asistencias";
 
 interface GruposAcordeonAsistenciasProps {
   planEstudiosId: number;
+  periodoAcademicoId: number;
 }
 
-export function GruposAcordeonAsistencias({ planEstudiosId }: GruposAcordeonAsistenciasProps) {
+export function GruposAcordeonAsistencias({ planEstudiosId, periodoAcademicoId }: GruposAcordeonAsistenciasProps) {
   const [loading, setLoading] = useState(true);
   const [grupos, setGrupos] = useState<GrupoConMaterias[]>([]);
   const [gruposExpandidos, setGruposExpandidos] = useState<Set<number>>(new Set());
@@ -29,12 +30,12 @@ export function GruposAcordeonAsistencias({ planEstudiosId }: GruposAcordeonAsis
 
   useEffect(() => {
     loadGrupos();
-  }, [planEstudiosId]);
+  }, [planEstudiosId, periodoAcademicoId]);
 
   const loadGrupos = async () => {
     setLoading(true);
     try {
-      const gestionAcademica = await getAcademicManagement(planEstudiosId);
+      const gestionAcademica = await getAcademicManagement(planEstudiosId, periodoAcademicoId);
 
       const gruposConMaterias: GrupoConMaterias[] = [];
 

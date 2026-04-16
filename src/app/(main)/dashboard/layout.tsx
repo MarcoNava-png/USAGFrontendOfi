@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { cookies } from "next/headers";
 
 import { AppSidebar } from "@/app/(main)/dashboard/_components/sidebar/app-sidebar";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { NotificationBell } from "@/components/notification-bell";
 import { SessionExpirationModal } from "@/components/session-expiration-modal";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -37,10 +38,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
       <AppSidebar variant={sidebarVariant} collapsible={sidebarCollapsible} />
       <SidebarInset
         data-content-layout={contentLayout}
-        className={cn(
-          "data-[content-layout=centered]:!mx-auto data-[content-layout=centered]:max-w-screen-2xl",
-          "max-[113rem]:peer-data-[variant=inset]:!mr-2 min-[101rem]:peer-data-[variant=inset]:peer-data-[state=collapsed]:!mr-auto",
-        )}
+        className="min-w-0"
       >
         <header
           data-navbar-style={navbarStyle}
@@ -59,7 +57,9 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
             </div>
           </div>
         </header>
-        <div className="h-full p-4 md:p-6">{children}</div>
+        <ErrorBoundary>
+          <div className="h-full w-full p-4 md:p-6">{children}</div>
+        </ErrorBoundary>
       </SidebarInset>
       <SessionExpirationModal />
     </SidebarProvider>

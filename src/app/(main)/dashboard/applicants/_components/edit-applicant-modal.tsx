@@ -128,6 +128,7 @@ export function EditApplicantModal({
           nacionalidad: editData.nacionalidad ?? "",
           institucionProcedencia: editData.institucionProcedencia ?? "",
           idModalidad: editData.idModalidad ?? undefined,
+          grupoDiasImparticion: editData.grupoDiasImparticion ?? undefined,
           idPeriodoAcademico: editData.idPeriodoAcademico ?? undefined,
           recorridoPlantel: editData.recorridoPlantel ?? undefined,
           trabaja: editData.trabaja ?? undefined,

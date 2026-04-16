@@ -36,6 +36,7 @@ import {
   calcularTotalAPagarHoy,
   descargarComprobantePDF,
   formatCurrency,
+  formatDateLocal,
   formatReceiptStatus,
   getReceiptStatusVariant,
   isPaidOrPartial,
@@ -56,9 +57,9 @@ export default function CashierPage() {
   const [recibosSeleccionados, setRecibosSeleccionados] = useState<Set<number>>(new Set());
 
   const [mediosPago, setMediosPago] = useState<MedioPago[]>([]);
-  const [medioPago, setMedioPago] = useState<number>(1);
-  const [monto, setMonto] = useState<string>("");
-  const [referencia, setReferencia] = useState("");
+  const [metodosPagoForm, setMetodosPagoForm] = useState<{ idMedioPago: number; monto: string; referencia: string }[]>([
+    { idMedioPago: 1, monto: "", referencia: "" }
+  ]);
   const [notas, setNotas] = useState("");
 
   const [procesando, setProcesando] = useState(false);
@@ -393,6 +394,8 @@ export default function CashierPage() {
       }, 0);
   }
 
+  const montoTotalMetodos = metodosPagoForm.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+
   function validarPago(): { valido: boolean; montoIngresado: number; totalSeleccionado: number } {
     if (recibosSeleccionados.size === 0) {
       toast.error("Selecciona al menos un recibo");
@@ -400,17 +403,26 @@ export default function CashierPage() {
     }
 
     const totalSeleccionado = calcularTotalSeleccionado();
-    const montoIngresado = parseFloat(monto);
+    const montoIngresado = montoTotalMetodos;
 
     if (!montoIngresado || montoIngresado <= 0) {
-      toast.error("Ingresa un monto válido");
+      toast.error("Ingresa un monto en al menos un metodo de pago");
       return { valido: false, montoIngresado, totalSeleccionado };
     }
 
     if (montoIngresado > totalSeleccionado + 0.01) {
       toast.error(
-        `El monto ingresado (${formatCurrency(montoIngresado)}) excede el total seleccionado (${formatCurrency(totalSeleccionado)})`
+        `El monto total (${formatCurrency(montoIngresado)}) excede el total seleccionado (${formatCurrency(totalSeleccionado)})`
       );
+      return { valido: false, montoIngresado, totalSeleccionado };
+    }
+
+    const metodosConReferencia = metodosPagoForm.filter((m) => {
+      const medio = mediosPago.find((mp) => mp.idMedioPago === m.idMedioPago);
+      return medio?.requiereReferencia && parseFloat(m.monto) > 0 && !m.referencia.trim();
+    });
+    if (metodosConReferencia.length > 0) {
+      toast.error("Ingresa la referencia para los metodos que la requieren");
       return { valido: false, montoIngresado, totalSeleccionado };
     }
 
@@ -453,13 +465,22 @@ export default function CashierPage() {
         toast.info(`Pago parcial: se aplicará a ${recibosAfectados} recibo(s)`);
       }
 
+      const metodos = metodosPagoForm
+        .filter((m) => parseFloat(m.monto) > 0)
+        .map((m) => ({
+          idMedioPago: m.idMedioPago,
+          monto: parseFloat(m.monto),
+          referencia: m.referencia || undefined,
+        }));
+
       const pagoRegistrado = await registrarPagoCaja({
         fechaPago: new Date().toISOString(),
-        idMedioPago: medioPago,
+        idMedioPago: metodos[0]?.idMedioPago ?? 1,
         monto: montoIngresado,
-        referencia: referencia || undefined,
+        referencia: metodos.length === 1 ? metodos[0]?.referencia : undefined,
         notas: notas || undefined,
         recibosSeleccionados: recibosParaPago,
+        metodosPago: metodos.length > 1 ? metodos : undefined,
       });
 
       toast.success(`Pago registrado exitosamente: ${pagoRegistrado.folioPago}`);
@@ -483,13 +504,11 @@ export default function CashierPage() {
     setRecibosSeleccionados(new Set());
     setEstudiantesMultiples([]);
     setCriterio("");
-    setMonto("");
-    setReferencia("");
+    setMetodosPagoForm([{ idMedioPago: 1, monto: "", referencia: "" }]);
     setNotas("");
   }
 
   const totalSeleccionado = calcularTotalSeleccionado();
-  const medioSeleccionado = mediosPago.find((m) => m.idMedioPago === medioPago);
 
   return (
     <div className="space-y-6">
@@ -660,6 +679,7 @@ export default function CashierPage() {
                     </TableHead>
                     <TableHead className="w-12"></TableHead>
                     <TableHead className="text-white font-semibold">Folio</TableHead>
+                    <TableHead className="text-white font-semibold">Concepto</TableHead>
                     <TableHead className="text-white font-semibold">Periodo</TableHead>
                     <TableHead className="text-white font-semibold">Vencimiento</TableHead>
                     <TableHead className="text-right text-white font-semibold">Saldo</TableHead>
@@ -712,10 +732,13 @@ export default function CashierPage() {
                           >
                             {recibo.folio}
                           </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">
+                            {recibo.conceptoResumen || recibo.detalles?.[0]?.descripcion || '-'}
+                          </TableCell>
                           <TableCell>{recibo.nombrePeriodo}</TableCell>
                           <TableCell>
                             <div>
-                              {new Date(recibo.fechaVencimiento).toLocaleDateString("es-MX")}
+                              {formatDateLocal(recibo.fechaVencimiento)}
                               {diasVencido > 0 && (
                                 <Badge variant="destructive" className="ml-2">
                                   {diasVencido} día(s) vencido
@@ -898,68 +921,99 @@ export default function CashierPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Medio de Pago</Label>
-                    <Select
-                      value={medioPago.toString()}
-                      onValueChange={(v) => setMedioPago(parseInt(v))}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Metodos de Pago</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMetodosPagoForm([...metodosPagoForm, { idMedioPago: 1, monto: "", referencia: "" }])}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mediosPago.map((medio) => (
-                          <SelectItem
-                            key={medio.idMedioPago}
-                            value={medio.idMedioPago.toString()}
-                          >
-                            {medio.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      + Agregar metodo
+                    </Button>
                   </div>
-
-                  {medioSeleccionado?.requiereReferencia && (
-                    <div className="space-y-2">
-                      <Label>
-                        Referencia <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        placeholder="Núm. de transferencia, voucher, etc."
-                        value={referencia}
-                        onChange={(e) => setReferencia(e.target.value)}
-                      />
-                    </div>
-                  )}
+                  {metodosPagoForm.map((metodo, idx) => {
+                    const medioSel = mediosPago.find((m) => m.idMedioPago === metodo.idMedioPago);
+                    return (
+                      <div key={idx} className="flex items-start gap-2 p-3 rounded-lg border bg-gray-50/50">
+                        <div className="flex-1 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <Select
+                              value={metodo.idMedioPago.toString()}
+                              onValueChange={(v) => {
+                                const updated = [...metodosPagoForm];
+                                updated[idx].idMedioPago = parseInt(v);
+                                setMetodosPagoForm(updated);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {mediosPago.map((medio) => (
+                                  <SelectItem key={medio.idMedioPago} value={medio.idMedioPago.toString()}>
+                                    {medio.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Monto"
+                              value={metodo.monto}
+                              onChange={(e) => {
+                                const updated = [...metodosPagoForm];
+                                updated[idx].monto = e.target.value;
+                                setMetodosPagoForm(updated);
+                              }}
+                            />
+                          </div>
+                          {medioSel?.requiereReferencia && (
+                            <Input
+                              placeholder="Referencia (transferencia, voucher, etc.)"
+                              value={metodo.referencia}
+                              onChange={(e) => {
+                                const updated = [...metodosPagoForm];
+                                updated[idx].referencia = e.target.value;
+                                setMetodosPagoForm(updated);
+                              }}
+                            />
+                          )}
+                        </div>
+                        {metodosPagoForm.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-1"
+                            onClick={() => setMetodosPagoForm(metodosPagoForm.filter((_, i) => i !== idx))}
+                          >
+                            X
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Monto a Pagar</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value)}
-                  />
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">
-                      Total de recibos seleccionados:{" "}
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(totalSeleccionado)}
-                      </span>
-                    </p>
-                    {parseFloat(monto) > 0 && parseFloat(monto) < totalSeleccionado - 0.01 && (
-                      <p className="text-sm text-amber-600 font-medium">
-                        Pago parcial - Saldo restante: {formatCurrency(totalSeleccionado - parseFloat(monto))}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground italic">
-                      Se permiten pagos parciales. El monto se aplica de forma secuencial a los recibos seleccionados.
-                    </p>
+                <div className="space-y-1 p-3 rounded-lg border-2" style={{ borderColor: 'rgba(20, 53, 111, 0.2)', background: 'rgba(20, 53, 111, 0.03)' }}>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total recibos seleccionados:</span>
+                    <span className="font-semibold">{formatCurrency(totalSeleccionado)}</span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Suma de metodos de pago:</span>
+                    <span className={`font-semibold ${Math.abs(montoTotalMetodos - totalSeleccionado) < 0.01 ? 'text-green-600' : montoTotalMetodos > 0 ? 'text-amber-600' : ''}`}>
+                      {formatCurrency(montoTotalMetodos)}
+                    </span>
+                  </div>
+                  {montoTotalMetodos > 0 && montoTotalMetodos < totalSeleccionado - 0.01 && (
+                    <p className="text-xs text-amber-600 font-medium">
+                      Pago parcial - Saldo restante: {formatCurrency(totalSeleccionado - montoTotalMetodos)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -982,7 +1036,12 @@ export default function CashierPage() {
                   <div className="flex gap-2 items-center">
                     <Button
                       variant="outline"
-                      onClick={() => setMonto(totalSeleccionado.toFixed(2))}
+                      onClick={() => {
+                        const updated = [...metodosPagoForm];
+                        updated[0].monto = totalSeleccionado.toFixed(2);
+                        for (let i = 1; i < updated.length; i++) updated[i].monto = "0";
+                        setMetodosPagoForm(updated);
+                      }}
                       style={{ borderColor: '#14356F', color: '#14356F' }}
                     >
                       Aplicar Total
@@ -995,7 +1054,7 @@ export default function CashierPage() {
                       style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
                     >
                       <Check className="w-4 h-4 mr-2" />
-                      {procesando ? "Procesando..." : `Cobrar ${formatCurrency(parseFloat(monto) || 0)}`}
+                      {procesando ? "Procesando..." : `Cobrar ${formatCurrency(montoTotalMetodos)}`}
                     </Button>
                   </div>
                 </div>

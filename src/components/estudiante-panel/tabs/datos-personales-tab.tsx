@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Save, X, User, Phone, Mail, MapPin, Users } from "lucide-react";
+import { Check, ChevronsUpDown, Pencil, Save, Search, X, User, Phone, Mail, MapPin, Users } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Form,
   FormControl,
@@ -20,14 +28,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { actualizarDatosEstudiante } from "@/services/estudiante-panel-service";
+import { getStates, getMunicipalities, getTownships } from "@/services/location-service";
+import type { State, Municipality, Township } from "@/types/location";
 import type { EstudiantePanelDto, ActualizarDatosEstudianteRequest } from "@/types/estudiante-panel";
 
 const formSchema = z.object({
@@ -39,7 +54,12 @@ const formSchema = z.object({
   curp: z.string().length(18, "El CURP debe tener 18 caracteres").optional().or(z.literal("")),
   fechaNacimiento: z.string().optional(),
   genero: z.string().optional(),
-  direccion: z.string().optional(),
+  calle: z.string().optional(),
+  numeroExterior: z.string().optional(),
+  numeroInterior: z.string().optional(),
+  stateId: z.string().optional(),
+  municipalityId: z.string().optional(),
+  codigoPostalId: z.number().optional(),
   nombreContactoEmergencia: z.string().optional(),
   telefonoContactoEmergencia: z.string().optional(),
   parentescoContactoEmergencia: z.string().optional(),
@@ -55,6 +75,12 @@ interface DatosPersonalesTabProps {
 export function DatosPersonalesTab({ panel, onUpdate }: DatosPersonalesTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [states, setStates] = useState<State[]>([]);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [townships, setTownships] = useState<Township[]>([]);
+  const [openColoniaPopover, setOpenColoniaPopover] = useState(false);
+  const [coloniaSearch, setColoniaSearch] = useState("");
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const nombreParts = panel.nombreCompleto.split(" ");
   const apellidoPaterno = nombreParts.length > 1 ? nombreParts[nombreParts.length - 2] : "";
@@ -71,13 +97,100 @@ export function DatosPersonalesTab({ panel, onUpdate }: DatosPersonalesTabProps)
       telefono: panel.telefono || "",
       curp: panel.curp || "",
       fechaNacimiento: panel.fechaNacimiento?.split("T")[0] || "",
-      genero: "",
-      direccion: "",
+      genero: panel.genero || "",
+      calle: panel.calle || "",
+      numeroExterior: panel.numeroExterior || "",
+      numeroInterior: panel.numeroInterior || "",
+      stateId: "",
+      municipalityId: "",
+      codigoPostalId: 0,
       nombreContactoEmergencia: panel.contactoEmergencia?.nombre || "",
       telefonoContactoEmergencia: panel.contactoEmergencia?.telefono || "",
       parentescoContactoEmergencia: panel.contactoEmergencia?.parentesco || "",
     },
   });
+
+  const watchedStateId = form.watch("stateId");
+  const watchedMunicipalityId = form.watch("municipalityId");
+  const watchedCodigoPostalId = form.watch("codigoPostalId");
+
+  useEffect(() => {
+    getStates().then((s) => {
+      setStates(s);
+      if (panel.estadoStr) {
+        const match = s.find((st) => st.nombre === panel.estadoStr);
+        if (match) form.setValue("stateId", match.id);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!watchedStateId) {
+      setMunicipalities([]);
+      return;
+    }
+    getMunicipalities(watchedStateId).then((m) => {
+      setMunicipalities(m);
+      if (initialLoad && panel.municipioStr) {
+        const match = m.find((mu) => mu.nombre === panel.municipioStr);
+        if (match) form.setValue("municipalityId", match.id);
+      }
+      if (!initialLoad) {
+        form.setValue("municipalityId", "");
+        form.setValue("codigoPostalId", 0);
+      }
+    });
+  }, [watchedStateId]);
+
+  useEffect(() => {
+    if (!watchedMunicipalityId) {
+      setTownships([]);
+      return;
+    }
+    getTownships(watchedMunicipalityId).then((t) => {
+      setTownships(t);
+      if (initialLoad && panel.colonia && panel.codigoPostalStr) {
+        const match = t.find(
+          (tw) => tw.asentamiento === panel.colonia && tw.codigo === panel.codigoPostalStr
+        );
+        if (match) form.setValue("codigoPostalId", match.id);
+        setInitialLoad(false);
+      }
+      if (!initialLoad) {
+        form.setValue("codigoPostalId", 0);
+      }
+    });
+  }, [watchedMunicipalityId]);
+
+  const filteredTownships = useMemo(() => {
+    if (!watchedMunicipalityId) return [];
+    return townships.filter((t) => t.municipioId === watchedMunicipalityId);
+  }, [townships, watchedMunicipalityId]);
+
+  const searchedTownships = useMemo(() => {
+    if (!coloniaSearch) return filteredTownships;
+    return filteredTownships.filter((t) =>
+      t.asentamiento.toLowerCase().includes(coloniaSearch.toLowerCase())
+    );
+  }, [filteredTownships, coloniaSearch]);
+
+  const selectedColoniaName = useMemo(() => {
+    if (!watchedCodigoPostalId) return "";
+    const found = filteredTownships.find((t) => t.id === watchedCodigoPostalId);
+    return found ? `${found.asentamiento} (CP: ${found.codigo})` : "";
+  }, [watchedCodigoPostalId, filteredTownships]);
+
+  const direccionDisplay = useMemo(() => {
+    const parts: string[] = [];
+    if (panel.calle) parts.push(panel.calle);
+    if (panel.numeroExterior) parts.push(`#${panel.numeroExterior}`);
+    if (panel.numeroInterior) parts.push(`Int. ${panel.numeroInterior}`);
+    if (panel.colonia) parts.push(panel.colonia);
+    if (panel.codigoPostalStr) parts.push(`C.P. ${panel.codigoPostalStr}`);
+    if (panel.municipioStr) parts.push(panel.municipioStr);
+    if (panel.estadoStr) parts.push(panel.estadoStr);
+    return parts.length > 0 ? parts.join(", ") : panel.direccion || "";
+  }, [panel]);
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -92,7 +205,11 @@ export function DatosPersonalesTab({ panel, onUpdate }: DatosPersonalesTabProps)
         curp: values.curp || null,
         fechaNacimiento: values.fechaNacimiento || null,
         genero: values.genero || null,
-        direccion: values.direccion || null,
+        direccion: null,
+        calle: values.calle || null,
+        numeroExterior: values.numeroExterior || null,
+        numeroInterior: values.numeroInterior || null,
+        codigoPostalId: values.codigoPostalId && values.codigoPostalId > 0 ? values.codigoPostalId : null,
         nombreContactoEmergencia: values.nombreContactoEmergencia || null,
         telefonoContactoEmergencia: values.telefonoContactoEmergencia || null,
         parentescoContactoEmergencia: values.parentescoContactoEmergencia || null,
@@ -277,26 +394,186 @@ export function DatosPersonalesTab({ panel, onUpdate }: DatosPersonalesTabProps)
                     )}
                   />
                 </div>
-                <div className="mt-4">
-                  <FormField
-                    control={form.control}
-                    name="direccion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dirección</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            disabled={!isEditing}
-                            placeholder="Calle, número, colonia, ciudad, estado, CP"
-                            rows={2}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" style={{ color: "#14356F" }} />
+                  Dirección
+                </h3>
+                {!isEditing && (
+                  <p className="text-sm text-gray-600">
+                    {direccionDisplay || "Sin dirección registrada"}
+                  </p>
+                )}
+                {isEditing && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="calle"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Calle</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nombre de la calle" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="numeroExterior"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>No. Exterior</FormLabel>
+                          <FormControl>
+                            <Input placeholder="No. ext" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="numeroInterior"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>No. Interior</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Opcional" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="stateId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona estado" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {states.map((state) => (
+                                <SelectItem key={state.id} value={state.id}>
+                                  {state.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="municipalityId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Municipio</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || ""}
+                            disabled={!watchedStateId}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona municipio" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {municipalities
+                                .filter((m) => m.estadoId === watchedStateId)
+                                .map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    {m.nombre}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="codigoPostalId"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Colonia / C.P.</FormLabel>
+                          <Popover open={openColoniaPopover} onOpenChange={setOpenColoniaPopover}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  disabled={!watchedMunicipalityId}
+                                  className={cn(
+                                    "w-full justify-between font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <Search className="h-4 w-4 shrink-0 opacity-50" />
+                                    <span className="truncate">
+                                      {selectedColoniaName || "Buscar colonia..."}
+                                    </span>
+                                  </div>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command>
+                                <CommandInput
+                                  placeholder="Escribe para buscar colonia..."
+                                  value={coloniaSearch}
+                                  onValueChange={setColoniaSearch}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>No se encontraron colonias</CommandEmpty>
+                                  <CommandGroup className="max-h-[300px] overflow-y-auto">
+                                    {searchedTownships.map((township) => (
+                                      <CommandItem
+                                        key={township.id}
+                                        value={township.asentamiento}
+                                        onSelect={() => {
+                                          field.onChange(township.id);
+                                          setOpenColoniaPopover(false);
+                                          setColoniaSearch("");
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value === township.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col">
+                                          <span>{township.asentamiento}</span>
+                                          <span className="text-xs text-muted-foreground">
+                                            CP: {township.codigo}
+                                          </span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="border-t pt-6">

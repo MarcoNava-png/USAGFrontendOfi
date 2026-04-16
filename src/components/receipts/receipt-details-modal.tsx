@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency, calcularRecargo, calcularDiasVencido } from "@/lib/payment-utils";
+import { formatCurrency, formatDateLocal, calcularRecargo, calcularDiasVencido } from "@/lib/payment-utils";
 import { Receipt, ReceiptStatus } from "@/types/receipt";
 
 import { ReceiptStatusBadge } from "./receipt-status-badge";
@@ -54,13 +54,13 @@ export function ReceiptDetailsModal({ receipt, open, onClose }: ReceiptDetailsMo
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Emisión</p>
               <p className="font-medium">
-                {new Date(receipt.fechaEmision).toLocaleDateString("es-MX")}
+                {formatDateLocal(receipt.fechaEmision)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Vencimiento</p>
               <p className="font-medium">
-                {new Date(receipt.fechaVencimiento).toLocaleDateString("es-MX")}
+                {formatDateLocal(receipt.fechaVencimiento)}
                 {diasVencido > 0 && (
                   <Badge variant="destructive" className="ml-2">
                     {diasVencido} día(s) vencido

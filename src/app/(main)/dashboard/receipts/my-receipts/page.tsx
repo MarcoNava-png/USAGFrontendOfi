@@ -20,6 +20,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   formatCurrency,
+  formatDateLocal,
   calcularRecargo,
   calcularDiasVencido,
   descargarReciboPDF as descargarPDF,
@@ -235,11 +236,11 @@ export default function MyReceiptsPage() {
                       <TableCell className="font-mono font-semibold">{recibo.folio}</TableCell>
                       <TableCell>{recibo.nombrePeriodo}</TableCell>
                       <TableCell>
-                        {new Date(recibo.fechaEmision).toLocaleDateString("es-MX")}
+                        {formatDateLocal(recibo.fechaEmision)}
                       </TableCell>
                       <TableCell>
                         <div>
-                          {new Date(recibo.fechaVencimiento).toLocaleDateString("es-MX")}
+                          {formatDateLocal(recibo.fechaVencimiento)}
                           {diasVencido > 0 && (
                             <div className="text-xs text-red-600 mt-1">
                               {diasVencido} día(s) vencido

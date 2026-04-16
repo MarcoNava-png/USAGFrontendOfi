@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatDateLocal } from "@/lib/payment-utils";
 import { Receipt, ReceiptStatus } from "@/types/receipt";
 
 interface ReceiptDetailsModalProps {
@@ -40,7 +41,7 @@ export function ReceiptDetailsModal({ open, onOpenChange, receipt }: ReceiptDeta
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Emisión</p>
               <p className="font-medium">
-                {new Date(receipt.fechaEmision).toLocaleDateString("es-MX", {
+                {formatDateLocal(receipt.fechaEmision, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -50,7 +51,7 @@ export function ReceiptDetailsModal({ open, onOpenChange, receipt }: ReceiptDeta
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Vencimiento</p>
               <p className="font-medium">
-                {new Date(receipt.fechaVencimiento).toLocaleDateString("es-MX", {
+                {formatDateLocal(receipt.fechaVencimiento, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",

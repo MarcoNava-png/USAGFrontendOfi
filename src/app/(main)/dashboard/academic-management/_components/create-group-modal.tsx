@@ -23,9 +23,10 @@ interface CreateGroupModalProps {
   defaultPeriodId?: string;
   onSuccess: () => void;
   periodicidadLabel?: string;
+  totalPeriodos?: number;
 }
 
-export function CreateGroupModal({ open, onOpenChange, idPlanEstudios, defaultPeriodId, onSuccess, periodicidadLabel = "Cuatrimestre" }: CreateGroupModalProps) {
+export function CreateGroupModal({ open, onOpenChange, idPlanEstudios, defaultPeriodId, onSuccess, periodicidadLabel = "Cuatrimestre", totalPeriodos = 0 }: CreateGroupModalProps) {
   const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(false);
@@ -169,16 +170,18 @@ export function CreateGroupModal({ open, onOpenChange, idPlanEstudios, defaultPe
               <Label htmlFor="cuatrimestre" className="text-sm">
                 Número de {periodicidadLabel} *
               </Label>
-              <Input
-                id="cuatrimestre"
-                type="number"
-                min="1"
-                max="15"
-                value={numeroCuatrimestre}
-                onChange={(e) => setNumeroCuatrimestre(e.target.value)}
-                placeholder="Ej: 1"
-                className="text-sm"
-              />
+              <Select value={numeroCuatrimestre} onValueChange={setNumeroCuatrimestre}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder={`Seleccione ${periodicidadLabel.toLowerCase()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: totalPeriodos || 15 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={n.toString()}>
+                      {n}° {periodicidadLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

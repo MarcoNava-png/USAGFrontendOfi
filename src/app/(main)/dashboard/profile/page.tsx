@@ -140,7 +140,7 @@ export default function ProfilePage() {
         parsed.mustChangePassword = false;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
-      document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Lax";
+      document.cookie = "must_change_password=; path=/; max-age=0; SameSite=Strict; Secure";
 
       toast.success("Contraseña actualizada", {
         description: "Tu contraseña ha sido cambiada exitosamente",

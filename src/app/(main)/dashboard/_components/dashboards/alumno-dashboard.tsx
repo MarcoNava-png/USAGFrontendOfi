@@ -183,9 +183,9 @@ export function AlumnoDashboard({ data }: AlumnoDashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data.calificacionesRecientes.map((calificacion, index) => (
+              {data.calificacionesRecientes.map((calificacion) => (
                 <div
-                  key={index}
+                  key={`${calificacion.materia}-${calificacion.tipoEvaluacion}`}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div>

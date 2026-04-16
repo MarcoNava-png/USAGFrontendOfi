@@ -30,6 +30,7 @@ export interface SolicitudDocumento {
   tipoDocumentoClave: string
   idRecibo?: number
   folioRecibo?: string
+  estatusRecibo?: string
   variante: VarianteDocumento
   fechaSolicitud: string
   fechaGeneracion?: string

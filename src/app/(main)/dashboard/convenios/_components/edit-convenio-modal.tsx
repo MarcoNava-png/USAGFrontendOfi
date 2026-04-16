@@ -137,7 +137,7 @@ export const EditConvenioModal: React.FC<EditConvenioModalProps> = ({
       onUpdate(updated);
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error ? err.message : "Error al actualizar convenio";
+        err instanceof Error ? err.message : "Error al actualizar promoción";
       if (typeof err === "object" && err !== null && "response" in err) {
         const axiosError = err as { response?: { data?: { message?: string } } };
         if (axiosError.response?.data?.message) {
@@ -176,7 +176,7 @@ export const EditConvenioModal: React.FC<EditConvenioModalProps> = ({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Editar Convenio</DialogTitle>
+          <DialogTitle>Editar Promoción</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -188,7 +188,7 @@ export const EditConvenioModal: React.FC<EditConvenioModalProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="clave">Clave del Convenio *</Label>
+              <Label htmlFor="clave">Clave de la Promoción *</Label>
               <Input
                 id="clave"
                 placeholder="Ej: CONV-2024-001"
@@ -338,18 +338,18 @@ export const EditConvenioModal: React.FC<EditConvenioModalProps> = ({
 
           <div className="flex items-center gap-3">
             <Switch checked={activo} onCheckedChange={setActivo} id="activo" />
-            <Label htmlFor="activo">Convenio Activo</Label>
+            <Label htmlFor="activo">Promoción Activa</Label>
           </div>
 
           <div className="border rounded-lg p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-base font-semibold">
-                  Alcance del Convenio
+                  Alcance de la Promoción
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Define donde aplica este convenio. Si no agregas alcances,
-                  aplicara a todos.
+                  Define donde aplica esta promoción. Si no agregas alcances,
+                  aplicará a todos.
                 </p>
               </div>
               <Button

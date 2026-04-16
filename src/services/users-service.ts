@@ -33,6 +33,10 @@ export async function adminResetPassword(userId: string, newPassword: string): P
   });
 }
 
+export async function unlockUser(email: string): Promise<void> {
+  await apiClient.post(`/auth/unlock/${encodeURIComponent(email)}`);
+}
+
 export async function getCurrentUserProfile(): Promise<User> {
   const { data } = await apiClient.get<UserResponse>("/auth/profile");
   return data.data;

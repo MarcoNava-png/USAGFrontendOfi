@@ -12,11 +12,13 @@ import {
   FileText,
   GraduationCap,
   Loader2,
+  UserX,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,9 @@ import {
   descargarHorarioDocenteExcel,
   descargarListaAsistenciaPdf,
   descargarPlanesEstudioExcel,
+  descargarReporteBajasPdf,
+  descargarReporteBajasExcel,
+  getReporteBajas,
   descargarBlob,
   getGrupos,
   getPeriodosAcademicos,
@@ -132,6 +137,15 @@ export default function ReportesAcademicosPage() {
   const [selectedProfesor, setSelectedProfesor] = useState("");
   const [selectedEstudiante, setSelectedEstudiante] = useState("");
 
+  // ─── Filtros boleta ───
+  const [boletaCampus, setBoletaCampus] = useState("");
+  const [boletaPlan, setBoletaPlan] = useState("");
+  const [boletaGrupo, setBoletaGrupo] = useState("");
+  const [boletaPlanes, setBoletaPlanes] = useState<PlanEstudioItem[]>([]);
+  const [boletaGrupos, setBoletaGrupos] = useState<GrupoItem[]>([]);
+  const [boletaEstudiantes, setBoletaEstudiantes] = useState<EstudianteItem[]>([]);
+  const [boletaSearch, setBoletaSearch] = useState("");
+
   // ─── Filtros cascada ───
   const [campusList, setCampusList] = useState<CampusItem[]>([]);
   const [planesList, setPlanesList] = useState<PlanEstudioItem[]>([]);
@@ -153,6 +167,16 @@ export default function ReportesAcademicosPage() {
   const [searchProfesores, setSearchProfesores] = useState("");
   const [searchDocentesMaterias, setSearchDocentesMaterias] = useState("");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reporteBajas, setReporteBajas] = useState<any>(null);
+  const [loadingBajas, setLoadingBajas] = useState(false);
+  const [bajaCampusFilter, setBajaCampusFilter] = useState("");
+  const [bajaPlanFilter, setBajaPlanFilter] = useState("");
+
+  const [bajaMesFilter, setBajaMesFilter] = useState("");
+  const [bajaSubTab, setBajaSubTab] = useState("academico");
+  const [bajaPlanesFiltered, setBajaPlanesFiltered] = useState<PlanEstudioItem[]>([]);
+
   // ─── Loading states ───
   const [loading, setLoading] = useState(false);
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
@@ -161,16 +185,18 @@ export default function ReportesAcademicosPage() {
   useEffect(() => {
     const loadCatalogos = async () => {
       try {
-        const [periodosRes, parcialesRes, profesoresRes, campusRes] = await Promise.all([
+        const [periodosRes, parcialesRes, profesoresRes, campusRes, planesRes] = await Promise.all([
           getPeriodosAcademicos(),
           getParciales(),
           getProfesores(),
           getCampusList(),
+          getStudyPlansList(),
         ]);
         setPeriodos(Array.isArray(periodosRes) ? periodosRes : periodosRes?.items ?? periodosRes?.data ?? []);
         setParciales(Array.isArray(parcialesRes) ? parcialesRes : parcialesRes?.items ?? []);
         setProfesores(Array.isArray(profesoresRes) ? profesoresRes : profesoresRes?.items ?? profesoresRes?.data ?? []);
         setCampusList(Array.isArray(campusRes) ? campusRes : campusRes?.items ?? []);
+        setPlanesList(planesRes?.items ?? []);
       } catch {
         toast.error("Error al cargar catálogos");
       } finally {
@@ -179,6 +205,23 @@ export default function ReportesAcademicosPage() {
     };
     loadCatalogos();
   }, []);
+
+  useEffect(() => {
+    setBajaPlanFilter("");
+    if (!bajaCampusFilter || bajaCampusFilter === "todos") {
+      setBajaPlanesFiltered(planesList);
+      return;
+    }
+    const load = async () => {
+      try {
+        const res = await getStudyPlansList({ idCampus: Number(bajaCampusFilter) });
+        setBajaPlanesFiltered(res.items ?? []);
+      } catch {
+        setBajaPlanesFiltered([]);
+      }
+    };
+    load();
+  }, [bajaCampusFilter, planesList]);
 
   // ─── Load grupos when periodo changes ───
   useEffect(() => {
@@ -208,19 +251,63 @@ export default function ReportesAcademicosPage() {
     load();
   }, [selectedGrupo]);
 
-  // ─── Load estudiantes when periodo changes (for boleta) ───
+  // ─── Boleta: cargar planes cuando cambia campus ───
   useEffect(() => {
-    if (!selectedPeriodo) return;
+    setBoletaPlan("");
+    setBoletaGrupo("");
+    setBoletaEstudiantes([]);
+    setSelectedEstudiante("");
+    if (!boletaCampus) { setBoletaPlanes([]); return; }
     const load = async () => {
       try {
-        const res = await getEstudiantes(1, 2000);
-        setEstudiantes(Array.isArray(res) ? res : res?.items ?? res?.data ?? []);
+        const res = await getStudyPlansList({ idCampus: Number(boletaCampus) });
+        setBoletaPlanes(res.items ?? []);
+      } catch { setBoletaPlanes([]); }
+    };
+    load();
+  }, [boletaCampus]);
+
+  // ─── Boleta: cargar grupos cuando cambia plan ───
+  useEffect(() => {
+    setBoletaGrupo("");
+    setBoletaEstudiantes([]);
+    setSelectedEstudiante("");
+    if (!boletaPlan || !selectedPeriodo) { setBoletaGrupos([]); return; }
+    const load = async () => {
+      try {
+        const res = await getGrupos(Number(selectedPeriodo));
+        const all = Array.isArray(res) ? res : res?.items ?? res?.data ?? [];
+        const planId = Number(boletaPlan);
+        const plan = boletaPlanes.find((p) => p.idPlanEstudios === planId);
+        setBoletaGrupos(all.filter((g: GrupoItem) => g.idPlanEstudios === planId || g.planEstudios === plan?.nombrePlanEstudios));
+      } catch { setBoletaGrupos([]); }
+    };
+    load();
+  }, [boletaPlan, selectedPeriodo]);
+
+  // ─── Boleta: cargar estudiantes cuando cambia grupo ───
+  useEffect(() => {
+    setSelectedEstudiante("");
+    setBoletaSearch("");
+    if (!boletaGrupo) { setBoletaEstudiantes([]); return; }
+    const load = async () => {
+      try {
+        const grupoId = Number(boletaGrupo);
+        const { default: apiClient } = await import("@/services/api-client");
+        const { data: grupoData } = await apiClient.get(`/grupos/${grupoId}/estudiantes`);
+        const estGrupo = grupoData.estudiantes ?? grupoData ?? [];
+        const mapped: EstudianteItem[] = estGrupo.map((e: any) => ({
+          idEstudiante: e.idEstudiante,
+          matricula: e.matricula ?? "",
+          nombreCompleto: e.nombreCompleto ?? "",
+        }));
+        setBoletaEstudiantes(mapped);
       } catch {
-        // ignore
+        setBoletaEstudiantes([]);
       }
     };
     load();
-  }, [selectedPeriodo]);
+  }, [boletaGrupo]);
 
   useEffect(() => {
     if (activeTab !== "todos-alumnos" || allStudents.length > 0) return;
@@ -317,6 +404,21 @@ export default function ReportesAcademicosPage() {
     );
   }, [grupos, selectedPlanEstudios, planesList]);
 
+  const getNombreEstudiante = (est: EstudianteItem) => {
+    if (est.persona) return `${est.matricula} - ${est.persona.nombre} ${est.persona.apellidoPaterno} ${est.persona.apellidoMaterno ?? ""}`.trim();
+    if (est.nombreCompleto) return `${est.matricula} - ${est.nombreCompleto}`;
+    return est.matricula;
+  };
+
+  const boletaEstudiantesFiltrados = useMemo(() => {
+    if (!boletaSearch.trim()) return boletaEstudiantes;
+    const term = boletaSearch.toLowerCase();
+    return boletaEstudiantes.filter((e) => {
+      const nombre = getNombreEstudiante(e).toLowerCase();
+      return nombre.includes(term);
+    });
+  }, [boletaEstudiantes, boletaSearch]);
+
   const exportToCSV = (rows: Record<string, string>[], filename: string) => {
     if (rows.length === 0) return;
     const headers = Object.keys(rows[0]);
@@ -350,10 +452,7 @@ export default function ReportesAcademicosPage() {
     return prof.nombre ?? prof.noEmpleado ?? `Profesor ${prof.idProfesor}`;
   };
 
-  const getNombreEstudiante = (est: EstudianteItem) => {
-    if (est.persona) return `${est.matricula} - ${est.persona.nombre} ${est.persona.apellidoPaterno} ${est.persona.apellidoMaterno ?? ""}`.trim();
-    return est.matricula;
-  };
+
 
   if (loadingCatalogos) {
     return (
@@ -427,6 +526,9 @@ export default function ReportesAcademicosPage() {
           </TabsTrigger>
           <TabsTrigger value="docentes-materia" className="flex items-center gap-1">
             <BookOpen className="w-4 h-4" /> Docentes por Materia
+          </TabsTrigger>
+          <TabsTrigger value="bajas" className="flex items-center gap-1">
+            <UserX className="w-4 h-4" /> Bajas
           </TabsTrigger>
         </TabsList>
 
@@ -536,21 +638,93 @@ export default function ReportesAcademicosPage() {
               <CardDescription>Calificaciones parciales y finales del estudiante en el periodo</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="max-w-sm">
-                <Label>Estudiante</Label>
-                <Select value={selectedEstudiante} onValueChange={setSelectedEstudiante} disabled={!selectedPeriodo}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={selectedPeriodo ? "Seleccionar estudiante..." : "Primero selecciona un periodo"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {estudiantes.map((e) => (
-                      <SelectItem key={e.idEstudiante} value={e.idEstudiante.toString()}>
-                        {getNombreEstudiante(e)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Campus</Label>
+                  <Select
+                    value={boletaCampus}
+                    onValueChange={(v) => { setBoletaCampus(v); }}
+                    disabled={!selectedPeriodo}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedPeriodo ? "Seleccionar campus..." : "Primero selecciona un periodo"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campusList.map((c) => (
+                        <SelectItem key={c.idCampus} value={c.idCampus.toString()}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Plan de Estudios</Label>
+                  <Select
+                    value={boletaPlan}
+                    onValueChange={(v) => { setBoletaPlan(v); }}
+                    disabled={!boletaCampus}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={boletaCampus ? "Seleccionar plan..." : "Primero selecciona un campus"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {boletaPlanes.map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.idPlanEstudios.toString()}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Grupo</Label>
+                  <Select
+                    value={boletaGrupo}
+                    onValueChange={(v) => { setBoletaGrupo(v); }}
+                    disabled={!boletaPlan}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={boletaPlan ? "Seleccionar grupo..." : "Primero selecciona un plan"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {boletaGrupos.map((g) => (
+                        <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
+                          {g.nombreGrupo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {boletaGrupo && (
+                <div className="space-y-3">
+                  <div className="max-w-md">
+                    <Label>Buscar alumno</Label>
+                    <Input
+                      placeholder="Buscar por nombre o matrícula..."
+                      value={boletaSearch}
+                      onChange={(e) => setBoletaSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="max-w-md">
+                    <Label>Estudiante</Label>
+                    <Select value={selectedEstudiante} onValueChange={setSelectedEstudiante}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar estudiante..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {boletaEstudiantesFiltrados.map((e) => (
+                          <SelectItem key={e.idEstudiante} value={e.idEstudiante.toString()}>
+                            {getNombreEstudiante(e)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               <Button
                 disabled={!selectedEstudiante || !selectedPeriodo || loading}
@@ -1083,6 +1257,320 @@ export default function ReportesAcademicosPage() {
                       </Table>
                     </div>
                   )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ────── TAB: Reporte de Bajas ────── */}
+        <TabsContent value="bajas">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Reporte de Bajas</CardTitle>
+              <CardDescription>Reporte centralizado con enfoque Académico y Financiero</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Campus</Label>
+                  <Select value={bajaCampusFilter} onValueChange={setBajaCampusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los campus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {campusList.map((c) => (
+                        <SelectItem key={c.idCampus} value={c.idCampus.toString()}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Plan de Estudios</Label>
+                  <Select value={bajaPlanFilter} onValueChange={setBajaPlanFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los planes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {bajaPlanesFiltered.map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.idPlanEstudios.toString()}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Mes</Label>
+                  <Select value={bajaMesFilter} onValueChange={setBajaMesFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los meses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m, i) => (
+                        <SelectItem key={i+1} value={`${i+1}-${new Date().getFullYear()}`}>{m} {new Date().getFullYear()}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button
+                    onClick={async () => {
+                      setLoadingBajas(true);
+                      try {
+                        const campusId = bajaCampusFilter && bajaCampusFilter !== "todos" ? Number(bajaCampusFilter) : undefined;
+                        const planId = bajaPlanFilter && bajaPlanFilter !== "todos" ? Number(bajaPlanFilter) : undefined;
+                        const periodoId = selectedPeriodo ? Number(selectedPeriodo) : undefined;
+                        let mesVal: number | undefined;
+                        let anioVal: number | undefined;
+                        if (bajaMesFilter && bajaMesFilter !== "todos") {
+                          const [m, a] = bajaMesFilter.split("-");
+                          mesVal = Number(m);
+                          anioVal = Number(a);
+                        }
+                        const data = await getReporteBajas(campusId, planId, periodoId, mesVal, anioVal);
+                        setReporteBajas(data);
+                      } catch {
+                        toast.error("Error al generar reporte de bajas");
+                      } finally {
+                        setLoadingBajas(false);
+                      }
+                    }}
+                    disabled={loadingBajas}
+                    style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+                  >
+                    {loadingBajas ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
+                    Consultar
+                  </Button>
+                  {reporteBajas && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Descargar PDF"
+                        onClick={async () => {
+                          try {
+                            const campusId = bajaCampusFilter && bajaCampusFilter !== "todos" ? Number(bajaCampusFilter) : undefined;
+                            const planId = bajaPlanFilter && bajaPlanFilter !== "todos" ? Number(bajaPlanFilter) : undefined;
+                            const periodoId = selectedPeriodo ? Number(selectedPeriodo) : undefined;
+                            let mesVal: number | undefined;
+                            let anioVal: number | undefined;
+                            if (bajaMesFilter && bajaMesFilter !== "todos") {
+                              const [m, a] = bajaMesFilter.split("-");
+                              mesVal = Number(m);
+                              anioVal = Number(a);
+                            }
+                            const blob = await descargarReporteBajasPdf(campusId, planId, periodoId, mesVal, anioVal);
+                            descargarBlob(blob, `ReporteBajas_${new Date().toISOString().split("T")[0]}.pdf`);
+                            toast.success("PDF descargado");
+                          } catch {
+                            toast.error("Error al descargar PDF");
+                          }
+                        }}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Descargar Excel"
+                        onClick={async () => {
+                          try {
+                            const campusId = bajaCampusFilter && bajaCampusFilter !== "todos" ? Number(bajaCampusFilter) : undefined;
+                            const planId = bajaPlanFilter && bajaPlanFilter !== "todos" ? Number(bajaPlanFilter) : undefined;
+                            const periodoId = selectedPeriodo ? Number(selectedPeriodo) : undefined;
+                            let mesVal: number | undefined;
+                            let anioVal: number | undefined;
+                            if (bajaMesFilter && bajaMesFilter !== "todos") {
+                              const [m, a] = bajaMesFilter.split("-");
+                              mesVal = Number(m);
+                              anioVal = Number(a);
+                            }
+                            const blob = await descargarReporteBajasExcel(campusId, planId, periodoId, mesVal, anioVal);
+                            descargarBlob(blob, `ReporteBajas_${new Date().toISOString().split("T")[0]}.xlsx`);
+                            toast.success("Excel descargado");
+                          } catch {
+                            toast.error("Error al descargar Excel");
+                          }
+                        }}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {reporteBajas && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <div className="p-3 rounded-lg bg-gray-100 text-center">
+                      <p className="text-2xl font-bold" style={{ color: "#14356F" }}>{reporteBajas.totalBajas}</p>
+                      <p className="text-xs text-gray-600">Total Bajas</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-yellow-50 text-center border border-yellow-200">
+                      <p className="text-2xl font-bold text-yellow-700">{reporteBajas.bajasTemporales}</p>
+                      <p className="text-xs text-yellow-600">Temporales</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-red-50 text-center border border-red-200">
+                      <p className="text-2xl font-bold text-red-700">{reporteBajas.bajasDefinitivas}</p>
+                      <p className="text-xs text-red-600">Definitivas</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-blue-50 text-center border border-blue-200">
+                      <p className="text-2xl font-bold text-blue-700">{reporteBajas.bajasAdministrativas}</p>
+                      <p className="text-xs text-blue-600">Administrativas</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-purple-50 text-center border border-purple-200">
+                      <p className="text-2xl font-bold text-purple-700">{reporteBajas.bajasAcademicas}</p>
+                      <p className="text-xs text-purple-600">Académicas</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-red-50 text-center border border-red-200">
+                      <p className="text-2xl font-bold text-red-700">${reporteBajas.totalSaldoPendiente?.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs text-red-600">Saldo Pendiente Total</p>
+                    </div>
+                  </div>
+
+                  <Tabs value={bajaSubTab} onValueChange={setBajaSubTab}>
+                    <TabsList>
+                      <TabsTrigger value="academico" className="flex items-center gap-1">
+                        <GraduationCap className="w-4 h-4" /> Académico
+                      </TabsTrigger>
+                      <TabsTrigger value="financiero" className="flex items-center gap-1">
+                        <FileSpreadsheet className="w-4 h-4" /> Financiero
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="academico">
+                      {reporteBajas.estudiantes.length > 0 ? (
+                        <div className="border rounded-lg overflow-auto max-h-[500px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#14356F]">
+                                <TableHead className="text-white font-bold">#</TableHead>
+                                <TableHead className="text-white font-bold">Matrícula</TableHead>
+                                <TableHead className="text-white font-bold">Nombre</TableHead>
+                                <TableHead className="text-white font-bold">Plan</TableHead>
+                                <TableHead className="text-white font-bold">Grupo</TableHead>
+                                <TableHead className="text-white font-bold">Tipo</TableHead>
+                                <TableHead className="text-white font-bold">Estado</TableHead>
+                                <TableHead className="text-white font-bold">Motivo</TableHead>
+                                <TableHead className="text-white font-bold">Fecha</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {reporteBajas.estudiantes.map((est: any, i: number) => (
+                                <TableRow key={est.matricula} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <TableCell className="text-xs">{i + 1}</TableCell>
+                                  <TableCell className="font-mono text-xs">{est.matricula}</TableCell>
+                                  <TableCell className="text-xs">{est.nombreCompleto}</TableCell>
+                                  <TableCell className="text-xs max-w-[150px] truncate">{est.planEstudios || "—"}</TableCell>
+                                  <TableCell className="text-xs font-mono">{est.ultimoGrupo || "—"}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={
+                                      est.tipoBaja === "Administrativa" ? "border-blue-300 text-blue-700 bg-blue-50" :
+                                      est.tipoBaja === "Académica" ? "border-purple-300 text-purple-700 bg-purple-50" :
+                                      "border-gray-300"
+                                    }>
+                                      {est.tipoBaja}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={
+                                      est.estadoBaja === "Temporal" ? "border-yellow-300 text-yellow-700 bg-yellow-50" :
+                                      est.estadoBaja === "Definitiva" ? "border-red-300 text-red-700 bg-red-50" :
+                                      "border-gray-300"
+                                    }>
+                                      {est.estadoBaja}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs max-w-[200px] truncate" title={est.motivoBaja || ""}>
+                                    {est.motivoBaja || "—"}
+                                  </TableCell>
+                                  <TableCell className="text-xs whitespace-nowrap">
+                                    {est.fechaBaja ? new Date(est.fechaBaja).toLocaleDateString("es-MX") : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          No se encontraron estudiantes dados de baja con los filtros seleccionados.
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="financiero">
+                      {reporteBajas.estudiantes.length > 0 ? (
+                        <div className="border rounded-lg overflow-auto max-h-[500px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#14356F]">
+                                <TableHead className="text-white font-bold">#</TableHead>
+                                <TableHead className="text-white font-bold">Matrícula</TableHead>
+                                <TableHead className="text-white font-bold">Nombre</TableHead>
+                                <TableHead className="text-white font-bold">Plan</TableHead>
+                                <TableHead className="text-white font-bold">Estado</TableHead>
+                                <TableHead className="text-white font-bold">Fecha Baja</TableHead>
+                                <TableHead className="text-white font-bold">Saldo Pendiente</TableHead>
+                                <TableHead className="text-white font-bold">Total Pagado</TableHead>
+                                <TableHead className="text-white font-bold">Último Pago</TableHead>
+                                <TableHead className="text-white font-bold">Contacto</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {reporteBajas.estudiantes.map((est: any, i: number) => (
+                                <TableRow key={est.matricula} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <TableCell className="text-xs">{i + 1}</TableCell>
+                                  <TableCell className="font-mono text-xs">{est.matricula}</TableCell>
+                                  <TableCell className="text-xs">{est.nombreCompleto}</TableCell>
+                                  <TableCell className="text-xs max-w-[120px] truncate">{est.planEstudios || "—"}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={
+                                      est.estadoBaja === "Temporal" ? "border-yellow-300 text-yellow-700 bg-yellow-50" :
+                                      est.estadoBaja === "Definitiva" ? "border-red-300 text-red-700 bg-red-50" :
+                                      "border-gray-300"
+                                    }>
+                                      {est.estadoBaja}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs whitespace-nowrap">
+                                    {est.fechaBaja ? new Date(est.fechaBaja).toLocaleDateString("es-MX") : "—"}
+                                  </TableCell>
+                                  <TableCell className={`text-xs font-semibold ${est.saldoPendiente > 0 ? "text-red-600" : "text-green-600"}`}>
+                                    ${est.saldoPendiente?.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    ${est.totalPagado?.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                                  </TableCell>
+                                  <TableCell className="text-xs whitespace-nowrap">
+                                    {est.ultimoPago
+                                      ? `${new Date(est.ultimoPago).toLocaleDateString("es-MX")} ($${est.montoUltimoPago?.toLocaleString("es-MX", { minimumFractionDigits: 2 })})`
+                                      : "Sin pagos"}
+                                  </TableCell>
+                                  <TableCell className="text-xs max-w-[120px] truncate" title={`${est.email || ""} ${est.telefono || ""}`}>
+                                    {est.email || est.telefono || "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          No se encontraron estudiantes dados de baja con los filtros seleccionados.
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 </>
               )}
             </CardContent>

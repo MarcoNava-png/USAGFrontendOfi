@@ -43,13 +43,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { APP_CONFIG } from "@/config/app-config";
 import { getMunicipalities, getTownships } from "@/services/location-service";
 import microsoftGraphService from "@/services/microsoft-graph-service";
 import { createTeacher } from "@/services/teacher-service";
 import { CivilStatus, Genres } from "@/types/catalog";
 import { State, Municipality, Township } from "@/types/location";
 
-const DEFAULT_DOMAIN = "usaguanajuato.edu.mx";
+const DEFAULT_DOMAIN = APP_CONFIG.emailDomain;
 
 const normalizeText = (text: string) =>
   text
@@ -77,7 +78,7 @@ const createTeacherSchema = z.object({
   codigoPostalId: z.number().min(1, "Selecciona una colonia"),
   noEmpleado: z.string().min(1, "El número de empleado es requerido"),
   rfc: z.string().min(12, "El RFC debe tener al menos 12 caracteres").max(13, "El RFC no puede tener más de 13 caracteres"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string().min(12, "La contraseña debe tener al menos 12 caracteres"),
   crearCorreoAzure: z.boolean().default(true),
 });
 

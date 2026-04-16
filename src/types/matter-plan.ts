@@ -20,4 +20,5 @@ export interface PayloadMatterPlan {
   esOptativa: boolean;
   nombrePlanEstudios?: string;
   materia?: string;
+  nombreMateria?: string;
 }

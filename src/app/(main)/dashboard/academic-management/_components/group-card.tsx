@@ -188,6 +188,10 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
         onOpenChange={setShowStudentsModal}
         idGrupo={grupo.idGrupo}
         nombreGrupo={grupo.nombreGrupo}
+        numeroCuatrimestre={numeroCuatrimestre}
+        idPlanEstudios={grupo.idPlanEstudios}
+        idPeriodoAcademico={grupo.idPeriodoAcademico}
+        onUpdate={onUpdate}
       />
 
       <PromoteStudentsModal

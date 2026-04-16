@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import {
@@ -13,12 +14,14 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  BarChart3,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -27,8 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FinanzasDashboard as FinanzasDashboardType } from "@/types/dashboard";
+import { getFinanzasIndicadores } from "@/services/dashboard-service";
+import { FinanzasDashboard as FinanzasDashboardType, FinanzasIndicadores } from "@/types/dashboard";
 
+import { IngresosSemanaChart } from "../charts/ingresos-semana-chart";
+import { IngresosMensualesChart } from "../charts/ingresos-mensuales-chart";
+import { RecibosStatusChart } from "../charts/recibos-status-chart";
+import { MorosidadChart } from "../charts/morosidad-chart";
+import { MetodoPagoChart } from "../charts/metodo-pago-chart";
 import { AlertCard } from "../shared/alert-card";
 import { QuickActions } from "../shared/quick-actions";
 import { StatCard, StatGrid } from "../shared/stat-card";
@@ -38,6 +47,16 @@ interface FinanzasDashboardProps {
 }
 
 export function FinanzasDashboard({ data }: FinanzasDashboardProps) {
+  const [indicadores, setIndicadores] = useState<FinanzasIndicadores | null>(null);
+  const [loadingIndicadores, setLoadingIndicadores] = useState(true);
+
+  useEffect(() => {
+    getFinanzasIndicadores()
+      .then(setIndicadores)
+      .catch(console.error)
+      .finally(() => setLoadingIndicadores(false));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -100,7 +119,7 @@ export function FinanzasDashboard({ data }: FinanzasDashboardProps) {
         </h2>
         <StatGrid columns={3}>
           <StatCard
-            title="Deuda Total"
+            title="Deuda Vencida"
             value={`$${data.deudaTotal.toLocaleString("es-MX")}`}
             icon={AlertTriangle}
             gradient="from-red-500 to-red-600"
@@ -152,6 +171,36 @@ export function FinanzasDashboard({ data }: FinanzasDashboardProps) {
         </StatGrid>
       </div>
 
+      <div>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-emerald-600" />
+          Indicadores Gráficos
+        </h2>
+        {loadingIndicadores ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-28" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : indicadores ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            <IngresosSemanaChart data={indicadores.ingresosPorDia} />
+            <IngresosMensualesChart data={indicadores.ingresosMensuales} />
+            <RecibosStatusChart data={indicadores.distribucionRecibos} />
+            <MorosidadChart data={indicadores.morosidadPorRango} />
+            <MetodoPagoChart data={indicadores.ingresosPorMetodoPago} />
+          </div>
+        ) : null}
+      </div>
+
       {data.topMorosos.length > 0 && (
         <Card className="border-2 border-red-200 dark:border-red-800">
           <CardHeader>
@@ -161,9 +210,9 @@ export function FinanzasDashboard({ data }: FinanzasDashboardProps) {
                   <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
                     <AlertTriangle className="h-5 w-5" />
                   </div>
-                  Top 10 Morosos
+                  Deuda Vencida
                 </CardTitle>
-                <CardDescription>Estudiantes con mayor adeudo</CardDescription>
+                <CardDescription>Estudiantes con recibos vencidos</CardDescription>
               </div>
               <Link href="/dashboard/invoices">
                 <Button variant="outline" size="sm">
@@ -176,23 +225,31 @@ export function FinanzasDashboard({ data }: FinanzasDashboardProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Matricula</TableHead>
+                  <TableHead>Matrícula</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead className="text-right">Monto Adeudado</TableHead>
-                  <TableHead className="text-right">Dias Vencido</TableHead>
+                  <TableHead>Carrera</TableHead>
+                  <TableHead>Grupo</TableHead>
+                  <TableHead className="text-right">Adeudo</TableHead>
+                  <TableHead className="text-center">Recibos</TableHead>
+                  <TableHead className="text-right">Días</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.topMorosos.map((moroso) => (
+                {data.topMorosos.map((moroso: any) => (
                   <TableRow key={moroso.idEstudiante}>
-                    <TableCell className="font-mono">{moroso.matricula}</TableCell>
-                    <TableCell>{moroso.nombreCompleto}</TableCell>
+                    <TableCell className="font-mono text-sm">{moroso.matricula}</TableCell>
+                    <TableCell className="text-sm">{moroso.nombreCompleto}</TableCell>
+                    <TableCell className="text-sm max-w-[200px] truncate">{moroso.carrera || "—"}</TableCell>
+                    <TableCell className="text-sm">{moroso.grupo || "—"}</TableCell>
                     <TableCell className="text-right font-medium text-red-600">
                       ${moroso.montoAdeudado.toLocaleString("es-MX")}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="destructive" className="text-xs">{moroso.recibosVencidos || 0}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Badge variant={moroso.diasVencido > 30 ? "destructive" : "secondary"}>
-                        {moroso.diasVencido} dias
+                        {moroso.diasVencido} días
                       </Badge>
                     </TableCell>
                   </TableRow>

@@ -1,8 +1,9 @@
-import apiClient from '@/services/api-client'
-import { login, logout, register, forgotPassword } from '@/services/auth-service'
+import apiClient, { rawAxios } from '@/services/api-client'
+import { login, logout, forgotPassword } from '@/services/auth-service'
 
 jest.mock('@/services/api-client')
 const mockedApiClient = apiClient as jest.Mocked<typeof apiClient>
+const mockedRawAxios = rawAxios as jest.Mocked<typeof rawAxios>
 
 const localStorageMock = {
   getItem: jest.fn(),
@@ -95,51 +96,12 @@ describe('Auth Service', () => {
     })
   })
 
-  describe('register', () => {
-    it('debe registrar exitosamente con datos validos', async () => {
-      const result = await register({
-        name: 'Test User',
-        email: 'test@test.com',
-        password: 'password123',
-      })
-
-      expect(result.success).toBe(true)
-    })
-
-    it('debe fallar si falta el nombre', async () => {
-      const result = await register({
-        name: '',
-        email: 'test@test.com',
-        password: 'password123',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Invalid registration data')
-    })
-
-    it('debe fallar si falta el email', async () => {
-      const result = await register({
-        name: 'Test User',
-        email: '',
-        password: 'password123',
-      })
-
-      expect(result.success).toBe(false)
-    })
-
-    it('debe fallar si falta el password', async () => {
-      const result = await register({
-        name: 'Test User',
-        email: 'test@test.com',
-        password: '',
-      })
-
-      expect(result.success).toBe(false)
-    })
-  })
-
   describe('forgotPassword', () => {
     it('debe enviar email de recuperacion exitosamente', async () => {
+      mockedRawAxios.post.mockResolvedValueOnce({
+        data: { success: true, message: 'Correo enviado' },
+      })
+
       const result = await forgotPassword({ email: 'test@test.com' })
 
       expect(result.success).toBe(true)
@@ -149,7 +111,7 @@ describe('Auth Service', () => {
       const result = await forgotPassword({ email: '' })
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Email required')
+      expect(result.error).toBe('El correo es requerido')
     })
   })
 })

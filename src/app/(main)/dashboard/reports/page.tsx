@@ -30,6 +30,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getCampusList } from "@/services/campus-service";
+import { getStudyPlans } from "@/services/catalogs-service";
+import { getGroups } from "@/services/groups-service";
 import {
   generarCorteCajaDetallado,
   generarPdfCorteCaja,
@@ -45,6 +48,9 @@ import {
   type ReciboExtendido,
 } from "@/services/receipts-service";
 import type { AcademicPeriod } from "@/types/academic-period";
+import type { Campus } from "@/types/campus";
+import type { StudyPlan } from "@/types/catalog";
+import type { Group } from "@/types/group";
 import type {
   PagoDetallado,
   ResumenCorteCajaDetallado,
@@ -142,9 +148,103 @@ export default function ReportsPage() {
   const [dashboardStats, setDashboardStats] = useState<EstadisticasDashboard | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
+  // Filtros compartidos: Campus, Plan de Estudios, Grupo
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [planes, setPlanes] = useState<StudyPlan[]>([]);
+  const [grupos, setGrupos] = useState<Group[]>([]);
+
+  // Filtros para Recibos
+  const [filtroCampusRecibos, setFiltroCampusRecibos] = useState<string>("all");
+  const [filtroPlanRecibos, setFiltroPlanRecibos] = useState<string>("all");
+  const [filtroGrupoRecibos, setFiltroGrupoRecibos] = useState<string>("all");
+
+  // Filtros para Cobranza
+  const [filtroCampusCobranza, setFiltroCampusCobranza] = useState<string>("all");
+  const [filtroPlanCobranza, setFiltroPlanCobranza] = useState<string>("all");
+  const [filtroGrupoCobranza, setFiltroGrupoCobranza] = useState<string>("all");
+
+  // Filtros para Estadísticas
+  const [filtroCampusStats, setFiltroCampusStats] = useState<string>("all");
+  const [filtroPlanStats, setFiltroPlanStats] = useState<string>("all");
+  const [filtroGrupoStats, setFiltroGrupoStats] = useState<string>("all");
+
+  // Planes filtrados por campus seleccionado
+  // Obtener la periodicidad del periodo seleccionado
+  const getPeriodicidadDelPeriodo = (idPeriodo: string): string | null => {
+    if (idPeriodo === "all") return null;
+    const periodo = periodos.find((p) => p.idPeriodoAcademico.toString() === idPeriodo);
+    return periodo?.periodicidad ?? null;
+  };
+
+  // Planes filtrados por campus y periodicidad del periodo seleccionado
+  const getPlanesFiltrados = (campusId: string, idPeriodo: string) => {
+    let result = planes;
+    const periodicidad = getPeriodicidadDelPeriodo(idPeriodo);
+    if (periodicidad) {
+      result = result.filter((p) => p.periodicidad?.toLowerCase() === periodicidad.toLowerCase());
+    }
+    if (campusId !== "all") {
+      result = result.filter((p) => String(p.idCampus) === campusId);
+    }
+    return result;
+  };
+
+  // Grupos filtrados por plan de estudios, campus y periodicidad
+  const getGruposFiltrados = (planFilter: string, campusId: string, idPeriodo: string) => {
+    let result = grupos;
+    const periodicidad = getPeriodicidadDelPeriodo(idPeriodo);
+    if (periodicidad) {
+      const idsPlanesConPeriodicidad = planes
+        .filter((p) => p.periodicidad?.toLowerCase() === periodicidad.toLowerCase())
+        .map((p) => p.idPlanEstudios);
+      result = result.filter((g) => idsPlanesConPeriodicidad.includes(g.idPlanEstudios));
+    }
+    if (campusId !== "all") {
+      const idsPlanesDelCampus = planes
+        .filter((p) => String(p.idCampus) === campusId)
+        .map((p) => p.idPlanEstudios);
+      result = result.filter((g) => idsPlanesDelCampus.includes(g.idPlanEstudios));
+    }
+    if (planFilter !== "all") {
+      const plan = planes.find((p) => p.nombrePlanEstudios === planFilter);
+      if (plan) {
+        result = result.filter((g) => g.idPlanEstudios === plan.idPlanEstudios);
+      }
+    }
+    return result;
+  };
+
+  // Filtrar recibos por campus/plan/grupo
+  const filtrarRecibosPorCampusPlanGrupo = (
+    recibos: ReciboExtendido[],
+    campusId: string,
+    planFilter: string,
+    grupoFilter: string,
+  ) => {
+    let resultado = recibos;
+
+    if (campusId !== "all") {
+      const planesDelCampus = planes
+        .filter((p) => String(p.idCampus) === campusId)
+        .map((p) => p.nombrePlanEstudios);
+      resultado = resultado.filter((r) => r.planEstudios && planesDelCampus.includes(r.planEstudios));
+    }
+
+    if (planFilter !== "all") {
+      resultado = resultado.filter((r) => r.planEstudios === planFilter);
+    }
+
+    if (grupoFilter !== "all") {
+      resultado = resultado.filter((r) => r.grupo === grupoFilter);
+    }
+
+    return resultado;
+  };
+
   useEffect(() => {
     cargarCajeros();
     cargarPeriodos();
+    cargarCampusesYPlanes();
   }, []);
 
   const cargarCajeros = async () => {
@@ -172,6 +272,21 @@ export default function ReportsPage() {
       console.error("Error al cargar periodos:", error);
     } finally {
       setLoadingPeriodos(false);
+    }
+  };
+
+  const cargarCampusesYPlanes = async () => {
+    try {
+      const [campusRes, planesRes, gruposRes] = await Promise.all([
+        getCampusList(),
+        getStudyPlans(),
+        getGroups(1, 5000),
+      ]);
+      setCampuses(campusRes.items ?? []);
+      setPlanes(planesRes);
+      setGrupos(gruposRes.items ?? []);
+    } catch (error) {
+      console.error("Error al cargar campuses/planes/grupos:", error);
     }
   };
 
@@ -383,7 +498,9 @@ export default function ReportsPage() {
       }
 
       const recibosData = await buscarRecibosAvanzado(filtros);
-      const recibos = recibosData.recibos;
+      const recibos = filtrarRecibosPorCampusPlanGrupo(
+        recibosData.recibos, filtroCampusStats, filtroPlanStats, filtroGrupoStats
+      );
 
       const totalRecibosEmitidos = recibos.length;
       const recibosPagados = recibos.filter((r) => r.estatus === "PAGADO").length;
@@ -573,7 +690,10 @@ export default function ReportsPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parsear como local para evitar desfase de timezone en fechas date-only
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+      ? new Date(dateString + "T00:00:00")
+      : new Date(dateString);
     return date.toLocaleDateString("es-MX", {
       day: "2-digit",
       month: "short",
@@ -740,8 +860,8 @@ export default function ReportsPage() {
                 <CardHeader>
                   <CardTitle>Detalle de Pagos</CardTitle>
                   <CardDescription>
-                    Periodo: {new Date(fechaInicio).toLocaleDateString("es-MX")} -{" "}
-                    {new Date(fechaFin).toLocaleDateString("es-MX")}
+                    Periodo: {formatDate(fechaInicio)} -{" "}
+                    {formatDate(fechaFin)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -820,10 +940,10 @@ export default function ReportsPage() {
               <CardDescription>Estado de recibos por periodo académico</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="periodo">Periodo Académico</Label>
-                  <Select value={idPeriodoAcademico} onValueChange={setIdPeriodoAcademico}>
+                  <Select value={idPeriodoAcademico} onValueChange={(v) => { setIdPeriodoAcademico(v); setFiltroCampusRecibos("all"); setFiltroPlanRecibos("all"); setFiltroGrupoRecibos("all"); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona un periodo" />
                     </SelectTrigger>
@@ -850,6 +970,52 @@ export default function ReportsPage() {
                       <SelectItem value="PAGADO">Pagado</SelectItem>
                       <SelectItem value="VENCIDO">Vencido</SelectItem>
                       <SelectItem value="CANCELADO">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campus</Label>
+                  <Select value={filtroCampusRecibos} onValueChange={(v) => { setFiltroCampusRecibos(v); setFiltroPlanRecibos("all"); setFiltroGrupoRecibos("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los campus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los campus</SelectItem>
+                      {campuses.map((c) => (
+                        <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Plan de Estudios</Label>
+                  <Select value={filtroPlanRecibos} onValueChange={(v) => { setFiltroPlanRecibos(v); setFiltroGrupoRecibos("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los planes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los planes</SelectItem>
+                      {getPlanesFiltrados(filtroCampusRecibos, idPeriodoAcademico).map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.nombrePlanEstudios}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Grupo</Label>
+                  <Select value={filtroGrupoRecibos} onValueChange={setFiltroGrupoRecibos}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los grupos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los grupos</SelectItem>
+                      {getGruposFiltrados(filtroPlanRecibos, filtroCampusRecibos, idPeriodoAcademico).map((g) => (
+                        <SelectItem key={g.idGrupo} value={g.nombreGrupo}>{g.nombreGrupo} - {g.planEstudios}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -947,6 +1113,7 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow className="bg-slate-50">
                         <TableHead className="font-semibold">Folio</TableHead>
+                        <TableHead className="font-semibold">Concepto</TableHead>
                         <TableHead className="font-semibold">Estudiante</TableHead>
                         <TableHead className="font-semibold">Periodo</TableHead>
                         <TableHead className="font-semibold">Vencimiento</TableHead>
@@ -956,17 +1123,24 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reporteRecibos.recibos.length === 0 ? (
+                      {(() => {
+                        const recibosFiltrados = filtrarRecibosPorCampusPlanGrupo(
+                          reporteRecibos.recibos, filtroCampusRecibos, filtroPlanRecibos, filtroGrupoRecibos
+                        );
+                        return recibosFiltrados.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             No se encontraron recibos con los filtros seleccionados
                           </TableCell>
                         </TableRow>
                       ) : (
-                        reporteRecibos.recibos.map((recibo: ReciboExtendido) => (
+                        recibosFiltrados.map((recibo: ReciboExtendido) => (
                           <TableRow key={recibo.idRecibo}>
                             <TableCell className="font-mono text-sm">
                               {recibo.folio || `#${recibo.idRecibo}`}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[200px] truncate">
+                              {recibo.conceptoResumen || recibo.detalles?.[0]?.descripcion || '-'}
                             </TableCell>
                             <TableCell>
                               <div>
@@ -997,7 +1171,8 @@ export default function ReportsPage() {
                             </TableCell>
                           </TableRow>
                         ))
-                      )}
+                      );
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
@@ -1082,21 +1257,69 @@ export default function ReportsPage() {
               <CardDescription>Análisis de cuentas por cobrar y morosidad por estudiante</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="periodo-cobranza">Periodo Académico</Label>
-                <Select value={idPeriodoCobranza} onValueChange={setIdPeriodoCobranza}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un periodo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los periodos</SelectItem>
-                    {periodos.map((periodo) => (
-                      <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                        {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="periodo-cobranza">Periodo Académico</Label>
+                  <Select value={idPeriodoCobranza} onValueChange={(v) => { setIdPeriodoCobranza(v); setFiltroCampusCobranza("all"); setFiltroPlanCobranza("all"); setFiltroGrupoCobranza("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un periodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los periodos</SelectItem>
+                      {periodos.map((periodo) => (
+                        <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
+                          {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campus</Label>
+                  <Select value={filtroCampusCobranza} onValueChange={(v) => { setFiltroCampusCobranza(v); setFiltroPlanCobranza("all"); setFiltroGrupoCobranza("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los campus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los campus</SelectItem>
+                      {campuses.map((c) => (
+                        <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Plan de Estudios</Label>
+                  <Select value={filtroPlanCobranza} onValueChange={(v) => { setFiltroPlanCobranza(v); setFiltroGrupoCobranza("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los planes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los planes</SelectItem>
+                      {getPlanesFiltrados(filtroCampusCobranza, idPeriodoCobranza).map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.nombrePlanEstudios}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Grupo</Label>
+                  <Select value={filtroGrupoCobranza} onValueChange={setFiltroGrupoCobranza}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los grupos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los grupos</SelectItem>
+                      {getGruposFiltrados(filtroPlanCobranza, filtroCampusCobranza, idPeriodoCobranza).map((g) => (
+                        <SelectItem key={g.idGrupo} value={g.nombreGrupo}>{g.nombreGrupo} - {g.planEstudios}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -1203,6 +1426,7 @@ export default function ReportsPage() {
                       <TableRow className="bg-slate-50">
                         <TableHead className="font-semibold">Estudiante</TableHead>
                         <TableHead className="font-semibold">Tipo</TableHead>
+                        <TableHead className="font-semibold">Conceptos</TableHead>
                         <TableHead className="font-semibold text-center">Recibos</TableHead>
                         <TableHead className="font-semibold text-center">Vencidos</TableHead>
                         <TableHead className="font-semibold text-center">Días Venc.</TableHead>
@@ -1211,15 +1435,34 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reporteCobranza.length === 0 ? (
+                      {(() => {
+                        const deudoresFiltrados = reporteCobranza
+                          .map((deudor) => {
+                            const recibosFilt = filtrarRecibosPorCampusPlanGrupo(
+                              deudor.recibos, filtroCampusCobranza, filtroPlanCobranza, filtroGrupoCobranza
+                            );
+                            if (recibosFilt.length === 0) return null;
+                            return {
+                              ...deudor,
+                              recibos: recibosFilt,
+                              totalRecibos: recibosFilt.length,
+                              totalAdeudo: recibosFilt.reduce((s, r) => s + r.saldo, 0),
+                              totalRecargos: recibosFilt.reduce((s, r) => s + r.recargos, 0),
+                              recibosVencidos: recibosFilt.filter((r) => r.estaVencido).length,
+                              recibosPendientes: recibosFilt.filter((r) => !r.estaVencido).length,
+                              diasMaxVencido: Math.max(0, ...recibosFilt.map((r) => r.diasVencido)),
+                            };
+                          })
+                          .filter(Boolean) as DeudorAgrupado[];
+                        return deudoresFiltrados.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                            No hay deudores pendientes en el periodo seleccionado
+                            No hay deudores pendientes con los filtros seleccionados
                           </TableCell>
                         </TableRow>
                       ) : (
-                        reporteCobranza.map((deudor) => (
+                        deudoresFiltrados.map((deudor) => (
                           <TableRow key={deudor.matricula} className="hover:bg-slate-50">
                             <TableCell>
                               <div>
@@ -1234,6 +1477,9 @@ export default function ReportsPage() {
                               <Badge variant={deudor.tipoPersona === "Estudiante" ? "default" : "secondary"}>
                                 {deudor.tipoPersona}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[200px] truncate" title={[...new Set(deudor.recibos.flatMap(r => r.detalles.map(d => d.descripcion)))].join(", ")}>
+                              {[...new Set(deudor.recibos.flatMap(r => r.detalles.map(d => d.descripcion)))].join(", ") || "-"}
                             </TableCell>
                             <TableCell className="text-center">{deudor.totalRecibos}</TableCell>
                             <TableCell className="text-center">
@@ -1262,7 +1508,8 @@ export default function ReportsPage() {
                             </TableCell>
                           </TableRow>
                         ))
-                      )}
+                      );
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
@@ -1319,21 +1566,69 @@ export default function ReportsPage() {
               <CardDescription>Métricas, morosidad y análisis de cartera</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="periodo-stats">Periodo Académico</Label>
-                <Select value={idPeriodoStats} onValueChange={setIdPeriodoStats}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un periodo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los periodos</SelectItem>
-                    {periodos.map((periodo) => (
-                      <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                        {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="periodo-stats">Periodo Académico</Label>
+                  <Select value={idPeriodoStats} onValueChange={(v) => { setIdPeriodoStats(v); setFiltroCampusStats("all"); setFiltroPlanStats("all"); setFiltroGrupoStats("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un periodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los periodos</SelectItem>
+                      {periodos.map((periodo) => (
+                        <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
+                          {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campus</Label>
+                  <Select value={filtroCampusStats} onValueChange={(v) => { setFiltroCampusStats(v); setFiltroPlanStats("all"); setFiltroGrupoStats("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los campus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los campus</SelectItem>
+                      {campuses.map((c) => (
+                        <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Plan de Estudios</Label>
+                  <Select value={filtroPlanStats} onValueChange={(v) => { setFiltroPlanStats(v); setFiltroGrupoStats("all"); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los planes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los planes</SelectItem>
+                      {getPlanesFiltrados(filtroCampusStats, idPeriodoStats).map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.nombrePlanEstudios}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Grupo</Label>
+                  <Select value={filtroGrupoStats} onValueChange={setFiltroGrupoStats}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los grupos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los grupos</SelectItem>
+                      {getGruposFiltrados(filtroPlanStats, filtroCampusStats, idPeriodoStats).map((g) => (
+                        <SelectItem key={g.idGrupo} value={g.nombreGrupo}>{g.nombreGrupo} - {g.planEstudios}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <Button onClick={handleGenerarEstadisticas} disabled={loadingStats} className="w-full">

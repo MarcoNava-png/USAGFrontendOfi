@@ -317,6 +317,7 @@ export default function AcademicManagementPage() {
         defaultPeriodId={selectedPeriodId}
         onSuccess={loadAcademicData}
         periodicidadLabel={periodicidadLabel}
+        totalPeriodos={academicData?.duracionCuatrimestres ?? 0}
       />
     </div>
   );

@@ -10,6 +10,7 @@ export enum TicketEstatus {
   EnProgreso = 1,
   Resuelto = 2,
   Cerrado = 3,
+  EnValidacion = 4,
 }
 
 export enum TicketCategoria {
@@ -62,6 +63,7 @@ export interface TicketEstadisticas {
   totalEnProgreso: number
   totalResueltos: number
   totalCerrados: number
+  totalEnValidacion: number
   total: number
 }
 
@@ -114,6 +116,11 @@ export const ESTATUS_CONFIG: Record<
     label: "Cerrado",
     color: "text-gray-700",
     bgColor: "bg-gray-100",
+  },
+  [TicketEstatus.EnValidacion]: {
+    label: "En Validación",
+    color: "text-purple-700",
+    bgColor: "bg-purple-100",
   },
 }
 

@@ -34,6 +34,11 @@ export async function getApplicantsList(dataOptions: {
   return data;
 }
 
+export async function getApplicantCounters(): Promise<Record<string, number>> {
+  const { data } = await apiClient.get<Record<string, number>>("/Aspirante/contadores");
+  return data;
+}
+
 export async function getApplicantById(applicantId: number | string): Promise<Applicant> {
   const { data } = await apiClient.get<Applicant>(`/Aspirante/${applicantId}`);
   return data;

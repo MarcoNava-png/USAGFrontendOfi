@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import {
   Users,
   GraduationCap,
@@ -16,8 +18,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { AdminDashboard as AdminDashboardType } from "@/types/dashboard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getFinanzasIndicadores } from "@/services/dashboard-service";
+import { AdminDashboard as AdminDashboardType, FinanzasIndicadores } from "@/types/dashboard";
 
+import { IngresosSemanaChart } from "../charts/ingresos-semana-chart";
+import { IngresosMensualesChart } from "../charts/ingresos-mensuales-chart";
+import { RecibosStatusChart } from "../charts/recibos-status-chart";
+import { MorosidadChart } from "../charts/morosidad-chart";
+import { MetodoPagoChart } from "../charts/metodo-pago-chart";
 import { AlertCard } from "../shared/alert-card";
 import { QuickActions } from "../shared/quick-actions";
 import { StatCard, StatGrid } from "../shared/stat-card";
@@ -27,6 +36,16 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ data }: AdminDashboardProps) {
+  const [indicadores, setIndicadores] = useState<FinanzasIndicadores | null>(null);
+  const [loadingIndicadores, setLoadingIndicadores] = useState(true);
+
+  useEffect(() => {
+    getFinanzasIndicadores()
+      .then(setIndicadores)
+      .catch(console.error)
+      .finally(() => setLoadingIndicadores(false));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -66,7 +85,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
             link="/dashboard/payments"
           />
           <StatCard
-            title="Deuda Total"
+            title="Deuda Vencida"
             value={`$${data.deudaTotal.toLocaleString("es-MX")}`}
             icon={AlertTriangle}
             gradient="from-red-500 to-red-600"
@@ -81,6 +100,36 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
             link="/dashboard/invoices"
           />
         </StatGrid>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-emerald-600" />
+          Indicadores Financieros
+        </h2>
+        {loadingIndicadores ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-28" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : indicadores ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            <IngresosSemanaChart data={indicadores.ingresosPorDia} />
+            <IngresosMensualesChart data={indicadores.ingresosMensuales} />
+            <RecibosStatusChart data={indicadores.distribucionRecibos} />
+            <MorosidadChart data={indicadores.morosidadPorRango} />
+            <MetodoPagoChart data={indicadores.ingresosPorMetodoPago} />
+          </div>
+        ) : null}
       </div>
 
       <div>

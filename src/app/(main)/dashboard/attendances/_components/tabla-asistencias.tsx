@@ -339,7 +339,7 @@ export function TablaAsistencias({
                   </div>
                   <div className="pt-6 space-y-1">
                     <Badge variant="outline" className="text-sm">
-                      {format(new Date(fechaSeleccionada), "EEEE, d 'de' MMMM yyyy", { locale: es })}
+                      {(() => { const [y,m,d] = fechaSeleccionada.split("-").map(Number); return format(new Date(y, m-1, d), "EEEE, d 'de' MMMM yyyy", { locale: es }); })()}
                     </Badge>
                     {fechaInvalida && (
                       <div className="flex items-center gap-1 text-xs text-red-600">

@@ -42,11 +42,8 @@ export function PaymentRegistrationModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [monto, setMonto] = useState<string>("");
-  const [idMedioPago, setIdMedioPago] = useState<string>("");
-  const [referencia, setReferencia] = useState<string>("");
   const [notas, setNotas] = useState<string>("");
-  const [selectedReceipts, setSelectedReceipts] = useState<Map<number, number>>(new Map());
+  const [selectedReceipts, setSelectedReceipts] = useState<Map<number, { monto: number; idMedioPago: string; referencia: string }>>(new Map());
 
   useEffect(() => {
     if (open && applicant) {
@@ -103,9 +100,6 @@ export function PaymentRegistrationModal({
   };
 
   const resetForm = () => {
-    setMonto("");
-    setIdMedioPago("");
-    setReferencia("");
     setNotas("");
     setSelectedReceipts(new Map());
   };
@@ -113,109 +107,74 @@ export function PaymentRegistrationModal({
   const handleReceiptSelection = (reciboId: number, checked: boolean, maxAmount: number) => {
     const newSelection = new Map(selectedReceipts);
     if (checked) {
-      newSelection.set(reciboId, maxAmount);
+      newSelection.set(reciboId, { monto: maxAmount, idMedioPago: "", referencia: "" });
     } else {
       newSelection.delete(reciboId);
     }
     setSelectedReceipts(newSelection);
-
-    const total = Array.from(newSelection.values()).reduce((sum, amount) => sum + amount, 0);
-    setMonto(total.toFixed(2));
   };
 
-  const handleAmountChange = (reciboId: number, value: string) => {
-    const amount = parseFloat(value) ?? 0;
-    const receipt = receipts.find((r) => r.idRecibo === reciboId);
-    if (!receipt) return;
-
-    const maxAmount = receipt.saldo;
-    const finalAmount = Math.min(amount, maxAmount);
-
+  const updateReceiptPayment = (reciboId: number, field: "monto" | "idMedioPago" | "referencia", value: string) => {
     const newSelection = new Map(selectedReceipts);
-    newSelection.set(reciboId, finalAmount);
-    setSelectedReceipts(newSelection);
+    const current = newSelection.get(reciboId);
+    if (!current) return;
 
-    const total = Array.from(newSelection.values()).reduce((sum, amt) => sum + amt, 0);
-    setMonto(total.toFixed(2));
+    if (field === "monto") {
+      const receipt = receipts.find((r) => r.idRecibo === reciboId);
+      const maxAmount = receipt?.saldo ?? 0;
+      current.monto = Math.min(parseFloat(value) || 0, maxAmount);
+    } else {
+      current[field] = value;
+    }
+    newSelection.set(reciboId, current);
+    setSelectedReceipts(newSelection);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🚀 handleSubmit iniciado");
 
-    if (!applicant || !monto || !idMedioPago) {
-      console.error("Validación fallida: campos requeridos faltantes");
-      toast.error("Por favor complete todos los campos requeridos");
-      return;
-    }
+    if (!applicant) return;
 
     if (selectedReceipts.size === 0) {
-      console.error("Validación fallida: no hay recibos seleccionados");
       toast.error("Debe seleccionar al menos un recibo");
       return;
     }
 
-    const montoNum = parseFloat(monto);
-    const totalSelected = Array.from(selectedReceipts.values()).reduce((sum, amt) => sum + amt, 0);
-
-    console.log(`Monto ingresado: ${montoNum}, Total seleccionado: ${totalSelected}`);
-
-    if (Math.abs(montoNum - totalSelected) > 0.01) {
-      console.error(`Validación fallida: montos no coinciden (${montoNum} vs ${totalSelected})`);
-      toast.error("El monto total no coincide con la suma de los recibos seleccionados");
+    const sinMetodo = Array.from(selectedReceipts.entries()).filter(([, v]) => !v.idMedioPago);
+    if (sinMetodo.length > 0) {
+      toast.error("Seleccione un metodo de pago para cada recibo");
       return;
     }
 
-    console.log("Todas las validaciones pasaron. Procesando pago...");
     setSubmitting(true);
     try {
-      console.log("=== PROCESANDO PAGOS CON NUEVO ENDPOINT ===");
-      console.log("Aspirante ID:", applicant.idAspirante);
-      console.log("Monto total:", montoNum);
-      console.log("Medio de pago:", idMedioPago);
-      console.log("Recibos seleccionados:", Array.from(selectedReceipts.entries()));
-
       const resultados = [];
-      for (const [reciboId, montoRecibo] of selectedReceipts.entries()) {
-        console.log(`📋 Procesando recibo ${reciboId} con monto $${montoRecibo}`);
-
+      for (const [reciboId, data] of selectedReceipts.entries()) {
         const resultado = await registrarYAplicarPago({
           idRecibo: reciboId,
-          idMedioPago: parseInt(idMedioPago),
-          monto: montoRecibo,
-          referencia: referencia || undefined,
+          idMedioPago: parseInt(data.idMedioPago),
+          monto: data.monto,
+          referencia: data.referencia || undefined,
           notas: notas || undefined,
         });
-
-        console.log(`  Recibo ${reciboId} procesado:`, resultado);
-        console.log(`   Saldo: ${resultado.saldoAnterior} → ${resultado.saldoNuevo}`);
-        console.log(`   Estatus: ${resultado.estatusReciboAnterior} → ${resultado.estatusReciboNuevo}`);
-
         resultados.push(resultado);
       }
 
       const todosCompletados = resultados.every(r => r.reciboPagadoCompletamente);
       const totalAplicado = resultados.reduce((sum, r) => sum + r.montoAplicado, 0);
 
-      console.log(`=== RESUMEN ===`);
-      console.log(`Total aplicado: $${totalAplicado}`);
-      console.log(`Todos completados: ${todosCompletados}`);
-
       if (todosCompletados) {
-        toast.success(" Todos los recibos fueron pagados completamente");
+        toast.success(`Todos los recibos fueron pagados. Total: ${formatCurrency(totalAplicado)}`);
       } else {
-        toast.success(` Pago aplicado. Total: $${totalAplicado.toFixed(2)}`);
+        toast.success(`Pago aplicado. Total: ${formatCurrency(totalAplicado)}`);
       }
 
-      console.log(" Recargando lista de aspirantes...");
       onPaymentRegistered();
       onClose();
       resetForm();
-    } catch (error: any) {
-      console.error("=== ERROR AL REGISTRAR PAGO ===");
-      console.error("Error completo:", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Error al registrar el pago";
-      toast.error(errorMessage);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      toast.error(err?.response?.data?.error || err?.message || "Error al registrar el pago");
     } finally {
       setSubmitting(false);
     }
@@ -236,7 +195,7 @@ export function PaymentRegistrationModal({
     });
   };
 
-  const totalSelected = Array.from(selectedReceipts.values()).reduce((sum, amt) => sum + amt, 0);
+  const totalSelected = Array.from(selectedReceipts.values()).reduce((sum, v) => sum + v.monto, 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -255,80 +214,6 @@ export function PaymentRegistrationModal({
           <div className="py-8 text-center text-sm text-gray-500">Cargando datos...</div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold text-sm flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Información del Pago
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="idMedioPago" className="text-xs">
-                    Medio de Pago <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={idMedioPago} onValueChange={setIdMedioPago} required>
-                    <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Seleccione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paymentMethods.map((method) => (
-                        <SelectItem key={method.idMedioPago} value={method.idMedioPago.toString()} className="text-xs">
-                          {method.descripcion ?? method.clave}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="monto" className="text-xs">
-                    Monto Total <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="monto"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value)}
-                    placeholder="0.00"
-                    className="text-xs"
-                    required
-                    disabled
-                  />
-                  <p className="text-[10px] text-gray-500">El monto se calcula automáticamente según los recibos seleccionados</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="referencia" className="text-xs">
-                    Referencia / No. de Transacción
-                  </Label>
-                  <Input
-                    id="referencia"
-                    type="text"
-                    value={referencia}
-                    onChange={(e) => setReferencia(e.target.value)}
-                    placeholder="Ej: Transferencia #12345"
-                    className="text-xs"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notas" className="text-xs">
-                    Notas
-                  </Label>
-                  <Textarea
-                    id="notas"
-                    value={notas}
-                    onChange={(e) => setNotas(e.target.value)}
-                    placeholder="Observaciones adicionales..."
-                    rows={3}
-                    className="text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="space-y-4 border rounded-lg p-4">
               <h3 className="font-semibold text-sm flex items-center gap-2">
                 <Receipt className="w-4 h-4" />
@@ -344,7 +229,8 @@ export function PaymentRegistrationModal({
                 <div className="space-y-3">
                   {receipts.map((receipt) => {
                     const isSelected = selectedReceipts.has(receipt.idRecibo);
-                    const selectedAmount = selectedReceipts.get(receipt.idRecibo) ?? receipt.saldo;
+                    const receiptData = selectedReceipts.get(receipt.idRecibo);
+                    const medioSel = paymentMethods.find((m) => m.idMedioPago.toString() === receiptData?.idMedioPago);
 
                     return (
                       <div
@@ -365,47 +251,60 @@ export function PaymentRegistrationModal({
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-xs font-semibold">
-                                  Recibo {receipt.folio ?? `#${receipt.idRecibo}`}
+                                  {receipt.detalles?.[0]?.descripcion || receipt.folio || `Recibo #${receipt.idRecibo}`}
                                 </p>
                                 <p className="text-[10px] text-gray-500">
-                                  Emitido: {formatDate(receipt.fechaEmision)} | Vence: {formatDate(receipt.fechaVencimiento)}
+                                  {receipt.folio} | Vence: {formatDate(receipt.fechaVencimiento)}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs font-bold text-gray-900">{formatCurrency(receipt.total)}</p>
-                                <p className="text-[10px] text-red-600">Saldo: {formatCurrency(receipt.saldo)}</p>
+                                <p className="text-xs font-bold text-gray-900">{formatCurrency(receipt.saldo)}</p>
                               </div>
                             </div>
 
-                            {receipt.detalles.length > 0 && (
-                              <div className="text-[10px] text-gray-600 space-y-0.5 mt-2">
-                                {receipt.detalles.map((detalle) => (
-                                  <div key={detalle.idReciboDetalle} className="flex justify-between">
-                                    <span>• {detalle.descripcion}</span>
-                                    <span>{formatCurrency(detalle.importe)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
                             {isSelected && (
-                              <div className="mt-2 pt-2 border-t">
-                                <Label htmlFor={`amount-${receipt.idRecibo}`} className="text-[10px]">
-                                  Monto a aplicar a este recibo:
-                                </Label>
-                                <Input
-                                  id={`amount-${receipt.idRecibo}`}
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max={receipt.saldo}
-                                  value={selectedAmount}
-                                  onChange={(e) => handleAmountChange(receipt.idRecibo, e.target.value)}
-                                  className="text-xs mt-1"
-                                />
-                                <p className="text-[9px] text-gray-500 mt-0.5">
-                                  Máximo: {formatCurrency(receipt.saldo)}
-                                </p>
+                              <div className="mt-2 pt-2 border-t grid grid-cols-3 gap-2">
+                                <div>
+                                  <Label className="text-[10px]">Metodo de pago</Label>
+                                  <Select
+                                    value={receiptData?.idMedioPago || ""}
+                                    onValueChange={(v) => updateReceiptPayment(receipt.idRecibo, "idMedioPago", v)}
+                                  >
+                                    <SelectTrigger className="text-xs h-8">
+                                      <SelectValue placeholder="Seleccione..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {paymentMethods.map((method) => (
+                                        <SelectItem key={method.idMedioPago} value={method.idMedioPago.toString()} className="text-xs">
+                                          {method.descripcion ?? method.clave}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label className="text-[10px]">Monto</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max={receipt.saldo}
+                                    value={receiptData?.monto ?? 0}
+                                    onChange={(e) => updateReceiptPayment(receipt.idRecibo, "monto", e.target.value)}
+                                    className="text-xs h-8"
+                                  />
+                                </div>
+                                {medioSel?.requiereReferencia && (
+                                  <div>
+                                    <Label className="text-[10px]">Referencia</Label>
+                                    <Input
+                                      placeholder="No. transaccion"
+                                      value={receiptData?.referencia || ""}
+                                      onChange={(e) => updateReceiptPayment(receipt.idRecibo, "referencia", e.target.value)}
+                                      className="text-xs h-8"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -433,13 +332,25 @@ export function PaymentRegistrationModal({
               </div>
             )}
 
+            <div className="space-y-2">
+              <Label htmlFor="notas" className="text-xs">Notas (opcional)</Label>
+              <Textarea
+                id="notas"
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                placeholder="Observaciones adicionales..."
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="text-xs">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={submitting || selectedReceipts.size === 0 || !idMedioPago}
+                disabled={submitting || selectedReceipts.size === 0}
                 className="text-xs"
               >
                 {submitting ? "Procesando..." : "Registrar Pago"}

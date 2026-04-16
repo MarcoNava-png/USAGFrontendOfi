@@ -107,6 +107,11 @@ export async function eliminarConvenioAspirante(idAspiranteConvenio: number): Pr
   return data;
 }
 
+export async function obtenerPromocionesActivas(): Promise<ConvenioDisponibleDto[]> {
+  const { data } = await apiClient.get<ConvenioDisponibleDto[]>("/Convenio/promociones-activas");
+  return data;
+}
+
 export async function calcularDescuentoConvenio(id: number, monto: number): Promise<CalculoDescuentoConvenioDto> {
   const { data } = await apiClient.get<CalculoDescuentoConvenioDto>(
     `/Convenio/${id}/calcular-descuento?monto=${monto}`,

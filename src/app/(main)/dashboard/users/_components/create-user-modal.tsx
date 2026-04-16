@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { APP_CONFIG } from "@/config/app-config";
 import { createUser } from "@/services/users-service";
 import microsoftGraphService from "@/services/microsoft-graph-service";
 import type { CreateUserRequest } from "@/types/user";
@@ -74,7 +75,7 @@ interface CreateUserModalProps {
   existingEmails?: string[];
 }
 
-const DEFAULT_DOMAIN = "usaguanajuato.edu.mx";
+const DEFAULT_DOMAIN = APP_CONFIG.emailDomain;
 
 const normalizeText = (text: string) =>
   text

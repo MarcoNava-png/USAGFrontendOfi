@@ -277,6 +277,7 @@ export interface ReciboExtendido {
   telefono?: string;
   tipoPersona: string;
   detalles: { descripcion: string; cantidad: number; precioUnitario: number; importe: number }[];
+  conceptoResumen?: string;
 }
 
 export interface ReciboBusquedaResultado {

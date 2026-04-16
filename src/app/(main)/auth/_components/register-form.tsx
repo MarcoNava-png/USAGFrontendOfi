@@ -12,8 +12,8 @@ import { Input } from "@/components/ui/input";
 const FormSchema = z
   .object({
     email: z.string().email({ message: "Please enter a valid email address." }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-    confirmPassword: z.string().min(6, { message: "Confirm Password must be at least 6 characters." }),
+    password: z.string().min(12, { message: "La contraseña debe tener al menos 12 caracteres." }),
+    confirmPassword: z.string().min(12, { message: "La confirmación debe tener al menos 12 caracteres." }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",

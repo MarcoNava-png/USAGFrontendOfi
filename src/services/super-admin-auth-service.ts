@@ -48,6 +48,7 @@ function clearSuperAdminSession() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SUPER_ADMIN_TOKEN_KEY)
     localStorage.removeItem(SUPER_ADMIN_USER_KEY)
+    document.cookie = 'super_admin_token=; path=/; max-age=0; SameSite=Strict; Secure'
   }
 }
 
@@ -94,6 +95,7 @@ export const superAdminAuthService = {
     if (result.exitoso && result.token && result.superAdmin) {
       localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, result.token)
       localStorage.setItem(SUPER_ADMIN_USER_KEY, JSON.stringify(result.superAdmin))
+      document.cookie = `super_admin_token=${result.token}; path=/; max-age=86400; SameSite=Strict; Secure`
     }
 
     return result

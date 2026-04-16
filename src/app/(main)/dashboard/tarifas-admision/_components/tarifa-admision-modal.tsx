@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { listarConceptosPago } from "@/services/conceptos-pago-service";
 import { crearTarifaAdmision, actualizarTarifaAdmision } from "@/services/tarifas-admision-service";
+import { Campus } from "@/types/campus";
 import { StudyPlan } from "@/types/catalog";
 import { ConceptoPago } from "@/types/receipt";
 import { TarifaAdmisionDto, CrearTarifaAdmisionDetalleDto } from "@/types/tarifa-admision";
@@ -37,6 +38,7 @@ interface Props {
   onClose: (reload?: boolean) => void;
   tarifaToEdit?: TarifaAdmisionDto | null;
   planes: StudyPlan[];
+  campuses: Campus[];
 }
 
 interface DetalleForm extends CrearTarifaAdmisionDetalleDto {
@@ -44,13 +46,15 @@ interface DetalleForm extends CrearTarifaAdmisionDetalleDto {
   claveConcepto?: string;
 }
 
-export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Props) {
+export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes, campuses }: Props) {
   const [loading, setLoading] = useState(false);
   const [conceptos, setConceptos] = useState<ConceptoPago[]>([]);
 
+  const [selectedCampus, setSelectedCampus] = useState<string>("");
   const [idPlanEstudios, setIdPlanEstudios] = useState<string>("");
   const [nombre, setNombre] = useState("");
   const [aplicaConvenioMensualidad, setAplicaConvenioMensualidad] = useState(false);
+  const [esConvenioEmpresarial, setEsConvenioEmpresarial] = useState(false);
   const [activo, setActivo] = useState(true);
   const [detalles, setDetalles] = useState<DetalleForm[]>([]);
 
@@ -64,9 +68,12 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
 
   useEffect(() => {
     if (tarifaToEdit) {
+      const plan = planes.find((p) => p.idPlanEstudios === tarifaToEdit.idPlanEstudios);
+      setSelectedCampus(plan?.idCampus ? String(plan.idCampus) : "");
       setIdPlanEstudios(String(tarifaToEdit.idPlanEstudios));
       setNombre(tarifaToEdit.nombre);
       setAplicaConvenioMensualidad(tarifaToEdit.aplicaConvenioMensualidad);
+      setEsConvenioEmpresarial(tarifaToEdit.esConvenioEmpresarial);
       setActivo(tarifaToEdit.activo);
       setDetalles(
         tarifaToEdit.detalles.map((d) => ({
@@ -82,12 +89,14 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
     } else {
       resetForm();
     }
-  }, [tarifaToEdit, open]);
+  }, [tarifaToEdit, open, planes]);
 
   function resetForm() {
+    setSelectedCampus("");
     setIdPlanEstudios("");
     setNombre("");
     setAplicaConvenioMensualidad(false);
+    setEsConvenioEmpresarial(false);
     setActivo(true);
     setDetalles([]);
     setConceptoSeleccionado("");
@@ -165,6 +174,7 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
         await actualizarTarifaAdmision(tarifaToEdit!.idTarifaAdmision, {
           nombre,
           aplicaConvenioMensualidad,
+          esConvenioEmpresarial,
           activo,
           detalles: detallesPayload,
         });
@@ -174,6 +184,7 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
           idPlanEstudios: Number(idPlanEstudios),
           nombre,
           aplicaConvenioMensualidad,
+          esConvenioEmpresarial,
           activo,
           detalles: detallesPayload,
         });
@@ -187,13 +198,19 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
     }
   }
 
+  const planesFiltradosPorCampus = isEditing
+    ? planes
+    : selectedCampus
+    ? planes.filter((p) => String(p.idCampus) === selectedCampus)
+    : planes;
+
   const conceptosDisponibles = conceptos.filter(
     (c) => !detalles.some((d) => d.idConceptoPago === c.idConceptoPago)
   );
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Tarifa de Admisión" : "Nueva Tarifa de Admisión"}
@@ -207,47 +224,85 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="plan">
-                Plan de Estudios <span className="text-red-500">*</span>
-              </Label>
-              <Select value={idPlanEstudios} onValueChange={setIdPlanEstudios} disabled={isEditing}>
-                <SelectTrigger id="plan">
-                  <SelectValue placeholder="Selecciona un plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {planes.map((p) => (
-                    <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
-                      {p.clavePlanEstudios} - {p.nombrePlanEstudios}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isEditing && (
-                <p className="text-xs text-muted-foreground">El plan de estudios no se puede modificar</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="nombre">
-                Nombre de la Tarifa <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="nombre"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Tarifa Admisión 2025"
-                maxLength={200}
-              />
-            </div>
+            {isEditing ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Campus</Label>
+                  <Input
+                    value={tarifaToEdit?.nombreCampus || "Sin campus asignado"}
+                    disabled
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Plan de Estudios</Label>
+                  <Input
+                    value={`${tarifaToEdit?.clavePlanEstudios} - ${tarifaToEdit?.nombrePlanEstudios}`}
+                    disabled
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="campus">
+                    Campus <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={selectedCampus}
+                    onValueChange={(v) => { setSelectedCampus(v); setIdPlanEstudios(""); }}
+                  >
+                    <SelectTrigger id="campus">
+                      <SelectValue placeholder="Selecciona un campus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campuses.map((c) => (
+                        <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                          {c.claveCampus} - {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plan">
+                    Plan de Estudios <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={idPlanEstudios} onValueChange={setIdPlanEstudios} disabled={!selectedCampus}>
+                    <SelectTrigger id="plan">
+                      <SelectValue placeholder={selectedCampus ? "Selecciona un plan" : "Primero selecciona un campus"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {planesFiltradosPorCampus.map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
+                          {p.clavePlanEstudios} - {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex items-center justify-between gap-4 p-4 border rounded-lg flex-1">
+          <div className="space-y-2">
+            <Label htmlFor="nombre">
+              Nombre de la Tarifa <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Tarifa Admisión 2025"
+              maxLength={200}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex items-center justify-between gap-4 p-4 border rounded-lg">
               <div className="space-y-0.5">
-                <Label className="text-base">Aplica Convenio a Mensualidad</Label>
+                <Label className="text-base">Aplica Promoción a Mensualidad</Label>
                 <p className="text-sm text-muted-foreground">
-                  Aplicar descuentos de convenio al cobrar mensualidades
+                  Descuentos de promoción en mensualidades
                 </p>
               </div>
               <Switch
@@ -256,11 +311,24 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
               />
             </div>
 
-            <div className="flex items-center justify-between gap-4 p-4 border rounded-lg flex-1">
+            <div className="flex items-center justify-between gap-4 p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label className="text-base">Costos Convenio</Label>
+                <p className="text-sm text-muted-foreground">
+                  Tarifa especial para aspirantes con convenio
+                </p>
+              </div>
+              <Switch
+                checked={esConvenioEmpresarial}
+                onCheckedChange={setEsConvenioEmpresarial}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4 p-4 border rounded-lg">
               <div className="space-y-0.5">
                 <Label className="text-base">Activa</Label>
                 <p className="text-sm text-muted-foreground">
-                  Solo las tarifas activas pueden usarse para generar recibos
+                  Solo las tarifas activas pueden usarse
                 </p>
               </div>
               <Switch checked={activo} onCheckedChange={setActivo} />
@@ -295,7 +363,7 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
                     <TableRow>
                       <TableHead className="w-8">#</TableHead>
                       <TableHead>Concepto</TableHead>
-                      <TableHead className="w-36">Monto</TableHead>
+                      <TableHead className="w-56">Monto</TableHead>
                       <TableHead className="w-28">Aplicable</TableHead>
                       <TableHead>Notas</TableHead>
                       <TableHead className="w-10"></TableHead>
@@ -312,14 +380,19 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes }: Pro
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={d.monto}
-                            onChange={(e) => actualizarDetalle(d.idConceptoPago, "monto", parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-base font-semibold">$</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={d.monto || ""}
+                              onChange={(e) => actualizarDetalle(d.idConceptoPago, "monto", e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                              onFocus={(e) => e.target.select()}
+                              placeholder="0.00"
+                              className="w-full pl-8 text-lg font-semibold h-12"
+                            />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Switch

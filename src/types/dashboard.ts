@@ -305,6 +305,45 @@ export interface AlumnoDashboard {
   alertas: Alerta[];
 }
 
+export interface IngresoDiario {
+  dia: string;
+  fecha: string;
+  monto: number;
+  transacciones: number;
+}
+
+export interface IngresoMensual {
+  mes: string;
+  monto: number;
+  transacciones: number;
+}
+
+export interface DistribucionRecibos {
+  estatus: string;
+  cantidad: number;
+  monto: number;
+}
+
+export interface MorosidadRango {
+  rango: string;
+  estudiantes: number;
+  montoTotal: number;
+}
+
+export interface IngresoMetodoPago {
+  metodoPago: string;
+  monto: number;
+  transacciones: number;
+}
+
+export interface FinanzasIndicadores {
+  ingresosPorDia: IngresoDiario[];
+  ingresosMensuales: IngresoMensual[];
+  distribucionRecibos: DistribucionRecibos[];
+  morosidadPorRango: MorosidadRango[];
+  ingresosPorMetodoPago: IngresoMetodoPago[];
+}
+
 export type DashboardData =
   | AdminDashboard
   | DirectorDashboard

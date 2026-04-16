@@ -31,12 +31,13 @@ import {
 export default function DashboardDefaultPage() {
   const { dashboard, rol, isLoading, error, refetch } = useDashboard();
 
-  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
-  if (user?.mustChangePassword) {
+  let user: { mustChangePassword?: boolean; role?: string } = {}
+  try { user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {} } catch { user = {} }
+  if (user.mustChangePassword) {
     window.location.href = '/dashboard/profile?forcePasswordChange=1'
     return null
   }
-  if (user?.role === 'superadmin') {
+  if (user.role === 'superadmin') {
     window.location.href = '/dashboard/bitacora'
     return null
   }

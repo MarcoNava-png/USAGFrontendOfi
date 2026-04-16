@@ -4,11 +4,15 @@ const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
 })
 
+let lastRedirectAt = 0
+const REDIRECT_DEBOUNCE_MS = 3000
+
 function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const expirationTime = payload.exp * 1000
-    return Date.now() >= expirationTime
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const payload = JSON.parse(atob(parts[1]))
+    return !payload.exp || Date.now() >= payload.exp * 1000
   } catch {
     return true
   }
@@ -18,7 +22,17 @@ function clearSession() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user')
-    document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax'
+    document.cookie = 'access_token=; path=/; max-age=0; SameSite=Strict; Secure'
+  }
+}
+
+function redirectToLogin() {
+  const now = Date.now()
+  if (now - lastRedirectAt < REDIRECT_DEBOUNCE_MS) return
+  if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
+    lastRedirectAt = now
+    clearSession()
+    window.dispatchEvent(new CustomEvent('session-expired'))
   }
 }
 
@@ -29,10 +43,7 @@ axiosInstance.interceptors.request.use(
 
       if (token != null && token != undefined) {
         if (isTokenExpired(token)) {
-          clearSession()
-          if (!window.location.pathname.includes('/auth/')) {
-            window.location.href = '/auth/v2/login'
-          }
+          redirectToLogin()
           return Promise.reject(new Error('Token expirado'))
         }
 
@@ -50,14 +61,14 @@ axiosInstance.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      clearSession()
-
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
-        window.location.href = '/auth/v2/login'
-      }
+      redirectToLogin()
     }
     return Promise.reject(error)
   }
 )
+
+export const rawAxios = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+})
 
 export default axiosInstance

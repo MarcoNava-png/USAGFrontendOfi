@@ -1,24 +1,42 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 
-import { Mail, Phone, User, Users, Calendar } from "lucide-react";
+import { ArrowRightLeft, Calendar, LogOut, Mail, MoreHorizontal, Phone, User, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getEstudiantesDelGrupoDirecto, getStudentsInGroup, type EstudiantesDelGrupoResponse } from "@/services/groups-service";
-import { StudentsInGroup } from "@/types/group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  eliminarEstudianteDeGrupo,
+  getEstudiantesDelGrupoDirecto,
+  getStudentsInGroup,
+} from "@/services/groups-service";
+
+import { BajaEstudianteDialog } from "./baja-estudiante-dialog";
+import { CambioGrupoModal } from "./cambio-grupo-modal";
+import { InscribirEnGrupoModal } from "./inscribir-en-grupo-modal";
 
 interface StudentsInGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   idGrupo: number;
   nombreGrupo: string;
+  numeroCuatrimestre?: number;
+  idPlanEstudios?: number;
+  idPeriodoAcademico?: number;
+  onUpdate?: () => void;
 }
 
 interface StudentDisplay {
+  idEstudianteGrupo?: number;
   idEstudiante: number;
   matricula: string;
   nombreCompleto: string;
@@ -31,10 +49,36 @@ interface StudentDisplay {
   fuente: 'directo' | 'materias';
 }
 
-export function StudentsInGroupModal({ open, onOpenChange, idGrupo, nombreGrupo }: StudentsInGroupModalProps) {
+export function StudentsInGroupModal({
+  open,
+  onOpenChange,
+  idGrupo,
+  nombreGrupo,
+  numeroCuatrimestre,
+  idPlanEstudios,
+  idPeriodoAcademico,
+  onUpdate,
+}: StudentsInGroupModalProps) {
   const [students, setStudents] = useState<StudentDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
+
+  // Estado para cambio de grupo
+  const [cambioGrupoData, setCambioGrupoData] = useState<{
+    idEstudianteGrupo: number;
+    nombreEstudiante: string;
+    matricula: string;
+  } | null>(null);
+
+  // Estado para diálogo de baja
+  const [bajaData, setBajaData] = useState<StudentDisplay | null>(null);
+
+  // Estado para inscribir en otro grupo post-baja
+  const [inscribirData, setInscribirData] = useState<{
+    idEstudiante: number;
+    nombreEstudiante: string;
+    matricula: string;
+  } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -58,6 +102,7 @@ export function StudentsInGroupModal({ open, onOpenChange, idGrupo, nombreGrupo 
           if (!seenIds.has(est.idEstudiante)) {
             seenIds.add(est.idEstudiante);
             allStudents.push({
+              idEstudianteGrupo: est.idEstudianteGrupo,
               idEstudiante: est.idEstudiante,
               matricula: est.matricula,
               nombreCompleto: est.nombreCompleto,
@@ -106,109 +151,244 @@ export function StudentsInGroupModal({ open, onOpenChange, idGrupo, nombreGrupo 
     }
   };
 
+  const handleOpenBaja = (student: StudentDisplay) => {
+    if (!student.idEstudianteGrupo) {
+      toast.error("No se puede dar de baja a este estudiante (sin ID de inscripción directa)");
+      return;
+    }
+    setBajaData(student);
+  };
+
+  const executeBaja = async (student: StudentDisplay) => {
+    if (!student.idEstudianteGrupo) return;
+    await eliminarEstudianteDeGrupo(student.idEstudianteGrupo);
+    toast.success(`${student.nombreCompleto} fue dado de baja del grupo`);
+    loadStudents();
+    onUpdate?.();
+  };
+
+  const handleConfirmSoloBaja = async () => {
+    if (!bajaData) return;
+    try {
+      await executeBaja(bajaData);
+    } catch (error) {
+      console.error("Error removing student:", error);
+      toast.error("Error al dar de baja al estudiante");
+    }
+    setBajaData(null);
+  };
+
+  const handleConfirmBajaEInscribir = async () => {
+    if (!bajaData) return;
+    try {
+      await executeBaja(bajaData);
+      // Guardar datos para el modal de inscripción antes de limpiar bajaData
+      setInscribirData({
+        idEstudiante: bajaData.idEstudiante,
+        nombreEstudiante: bajaData.nombreCompleto,
+        matricula: bajaData.matricula,
+      });
+    } catch (error) {
+      console.error("Error removing student:", error);
+      toast.error("Error al dar de baja al estudiante");
+    }
+    setBajaData(null);
+  };
+
+  const handleCambioGrupo = (student: StudentDisplay) => {
+    if (!student.idEstudianteGrupo) {
+      toast.error("No se puede cambiar de grupo a este estudiante (sin ID de inscripción directa)");
+      return;
+    }
+    setCambioGrupoData({
+      idEstudianteGrupo: student.idEstudianteGrupo,
+      nombreEstudiante: student.nombreCompleto,
+      matricula: student.matricula,
+    });
+  };
+
+  const handleCambioSuccess = () => {
+    setCambioGrupoData(null);
+    loadStudents();
+    onUpdate?.();
+  };
+
+  const handleInscripcionSuccess = () => {
+    setInscribirData(null);
+    loadStudents();
+    onUpdate?.();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" style={{ color: '#14356F' }} />
-            Estudiantes del Grupo {nombreGrupo}
-          </DialogTitle>
-          <DialogDescription>
-            {loading ? "Cargando..." : `${totalEstudiantes} estudiante${totalEstudiantes !== 1 ? "s" : ""} inscrito${totalEstudiantes !== 1 ? "s" : ""}`}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" style={{ color: '#14356F' }} />
+              Estudiantes del Grupo {nombreGrupo}
+            </DialogTitle>
+            <DialogDescription>
+              {loading ? "Cargando..." : `${totalEstudiantes} estudiante${totalEstudiantes !== 1 ? "s" : ""} inscrito${totalEstudiantes !== 1 ? "s" : ""}`}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          {loading && (
-            <div className="text-center py-8 text-sm text-gray-500">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3" style={{ borderColor: '#14356F' }}></div>
-              Cargando estudiantes...
-            </div>
-          )}
+          <div className="space-y-4">
+            {loading && (
+              <div className="text-center py-8 text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3" style={{ borderColor: '#14356F' }}></div>
+                Cargando estudiantes...
+              </div>
+            )}
 
-          {!loading && students.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 font-medium">No hay estudiantes en este grupo</p>
-              <p className="text-gray-500 text-sm mt-1">
-                Los estudiantes aparecerán aquí cuando se inscriban
-              </p>
-            </div>
-          )}
+            {!loading && students.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">No hay estudiantes en este grupo</p>
+                <p className="text-gray-500 text-sm mt-1">
+                  Los estudiantes aparecerán aquí cuando se inscriban
+                </p>
+              </div>
+            )}
 
-          {!loading && students.length > 0 && (
-            <div className="space-y-3">
-              {students.map((student) => (
-                <div
-                  key={student.idEstudiante}
-                  className="border rounded-lg p-4 hover:shadow-sm transition-shadow"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h4 className="font-semibold text-gray-900">{student.nombreCompleto}</h4>
-                        <Badge
-                          variant="outline"
-                          className="font-mono"
-                          style={{ background: 'rgba(20, 53, 111, 0.05)', color: '#14356F', borderColor: 'rgba(20, 53, 111, 0.2)' }}
-                        >
-                          {student.matricula}
-                        </Badge>
-                        {student.estado && (
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                            {student.estado}
+            {!loading && students.length > 0 && (
+              <div className="space-y-3">
+                {students.map((student) => (
+                  <div
+                    key={student.idEstudiante}
+                    className="border rounded-lg p-4 hover:shadow-sm transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <h4 className="font-semibold text-gray-900">{student.nombreCompleto}</h4>
+                          <Badge
+                            variant="outline"
+                            className="font-mono"
+                            style={{ background: 'rgba(20, 53, 111, 0.05)', color: '#14356F', borderColor: 'rgba(20, 53, 111, 0.2)' }}
+                          >
+                            {student.matricula}
                           </Badge>
-                        )}
-                        {student.fuente === 'directo' && (
-                          <Badge variant="secondary" className="text-xs">
-                            Inscripción directa
-                          </Badge>
-                        )}
+                          {student.estado && (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              {student.estado}
+                            </Badge>
+                          )}
+                          {student.fuente === 'directo' && (
+                            <Badge variant="secondary" className="text-xs">
+                              Inscripción directa
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                          {student.email && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Mail className="w-4 h-4 flex-shrink-0" />
+                              <span>{student.email}</span>
+                            </div>
+                          )}
+
+                          {student.telefono && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Phone className="w-4 h-4 flex-shrink-0" />
+                              <span>{student.telefono}</span>
+                            </div>
+                          )}
+
+                          {student.planEstudios && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <User className="w-4 h-4 flex-shrink-0" />
+                              <span>{student.planEstudios}</span>
+                            </div>
+                          )}
+
+                          {student.materiasInscritas !== undefined && student.materiasInscritas > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">Materias:</span>
+                              <span className="font-medium" style={{ color: '#14356F' }}>{student.materiasInscritas}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
+                          <Calendar className="w-3 h-3" />
+                          <span>Inscrito el: {new Date(student.fechaInscripcion).toLocaleDateString('es-MX')}</span>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                        {student.email && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <Mail className="w-4 h-4 flex-shrink-0" />
-                            <span>{student.email}</span>
-                          </div>
-                        )}
-
-                        {student.telefono && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <Phone className="w-4 h-4 flex-shrink-0" />
-                            <span>{student.telefono}</span>
-                          </div>
-                        )}
-
-                        {student.planEstudios && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <User className="w-4 h-4 flex-shrink-0" />
-                            <span>{student.planEstudios}</span>
-                          </div>
-                        )}
-
-                        {student.materiasInscritas !== undefined && student.materiasInscritas > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600">Materias:</span>
-                            <span className="font-medium" style={{ color: '#14356F' }}>{student.materiasInscritas}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
-                        <Calendar className="w-3 h-3" />
-                        <span>Inscrito el: {new Date(student.fechaInscripcion).toLocaleDateString('es-MX')}</span>
-                      </div>
+                      {student.fuente === 'directo' && student.idEstudianteGrupo && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleCambioGrupo(student)}>
+                              <ArrowRightLeft className="w-4 h-4 mr-2" />
+                              Cambiar de grupo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleOpenBaja(student)}
+                              className="text-red-600"
+                            >
+                              <LogOut className="w-4 h-4 mr-2" />
+                              Dar de baja
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación de baja */}
+      {bajaData && (
+        <BajaEstudianteDialog
+          open={!!bajaData}
+          onOpenChange={(open) => { if (!open) setBajaData(null); }}
+          nombreEstudiante={bajaData.nombreCompleto}
+          matricula={bajaData.matricula}
+          nombreGrupo={nombreGrupo}
+          onConfirmBaja={handleConfirmSoloBaja}
+          onConfirmBajaEInscribir={handleConfirmBajaEInscribir}
+        />
+      )}
+
+      {/* Modal de cambio de grupo (mismo cuatrimestre) */}
+      {cambioGrupoData && numeroCuatrimestre && idPlanEstudios && (
+        <CambioGrupoModal
+          open={!!cambioGrupoData}
+          onOpenChange={(open) => { if (!open) setCambioGrupoData(null); }}
+          idEstudianteGrupo={cambioGrupoData.idEstudianteGrupo}
+          nombreEstudiante={cambioGrupoData.nombreEstudiante}
+          matricula={cambioGrupoData.matricula}
+          idGrupoActual={idGrupo}
+          numeroCuatrimestre={numeroCuatrimestre}
+          idPlanEstudios={idPlanEstudios}
+          idPeriodoAcademico={idPeriodoAcademico}
+          onSuccess={handleCambioSuccess}
+        />
+      )}
+
+      {/* Modal de inscripción en otro grupo post-baja */}
+      {inscribirData && (
+        <InscribirEnGrupoModal
+          open={!!inscribirData}
+          onOpenChange={(open) => { if (!open) setInscribirData(null); }}
+          idEstudiante={inscribirData.idEstudiante}
+          nombreEstudiante={inscribirData.nombreEstudiante}
+          matricula={inscribirData.matricula}
+          idPlanEstudios={idPlanEstudios}
+          onSuccess={handleInscripcionSuccess}
+        />
+      )}
+    </>
   );
 }

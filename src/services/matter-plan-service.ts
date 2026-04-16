@@ -3,7 +3,7 @@ import { MatterPlan, PayloadMatterPlan } from "@/types/matter-plan";
 import apiClient from "./api-client";
 
 export async function getMatterPlanList(): Promise<MatterPlan[]> {
-  const response = await apiClient.get<{ items: MatterPlan[] }>(`/MateriaPlan`);
+  const response = await apiClient.get<{ items: MatterPlan[] }>(`/MateriaPlan?pageSize=5000`);
   return response.data.items;
 }
 

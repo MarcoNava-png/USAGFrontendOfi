@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import {
   AlertTriangle,
+  Building2,
   Check,
   CheckCircle2,
   Download,
@@ -17,8 +18,9 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
 import {
-  createAndDownloadExcel,
   readExcelAsObjects,
 } from '@/lib/excel'
 
@@ -45,6 +47,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getCampusList } from '@/services/campus-service'
 import {
   getStudyPlans,
   getAcademicPeriods,
@@ -57,6 +60,7 @@ import {
   type EstudiantesDelGrupoResponse,
   type EstudianteImportar,
 } from '@/services/groups-service'
+import type { Campus } from '@/types/campus'
 import type { StudyPlan, AcademicPeriod } from '@/types/catalog'
 
 interface EstudianteParaInscribir extends EstudianteImportar {
@@ -91,9 +95,11 @@ export default function InscribirEstudiantesGrupoPage() {
   const [step, setStep] = useState<Step>('select-group')
   const [loading, setLoading] = useState(false)
 
+  const [campuses, setCampuses] = useState<Campus[]>([])
   const [planes, setPlanes] = useState<StudyPlan[]>([])
   const [periodos, setPeriodos] = useState<AcademicPeriod[]>([])
   const [grupos, setGrupos] = useState<{ idGrupo: number; nombreGrupo: string; codigoGrupo?: string }[]>([])
+  const [selectedCampus, setSelectedCampus] = useState<string>('all')
   const [selectedPlan, setSelectedPlan] = useState<string>('')
   const [selectedPeriodo, setSelectedPeriodo] = useState<string>('')
   const [selectedGrupo, setSelectedGrupo] = useState<string>('')
@@ -104,22 +110,39 @@ export default function InscribirEstudiantesGrupoPage() {
 
   const [resultado, setResultado] = useState<ImportarEstudiantesGrupoResponse | null>(null)
 
+  const planesFiltrados = selectedCampus === 'all'
+    ? planes
+    : planes.filter(p => p.idCampus?.toString() === selectedCampus)
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [planesData, periodosData] = await Promise.all([
+        const [campusData, planesData, periodosData] = await Promise.all([
+          getCampusList(),
           getStudyPlans(),
           getAcademicPeriods(),
         ])
+        setCampuses(campusData.items || [])
         setPlanes(planesData)
         setPeriodos(periodosData)
       } catch (error) {
         console.error('Error cargando datos iniciales:', error)
-        toast.error('Error al cargar planes y periodos')
+        toast.error('Error al cargar datos iniciales')
       }
     }
     loadInitialData()
   }, [])
+
+  useEffect(() => {
+    if (planesFiltrados.length > 0) {
+      const exists = planesFiltrados.some(p => p.idPlanEstudios.toString() === selectedPlan)
+      if (!exists) {
+        setSelectedPlan(planesFiltrados[0].idPlanEstudios.toString())
+      }
+    } else {
+      setSelectedPlan('')
+    }
+  }, [selectedCampus, planesFiltrados])
 
   useEffect(() => {
     const loadGrupos = async () => {
@@ -178,16 +201,149 @@ export default function InscribirEstudiantesGrupoPage() {
   }, [selectedGrupo, grupos, planes, periodos, selectedPlan, selectedPeriodo])
 
   const handleDownloadTemplate = async () => {
-    const data = [
-      PLANTILLA_COLUMNAS,
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'USAG - Sistema Académico'
+    workbook.created = new Date()
+
+    const ws = workbook.addWorksheet('Estudiantes', {
+      properties: { defaultRowHeight: 20 },
+    })
+
+    // --- Fetch logo ---
+    let logoId: number | undefined
+    try {
+      const res = await fetch('/Logousag.png')
+      const buf = await res.arrayBuffer()
+      logoId = workbook.addImage({ buffer: buf, extension: 'png' })
+    } catch { /* logo optional */ }
+
+    // --- Colors ---
+    const BLUE = '14356F'
+    const LIGHT_BLUE = '1E4A8F'
+    const WHITE = 'FFFFFF'
+    const GRAY_BG = 'F0F4FA'
+    const BORDER_COLOR = 'B0C4DE'
+
+    const thinBorder: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: BORDER_COLOR } }
+    const allBorders: Partial<ExcelJS.Borders> = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
+
+    // --- Column widths ---
+    const colWidths = [18, 18, 18, 14, 22, 28, 15, 15, 18, 15]
+    colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+
+    // --- Header band (rows 1-4) with blue background ---
+    for (let r = 1; r <= 4; r++) {
+      const row = ws.getRow(r)
+      row.height = r === 1 ? 10 : r === 2 ? 28 : r === 3 ? 20 : 10
+      for (let c = 1; c <= 10; c++) {
+        const cell = row.getCell(c)
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } }
+      }
+    }
+
+    // Logo (on blue background - white logo looks great)
+    if (logoId !== undefined) {
+      ws.addImage(logoId, {
+        tl: { col: 0.2, row: 0.3 },
+        ext: { width: 140, height: 50 },
+      })
+    }
+
+    // Title text
+    ws.mergeCells('C2:J2')
+    const titleCell = ws.getCell('C2')
+    titleCell.value = 'PLANTILLA DE IMPORTACIÓN DE ESTUDIANTES'
+    titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: WHITE } }
+    titleCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } }
+
+    // Subtitle
+    ws.mergeCells('C3:J3')
+    const subtitleCell = ws.getCell('C3')
+    subtitleCell.value = 'Universidad San Andrés de Guanajuato — Sistema de Control Académico Integral'
+    subtitleCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'B0C4DE' } }
+    subtitleCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } }
+
+    // --- Row 5: spacer ---
+    ws.getRow(5).height = 6
+
+    // --- Row 6: Instructions ---
+    ws.mergeCells('A6:J6')
+    const instrCell = ws.getCell('A6')
+    instrCell.value = 'Instrucciones: Llena los datos a partir de la fila 9. Los campos marcados con (*) son obligatorios. El género acepta M/F. La matrícula se genera automáticamente si se deja vacío.'
+    instrCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: '555555' } }
+    instrCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+    instrCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8E1' } }
+    instrCell.border = allBorders
+    ws.getRow(6).height = 30
+
+    // --- Row 7: spacer ---
+    ws.getRow(7).height = 6
+
+    // --- Row 8: Column headers ---
+    const headerLabels = [
+      'Nombre *', 'Apellido Paterno *', 'Apellido Materno',
+      'Género (M/F)', 'CURP', 'Correo Electrónico',
+      'Teléfono', 'Celular', 'Fecha de Nacimiento', 'Matrícula',
+    ]
+    const headerRow = ws.getRow(8)
+    headerRow.height = 28
+    headerLabels.forEach((label, i) => {
+      const cell = headerRow.getCell(i + 1)
+      cell.value = label
+      const isRequired = label.includes('*')
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: WHITE } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isRequired ? BLUE : LIGHT_BLUE } }
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      cell.border = allBorders
+    })
+
+    // --- Example rows (9-10) ---
+    const examples = [
       ['Juan', 'Pérez', 'López', 'M', 'PELJ900101HDFRPN01', 'juan.perez@email.com', '5551234567', '5559876543', '1990-01-15', ''],
       ['María', 'García', 'Ruiz', 'F', 'GARM850220MDFRRC02', 'maria.garcia@email.com', '', '5558765432', '1985-02-20', ''],
     ]
+    examples.forEach((rowData, rowIdx) => {
+      const row = ws.getRow(9 + rowIdx)
+      row.height = 22
+      rowData.forEach((val, colIdx) => {
+        const cell = row.getCell(colIdx + 1)
+        cell.value = val
+        cell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: '888888' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowIdx % 2 === 0 ? GRAY_BG : WHITE } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        cell.border = allBorders
+      })
+    })
 
-    await createAndDownloadExcel(
-      [{ name: 'Estudiantes', data, columnWidths: [15, 15, 15, 10, 20, 25, 12, 12, 15, 12] }],
-      'plantilla_importar_estudiantes.xlsx',
-    )
+    // --- Empty rows (11-30) with alternating stripes and borders ---
+    for (let r = 11; r <= 30; r++) {
+      const row = ws.getRow(r)
+      row.height = 22
+      for (let c = 1; c <= 10; c++) {
+        const cell = row.getCell(c)
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: (r % 2 === 1) ? GRAY_BG : WHITE } }
+        cell.border = allBorders
+        cell.font = { name: 'Calibri', size: 10 }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      }
+    }
+
+    // --- Footer ---
+    ws.mergeCells('A32:J32')
+    const footerCell = ws.getCell('A32')
+    footerCell.value = 'Elimina las filas de ejemplo antes de importar. Puedes agregar más filas si es necesario.'
+    footerCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: BLUE } }
+    footerCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
+    // --- Print setup ---
+    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+
+    // --- Generate file ---
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    saveAs(blob, 'plantilla_importar_estudiantes.xlsx')
     toast.success('Plantilla descargada')
   }
 
@@ -401,23 +557,47 @@ export default function InscribirEstudiantesGrupoPage() {
         ))}
       </div>
       {step === 'select-group' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Paso 1: Seleccionar Grupo</CardTitle>
-            <CardDescription>
-              Selecciona el grupo donde inscribirás a los estudiantes
-            </CardDescription>
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-xl">Paso 1: Seleccionar Grupo</CardTitle>
+                <CardDescription className="text-white/80 mt-0.5">
+                  Selecciona el grupo donde inscribiras a los estudiantes
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="space-y-4 p-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Campus</Label>
+                <Select value={selectedCampus} onValueChange={setSelectedCampus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los campus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los campus</SelectItem>
+                    {campuses.map((campus) => (
+                      <SelectItem key={campus.idCampus} value={campus.idCampus.toString()}>
+                        {campus.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Plan de Estudios</Label>
                 <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                  <SelectTrigger>
+                  <SelectTrigger className="truncate">
                     <SelectValue placeholder="Selecciona un plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {planes.map((plan) => (
+                    {planesFiltrados.map((plan) => (
                       <SelectItem key={plan.idPlanEstudios} value={plan.idPlanEstudios.toString()}>
                         {plan.nombrePlanEstudios}
                       </SelectItem>
@@ -460,34 +640,39 @@ export default function InscribirEstudiantesGrupoPage() {
             </div>
 
             {grupoInfo && (
-              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                <Users className="h-4 w-4" />
-                <AlertTitle>Información del Grupo</AlertTitle>
-                <AlertDescription>
-                  <div className="mt-2 grid gap-2 md:grid-cols-4">
-                    <div>
-                      <span className="text-muted-foreground">Grupo:</span>{' '}
-                      <strong>{grupoInfo.nombreGrupo}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Plan:</span>{' '}
-                      <strong>{grupoInfo.planEstudios}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Inscritos:</span>{' '}
-                      <strong>{grupoInfo.totalEstudiantes}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cupo disponible:</span>{' '}
-                      <strong>{grupoInfo.cupoDisponible}</strong>
-                    </div>
+              <div className="rounded-xl border-2 p-4" style={{ borderColor: 'rgba(20, 53, 111, 0.2)', background: 'linear-gradient(135deg, rgba(20, 53, 111, 0.03), rgba(37, 99, 235, 0.05))' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4" style={{ color: '#14356F' }} />
+                  <h4 className="font-semibold text-sm" style={{ color: '#14356F' }}>Informacion del Grupo</h4>
+                </div>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-lg bg-white p-3 shadow-sm border">
+                    <span className="text-xs text-gray-500 block">Grupo</span>
+                    <strong className="text-sm" style={{ color: '#14356F' }}>{grupoInfo.nombreGrupo}</strong>
                   </div>
-                </AlertDescription>
-              </Alert>
+                  <div className="rounded-lg bg-white p-3 shadow-sm border">
+                    <span className="text-xs text-gray-500 block">Plan</span>
+                    <strong className="text-sm">{grupoInfo.planEstudios}</strong>
+                  </div>
+                  <div className="rounded-lg bg-white p-3 shadow-sm border">
+                    <span className="text-xs text-gray-500 block">Inscritos</span>
+                    <strong className="text-sm" style={{ color: '#14356F' }}>{grupoInfo.totalEstudiantes}</strong>
+                  </div>
+                  <div className="rounded-lg bg-white p-3 shadow-sm border">
+                    <span className="text-xs text-gray-500 block">Cupo disponible</span>
+                    <strong className="text-sm text-green-600">{grupoInfo.cupoDisponible}</strong>
+                  </div>
+                </div>
+              </div>
             )}
 
-            <div className="flex justify-end">
-              <Button onClick={() => setStep('load-students')} disabled={!selectedGrupo}>
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => setStep('load-students')}
+                disabled={!selectedGrupo}
+                className="text-white"
+                style={selectedGrupo ? { background: 'linear-gradient(to right, #14356F, #1e4a8f)' } : undefined}
+              >
                 Continuar
               </Button>
             </div>
@@ -495,56 +680,76 @@ export default function InscribirEstudiantesGrupoPage() {
         </Card>
       )}
       {step === 'load-students' && (
-        <Card>
-          <CardHeader>
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Paso 2: Cargar Estudiantes</CardTitle>
-                <CardDescription>
-                  Carga un archivo Excel con los datos de los estudiantes a importar
-                </CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
+                  <FileSpreadsheet className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-white text-xl">Paso 2: Cargar Estudiantes</CardTitle>
+                  <CardDescription className="text-white/80 mt-0.5">
+                    Carga un archivo Excel con los datos de los estudiantes a importar
+                  </CardDescription>
+                </div>
               </div>
-              <Button variant="outline" onClick={handleDownloadTemplate}>
+              <Button
+                variant="outline"
+                onClick={handleDownloadTemplate}
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
+              >
                 <Download className="mr-2 h-4 w-4" />
                 Descargar Plantilla
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <FileSpreadsheet className="h-4 w-4" />
-              <AlertTitle>Columnas del Excel</AlertTitle>
-              <AlertDescription>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Badge variant="default">Nombre *</Badge>
-                  <Badge variant="default">ApellidoPaterno *</Badge>
-                  <Badge variant="secondary">ApellidoMaterno</Badge>
-                  <Badge variant="secondary">Genero (M/F)</Badge>
-                  <Badge variant="secondary">CURP</Badge>
-                  <Badge variant="secondary">Correo</Badge>
-                  <Badge variant="secondary">Telefono</Badge>
-                  <Badge variant="secondary">Celular</Badge>
-                  <Badge variant="secondary">FechaNacimiento</Badge>
-                  <Badge variant="secondary">Matricula</Badge>
-                </div>
-                <p className="mt-2 text-xs">* Campos requeridos. Género: M=Masculino, F=Femenino. La matrícula se genera automáticamente si no se proporciona.</p>
-              </AlertDescription>
-            </Alert>
+          <CardContent className="space-y-5 p-6">
+            <div className="rounded-xl border-2 p-4" style={{ borderColor: 'rgba(20, 53, 111, 0.15)', background: 'linear-gradient(135deg, rgba(20, 53, 111, 0.03), rgba(37, 99, 235, 0.03))' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <FileSpreadsheet className="h-4 w-4" style={{ color: '#14356F' }} />
+                <h4 className="font-semibold text-sm" style={{ color: '#14356F' }}>Columnas del Excel</h4>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="text-white text-xs px-2.5 py-1" style={{ backgroundColor: '#14356F' }}>Nombre *</Badge>
+                <Badge className="text-white text-xs px-2.5 py-1" style={{ backgroundColor: '#14356F' }}>ApellidoPaterno *</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>ApellidoMaterno</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>Genero (M/F)</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>CURP</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>Correo</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>Telefono</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>Celular</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>FechaNacimiento</Badge>
+                <Badge variant="outline" className="text-xs px-2.5 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>Matricula</Badge>
+              </div>
+              <p className="mt-3 text-xs text-gray-500">* Campos requeridos. Genero: M=Masculino, F=Femenino. La matricula se genera automaticamente si no se proporciona.</p>
+            </div>
 
             {estudiantes.length === 0 ? (
               <div
-                className="flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/10 p-8 transition-colors hover:border-primary/50 hover:bg-muted/20"
+                className="group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all duration-300"
+                style={{ borderColor: 'rgba(20, 53, 111, 0.25)', background: 'rgba(20, 53, 111, 0.02)' }}
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => document.getElementById('file-input')?.click()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(20, 53, 111, 0.5)'
+                  e.currentTarget.style.background = 'rgba(20, 53, 111, 0.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(20, 53, 111, 0.25)'
+                  e.currentTarget.style.background = 'rgba(20, 53, 111, 0.02)'
+                }}
               >
                 {loading ? (
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <Loader2 className="h-14 w-14 animate-spin" style={{ color: '#14356F' }} />
                 ) : (
                   <>
-                    <FileSpreadsheet className="mb-4 h-12 w-12 text-muted-foreground" />
-                    <p className="mb-2 text-lg font-medium">Arrastra tu archivo Excel aquí</p>
-                    <p className="text-sm text-muted-foreground">o haz clic para seleccionar</p>
+                    <div className="rounded-2xl p-4 mb-4 transition-transform duration-300 group-hover:scale-110" style={{ background: 'linear-gradient(135deg, rgba(20, 53, 111, 0.1), rgba(37, 99, 235, 0.1))' }}>
+                      <Upload className="h-10 w-10" style={{ color: '#14356F' }} />
+                    </div>
+                    <p className="mb-1 text-lg font-semibold" style={{ color: '#14356F' }}>Arrastra tu archivo Excel aqui</p>
+                    <p className="text-sm text-gray-500">o haz clic para seleccionar un archivo .xlsx</p>
                   </>
                 )}
                 <input
@@ -557,27 +762,33 @@ export default function InscribirEstudiantesGrupoPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary">{estudiantes.length} estudiantes cargados</Badge>
-                    <Badge variant="outline">{seleccionadosCount} seleccionados</Badge>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <Badge className="text-white px-3 py-1" style={{ backgroundColor: '#14356F' }}>
+                      <Users className="mr-1.5 h-3.5 w-3.5" />
+                      {estudiantes.length} cargados
+                    </Badge>
+                    <Badge variant="outline" className="px-3 py-1" style={{ borderColor: 'rgba(20, 53, 111, 0.3)', color: '#14356F' }}>
+                      <Check className="mr-1.5 h-3.5 w-3.5" />
+                      {seleccionadosCount} seleccionados
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => toggleTodos(true)}>
+                    <Button variant="outline" size="sm" onClick={() => toggleTodos(true)} className="text-xs">
                       Seleccionar todos
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => toggleTodos(false)}>
+                    <Button variant="outline" size="sm" onClick={() => toggleTodos(false)} className="text-xs">
                       Deseleccionar todos
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setEstudiantes([])}>
-                      <X className="mr-1 h-4 w-4" />
+                    <Button variant="outline" size="sm" onClick={() => setEstudiantes([])} className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <X className="mr-1 h-3.5 w-3.5" />
                       Limpiar
                     </Button>
                   </div>
                 </div>
 
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
                     placeholder="Buscar por nombre, CURP o correo..."
                     value={searchTerm}
@@ -586,21 +797,25 @@ export default function InscribirEstudiantesGrupoPage() {
                   />
                 </div>
 
-                <div className="max-h-[400px] overflow-auto rounded-lg border">
+                <div className="max-h-[400px] overflow-auto rounded-lg border shadow-sm">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead className="w-12"></TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Apellidos</TableHead>
-                        <TableHead>CURP</TableHead>
-                        <TableHead>Correo</TableHead>
-                        <TableHead>Teléfono</TableHead>
+                    <TableHeader className="sticky top-0" style={{ backgroundColor: '#14356F' }}>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-12 text-white"></TableHead>
+                        <TableHead className="text-white font-semibold">Nombre</TableHead>
+                        <TableHead className="text-white font-semibold">Apellidos</TableHead>
+                        <TableHead className="text-white font-semibold">CURP</TableHead>
+                        <TableHead className="text-white font-semibold">Correo</TableHead>
+                        <TableHead className="text-white font-semibold">Telefono</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {estudiantesFiltrados.map((est, i) => (
-                        <TableRow key={i} className={est.seleccionado ? 'bg-primary/5' : ''}>
+                        <TableRow
+                          key={i}
+                          className={`transition-colors ${est.seleccionado ? '' : 'opacity-60'}`}
+                          style={est.seleccionado ? { backgroundColor: 'rgba(20, 53, 111, 0.04)' } : undefined}
+                        >
                           <TableCell>
                             <Checkbox
                               checked={est.seleccionado}
@@ -620,11 +835,16 @@ export default function InscribirEstudiantesGrupoPage() {
               </>
             )}
 
-            <div className="flex justify-between">
+            <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep('select-group')}>
                 Volver
               </Button>
-              <Button onClick={() => setStep('confirm')} disabled={seleccionadosCount === 0}>
+              <Button
+                onClick={() => setStep('confirm')}
+                disabled={seleccionadosCount === 0}
+                className="text-white"
+                style={{ background: seleccionadosCount > 0 ? 'linear-gradient(to right, #14356F, #1e4a8f)' : undefined }}
+              >
                 Continuar ({seleccionadosCount} seleccionados)
               </Button>
             </div>
@@ -634,37 +854,36 @@ export default function InscribirEstudiantesGrupoPage() {
 
       {step === 'confirm' && grupoInfo && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paso 3: Confirmar Importación</CardTitle>
-              <CardDescription>
-                Revisa los datos antes de importar. Se crearán las personas, estudiantes y se inscribirán al grupo.
-              </CardDescription>
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-white text-xl">Paso 3: Confirmar Importacion</CardTitle>
+                  <CardDescription className="text-white/80 mt-0.5">
+                    Revisa los datos antes de importar
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5 p-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Grupo destino</CardDescription>
-                    <CardTitle>{grupoInfo.nombreGrupo}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{grupoInfo.planEstudios}</p>
-                    <p className="text-sm text-muted-foreground">{grupoInfo.periodoAcademico}</p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-xl border-2 p-4" style={{ borderColor: 'rgba(20, 53, 111, 0.2)', background: 'linear-gradient(135deg, rgba(20, 53, 111, 0.03), rgba(37, 99, 235, 0.05))' }}>
+                  <p className="text-xs text-gray-500 mb-1">Grupo destino</p>
+                  <p className="text-lg font-bold" style={{ color: '#14356F' }}>{grupoInfo.nombreGrupo}</p>
+                  <p className="text-sm text-gray-600 mt-1">{grupoInfo.planEstudios}</p>
+                  <p className="text-sm text-gray-500">{grupoInfo.periodoAcademico}</p>
+                </div>
 
-                <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Estudiantes a importar</CardDescription>
-                    <CardTitle className="text-green-600">{seleccionadosCount}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Se generarán matrículas automáticamente
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+                  <p className="text-xs text-gray-500 mb-1">Estudiantes a importar</p>
+                  <p className="text-3xl font-bold text-green-600">{seleccionadosCount}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Se generaran matriculas automaticamente
+                  </p>
+                </div>
               </div>
 
               {seleccionadosCount > grupoInfo.cupoDisponible && (
@@ -672,29 +891,43 @@ export default function InscribirEstudiantesGrupoPage() {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Advertencia</AlertTitle>
                   <AlertDescription>
-                    El número de estudiantes ({seleccionadosCount}) excede el cupo disponible ({grupoInfo.cupoDisponible}).
-                    Algunos estudiantes podrían no inscribirse.
+                    El numero de estudiantes ({seleccionadosCount}) excede el cupo disponible ({grupoInfo.cupoDisponible}).
+                    Algunos estudiantes podrian no inscribirse.
                   </AlertDescription>
                 </Alert>
               )}
 
-              <Alert>
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Lo que se creará</AlertTitle>
-                <AlertDescription>
-                  <ul className="mt-2 list-inside list-disc text-sm">
-                    <li>Registros de <strong>Persona</strong> (datos personales)</li>
-                    <li>Registros de <strong>Estudiante</strong> (con matrícula generada automáticamente)</li>
-                    <li>Inscripciones al <strong>Grupo</strong> seleccionado</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
+              <div className="rounded-xl border-2 p-4" style={{ borderColor: 'rgba(20, 53, 111, 0.15)', background: 'rgba(20, 53, 111, 0.02)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="h-4 w-4" style={{ color: '#14356F' }} />
+                  <h4 className="font-semibold text-sm" style={{ color: '#14356F' }}>Lo que se creara</h4>
+                </div>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#14356F' }}></span>
+                    Registros de <strong>Persona</strong> (datos personales)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#14356F' }}></span>
+                    Registros de <strong>Estudiante</strong> (con matricula generada automaticamente)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#14356F' }}></span>
+                    Inscripciones al <strong>Grupo</strong> seleccionado
+                  </li>
+                </ul>
+              </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between pt-2">
                 <Button variant="outline" onClick={() => setStep('load-students')}>
                   Volver
                 </Button>
-                <Button onClick={handleImportar} disabled={loading}>
+                <Button
+                  onClick={handleImportar}
+                  disabled={loading}
+                  className="text-white"
+                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                >
                   {loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -711,41 +944,46 @@ export default function InscribirEstudiantesGrupoPage() {
       {step === 'results' && resultado && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-5">
-            <Card>
+            <Card className="border-0 shadow-md overflow-hidden">
+              <div className="h-1" style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}></div>
               <CardHeader className="pb-2">
                 <CardDescription>Grupo</CardDescription>
-                <CardTitle className="text-lg">{resultado.nombreGrupo}</CardTitle>
+                <CardTitle className="text-lg" style={{ color: '#14356F' }}>{resultado.nombreGrupo}</CardTitle>
               </CardHeader>
             </Card>
-            <Card>
+            <Card className="border-0 shadow-md overflow-hidden">
+              <div className="h-1 bg-gray-400"></div>
               <CardHeader className="pb-2">
                 <CardDescription>Procesados</CardDescription>
                 <CardTitle>{resultado.totalProcesados}</CardTitle>
               </CardHeader>
             </Card>
-            <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+            <Card className="border-0 shadow-md overflow-hidden border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+              <div className="h-1 bg-green-500"></div>
               <CardHeader className="pb-2">
                 <CardDescription>Exitosos</CardDescription>
                 <CardTitle className="text-green-600">{resultado.exitosos}</CardTitle>
               </CardHeader>
             </Card>
-            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+            <Card className="border-0 shadow-md overflow-hidden border-red-200 bg-gradient-to-br from-red-50 to-rose-50">
+              <div className="h-1 bg-red-500"></div>
               <CardHeader className="pb-2">
                 <CardDescription>Fallidos</CardDescription>
                 <CardTitle className="text-red-600">{resultado.fallidos}</CardTitle>
               </CardHeader>
             </Card>
-            <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <Card className="border-0 shadow-md overflow-hidden" style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.05), rgba(37, 99, 235, 0.05))' }}>
+              <div className="h-1" style={{ background: 'linear-gradient(to right, #14356F, #2563eb)' }}></div>
               <CardHeader className="pb-2">
-                <CardDescription>Matrículas generadas</CardDescription>
-                <CardTitle className="text-blue-600">{resultado.estudiantesCreados}</CardTitle>
+                <CardDescription>Matriculas generadas</CardDescription>
+                <CardTitle style={{ color: '#14356F' }}>{resultado.estudiantesCreados}</CardTitle>
               </CardHeader>
             </Card>
           </div>
           {resultado.fallidos === 0 ? (
-            <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+            <Alert className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-600">Importación Exitosa</AlertTitle>
+              <AlertTitle className="text-green-600">Importacion Exitosa</AlertTitle>
               <AlertDescription>
                 Todos los estudiantes fueron importados e inscritos correctamente.
                 Se crearon {resultado.personasCreadas} personas, {resultado.estudiantesCreados} estudiantes y {resultado.inscripcionesCreadas} inscripciones.
@@ -754,19 +992,19 @@ export default function InscribirEstudiantesGrupoPage() {
           ) : (
             <Alert variant="destructive">
               <XCircle className="h-4 w-4" />
-              <AlertTitle>Importación con Errores</AlertTitle>
+              <AlertTitle>Importacion con Errores</AlertTitle>
               <AlertDescription>
                 Algunos estudiantes no pudieron ser importados. Revisa el detalle abajo.
               </AlertDescription>
             </Alert>
           )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Detalle de Importación</CardTitle>
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <CardHeader className="text-white" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+              <CardTitle className="text-white">Detalle de Importacion</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <Tabs defaultValue={resultado.fallidos > 0 ? 'errores' : 'todos'}>
-                <TabsList>
+                <TabsList className="mb-4">
                   <TabsTrigger value="errores">
                     Con Errores ({resultado.fallidos})
                   </TabsTrigger>
@@ -879,9 +1117,13 @@ export default function InscribirEstudiantesGrupoPage() {
           </Card>
 
           <div className="flex justify-center">
-            <Button onClick={handleReset}>
+            <Button
+              onClick={handleReset}
+              className="text-white"
+              style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+            >
               <UserPlus className="mr-2 h-4 w-4" />
-              Nueva Importación
+              Nueva Importacion
             </Button>
           </div>
         </div>

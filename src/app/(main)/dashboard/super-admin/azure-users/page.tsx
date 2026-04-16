@@ -72,6 +72,7 @@ import microsoftGraphService, {
   UserInfoDto,
   CreateUserRequest,
 } from "@/services/microsoft-graph-service"
+import { APP_CONFIG } from "@/config/app-config"
 import { getAllUsers } from "@/services/users-service"
 import type { User as SaciUser } from "@/types/user"
 
@@ -136,7 +137,7 @@ export default function AzureUsersPage() {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "")
 
-  const DEFAULT_DOMAIN = "usaguanajuato.edu.mx"
+  const DEFAULT_DOMAIN = APP_CONFIG.emailDomain
 
   const existingEmails = useMemo(
     () => users.map(u => (u.email || u.userPrincipalName || "").toLowerCase()),

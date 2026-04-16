@@ -36,6 +36,13 @@ export const documentacionAspirantesService = {
     )
   },
 
+  async toggleRecibido(idAspiranteDocumento: number): Promise<{ estatus: string; recibido: boolean }> {
+    const response = await axiosInstance.put<{ estatus: string; recibido: boolean }>(
+      `${API_URL}/documentos/${idAspiranteDocumento}/toggle-recibido`
+    )
+    return response.data
+  },
+
   async asignarProrrogaGlobal(request: ProrrogaGlobalRequest): Promise<void> {
     await axiosInstance.post(
       `${API_URL}/${request.idAspirante}/documentos/prorroga-global`,

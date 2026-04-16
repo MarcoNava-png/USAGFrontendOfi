@@ -16,6 +16,7 @@ export interface CrearTicketParams {
   descripcion: string
   prioridad: TicketPrioridad
   categoria: TicketCategoria
+  areaDestino?: string
   archivo?: File
 }
 
@@ -36,6 +37,9 @@ export async function crearTicket(
   formData.append("descripcion", params.descripcion)
   formData.append("prioridad", params.prioridad.toString())
   formData.append("categoria", params.categoria.toString())
+  if (params.areaDestino) {
+    formData.append("areaDestino", params.areaDestino)
+  }
   if (params.archivo) {
     formData.append("archivo", params.archivo)
   }

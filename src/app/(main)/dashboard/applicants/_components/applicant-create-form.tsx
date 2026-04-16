@@ -185,21 +185,56 @@ export function ApplicantCreateForm({
     return { etiqueta, total: Math.min(Math.max(total, 1), 99) };
   }, [selectedPlan]);
 
+  interface GrupoDias {
+    grupo: number;
+    dias: string;
+  }
+  const [gruposDias, setGruposDias] = useState<GrupoDias[]>([]);
   const [diasImparticion, setDiasImparticion] = useState<string>("");
+
+  const watchedGrupoDias = form.watch("grupoDiasImparticion");
 
   useEffect(() => {
     if (watchedPlanEstudiosId && watchedPlanEstudiosId > 0 && watchedIdModalidad && watchedIdModalidad > 0) {
       getDiasForPlanModalidad(watchedPlanEstudiosId, watchedIdModalidad)
         .then((dias) => {
-          if (dias.length > 0) {
-            setDiasImparticion(dias.map((d) => d.nombreDia).join(", "));
-          } else {
+          if (dias.length === 0) {
+            setGruposDias([]);
             setDiasImparticion("");
+            return;
+          }
+          const grupoMap = new Map<number, string[]>();
+          for (const d of dias) {
+            if (!grupoMap.has(d.grupo)) grupoMap.set(d.grupo, []);
+            grupoMap.get(d.grupo)!.push(d.nombreDia);
+          }
+          const grupos: GrupoDias[] = Array.from(grupoMap.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([grupo, nombres]) => ({ grupo, dias: nombres.join(", ") }));
+          setGruposDias(grupos);
+
+          if (grupos.length === 1) {
+            form.setValue("grupoDiasImparticion", grupos[0].grupo);
+            setDiasImparticion(grupos[0].dias);
+          } else {
+            const currentGrupo = form.getValues("grupoDiasImparticion");
+            const match = grupos.find((g) => g.grupo === currentGrupo);
+            if (match) {
+              setDiasImparticion(match.dias);
+            } else {
+              setDiasImparticion("");
+              form.setValue("grupoDiasImparticion", undefined);
+            }
           }
         })
-        .catch(() => setDiasImparticion(""));
+        .catch(() => {
+          setGruposDias([]);
+          setDiasImparticion("");
+        });
     } else {
+      setGruposDias([]);
       setDiasImparticion("");
+      form.setValue("grupoDiasImparticion", undefined);
     }
   }, [watchedPlanEstudiosId, watchedIdModalidad]);
 
@@ -841,14 +876,49 @@ export function ApplicantCreateForm({
               )}
             />
 
-            <FormItem>
-              <FormLabel>Días de Impartición</FormLabel>
-              <Input
-                value={diasImparticion || "No configurado"}
-                disabled
-                className="bg-muted"
+            {gruposDias.length <= 1 ? (
+              <FormItem>
+                <FormLabel>Días de Impartición</FormLabel>
+                <Input
+                  value={diasImparticion || "No configurado"}
+                  disabled
+                  className="bg-muted"
+                />
+              </FormItem>
+            ) : (
+              <FormField
+                control={form.control}
+                name="grupoDiasImparticion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Días de Impartición</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        const num = Number(value);
+                        field.onChange(num);
+                        const match = gruposDias.find((g) => g.grupo === num);
+                        setDiasImparticion(match?.dias ?? "");
+                      }}
+                      value={field.value ? String(field.value) : ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona días de impartición" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {gruposDias.map((g, idx) => (
+                          <SelectItem key={g.grupo} value={String(g.grupo)}>
+                            Opción {idx + 1}: {g.dias}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </FormItem>
+            )}
 
             <FormField
               control={form.control}

@@ -349,13 +349,14 @@ export default function DocumentosEstudiantePage() {
                   <TableHead className="text-white font-semibold">Fecha Solicitud</TableHead>
                   <TableHead className="text-white font-semibold">Estatus</TableHead>
                   <TableHead className="text-white font-semibold">Precio</TableHead>
+                  <TableHead className="text-white font-semibold">Recibo</TableHead>
                   <TableHead className="text-white font-semibold text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {solicitudes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                       No se encontraron solicitudes
                     </TableCell>
                   </TableRow>
@@ -380,6 +381,29 @@ export default function DocumentosEstudiantePage() {
                         </TableCell>
                         <TableCell>
                           {solicitud.precio ? `$${solicitud.precio.toFixed(2)}` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {solicitud.folioRecibo ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="font-mono text-xs">{solicitud.folioRecibo}</span>
+                              {solicitud.estatusRecibo && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] w-fit px-1.5 py-0 ${
+                                    solicitud.estatusRecibo === 'PAGADO'
+                                      ? 'border-green-500 text-green-600'
+                                      : solicitud.estatusRecibo === 'CANCELADO'
+                                        ? 'border-red-500 text-red-600'
+                                        : 'border-yellow-500 text-yellow-600'
+                                  }`}
+                                >
+                                  {solicitud.estatusRecibo}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

@@ -39,6 +39,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatCurrency,
+  formatDateLocal,
   calcularRecargo,
   calcularDiasVencido,
   descargarReciboPDF as descargarPDF,
@@ -104,7 +105,16 @@ export default function ReceiptsAdminPage() {
     try {
       const params: any = {};
 
-      if (filtros.matricula) params.matricula = filtros.matricula;
+      // Si el usuario escribe un folio en el campo de matrícula, buscarlo como folio
+      const valorMatricula = filtros.matricula.trim();
+      const esFolio = /^[A-Za-z]{2,}-\d{4}-/i.test(valorMatricula);
+      if (valorMatricula) {
+        if (esFolio) {
+          params.folio = valorMatricula;
+        } else {
+          params.matricula = valorMatricula;
+        }
+      }
       if (filtros.folio) params.folio = filtros.folio;
       if (filtros.idPeriodoAcademico && filtros.idPeriodoAcademico !== "TODOS") {
         params.idPeriodoAcademico = parseInt(filtros.idPeriodoAcademico);
@@ -295,9 +305,9 @@ export default function ReceiptsAdminPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label>Matrícula</Label>
+              <Label>Matrícula o Folio</Label>
               <Input
-                placeholder="Buscar por matrícula"
+                placeholder="Matrícula o folio"
                 value={filtros.matricula}
                 onChange={(e) =>
                   setFiltros({ ...filtros, matricula: e.target.value })
@@ -404,6 +414,7 @@ export default function ReceiptsAdminPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Folio</TableHead>
+                  <TableHead>Concepto</TableHead>
                   <TableHead>Estudiante</TableHead>
                   <TableHead>Periodo</TableHead>
                   <TableHead>Vencimiento</TableHead>
@@ -420,24 +431,33 @@ export default function ReceiptsAdminPage() {
                   return (
                     <TableRow key={recibo.idRecibo}>
                       <TableCell className="font-mono">{recibo.folio}</TableCell>
+                      <TableCell className="text-sm max-w-[200px] truncate">
+                        {recibo.conceptoResumen || recibo.detalles?.[0]?.descripcion || '-'}
+                      </TableCell>
                       <TableCell>
 
                         ID: {recibo.idEstudiante}
                       </TableCell>
                       <TableCell>{recibo.nombrePeriodo}</TableCell>
                       <TableCell>
-                        {new Date(recibo.fechaVencimiento).toLocaleDateString("es-MX")}
+                        {formatDateLocal(recibo.fechaVencimiento)}
                         {diasVencido > 0 && (
                           <div className="text-xs text-red-600">{diasVencido} días</div>
                         )}
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(recibo.total)}</TableCell>
                       <TableCell className="text-right">
-                        {recibo.saldo > 0 ? (
-                          <span className="text-red-600">{formatCurrency(recibo.saldo)}</span>
-                        ) : (
-                          <span className="text-green-600">Pagado</span>
-                        )}
+                        {(() => {
+                          const esCancelado = recibo.estatus === ReceiptStatus.CANCELADO || recibo.estatus === 4 || String(recibo.estatus).toUpperCase() === "CANCELADO";
+                          if (esCancelado) {
+                            return <span className="text-muted-foreground line-through">{formatCurrency(recibo.total)}</span>;
+                          }
+                          return recibo.saldo > 0 ? (
+                            <span className="text-red-600">{formatCurrency(recibo.saldo)}</span>
+                          ) : (
+                            <span className="text-green-600">Pagado</span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <ReceiptStatusBadge status={recibo.estatus as ReceiptStatus} />

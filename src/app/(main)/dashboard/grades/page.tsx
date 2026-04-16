@@ -11,6 +11,7 @@ import { SelectPlanEstudios } from "./_components/select-plan-estudios";
 
 export default function GradesPage() {
   const [selectedPlanEstudios, setSelectedPlanEstudios] = useState<number | null>(null);
+  const [minimaAprobatoria, setMinimaAprobatoria] = useState<number>(7);
 
   return (
     <div className="space-y-6">
@@ -74,7 +75,7 @@ export default function GradesPage() {
               Aprobación
             </CardDescription>
             <CardTitle className="text-4xl text-orange-700 dark:text-orange-300">
-              7.0
+              {minimaAprobatoria.toFixed(1)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -92,12 +93,13 @@ export default function GradesPage() {
         <CardContent className="pt-4">
           <SelectPlanEstudios
             value={selectedPlanEstudios}
-            onChange={setSelectedPlanEstudios}
+            onChange={(v) => setSelectedPlanEstudios(v)}
+            onPlanChange={(plan) => setMinimaAprobatoria(plan?.minimaAprobatoriaFinal ?? 7)}
           />
         </CardContent>
       </Card>
       {selectedPlanEstudios ? (
-        <GruposAcordeon planEstudiosId={selectedPlanEstudios} />
+        <GruposAcordeon planEstudiosId={selectedPlanEstudios} minimaAprobatoria={minimaAprobatoria} />
       ) : (
         <Card>
           <CardContent className="py-16 text-center">

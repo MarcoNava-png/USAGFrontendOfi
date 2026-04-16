@@ -3,14 +3,35 @@ import { ReceiptStatus } from "@/types/receipt";
 export const TASA_RECARGO_DIARIO = 0.01;
 export const RECARGO_FIJO_DIARIO = 10;
 
+/**
+ * Parsea una fecha date-only (ej. "2026-03-05") como hora local, no UTC.
+ * Evita el bug de timezone donde new Date("2026-03-05") se interpreta como
+ * UTC medianoche y al convertir a zona horaria local muestra el día anterior.
+ */
+export function parseDateLocal(dateStr: string | Date): Date {
+  if (dateStr instanceof Date) return dateStr;
+  // Si es formato date-only YYYY-MM-DD, agregar T00:00:00 para forzar local
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + "T00:00:00");
+  }
+  return new Date(dateStr);
+}
+
+/**
+ * Formatea una fecha date-only para mostrar en la UI.
+ * Usa parseDateLocal para evitar el bug de timezone.
+ */
+export function formatDateLocal(dateStr: string | Date, options?: Intl.DateTimeFormatOptions): string {
+  const fecha = parseDateLocal(dateStr);
+  return fecha.toLocaleDateString("es-MX", options ?? { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export function calcularRecargo(
   fechaVencimiento: string | Date,
   saldo: number,
   tasaDiaria: number = TASA_RECARGO_DIARIO
 ): number {
-  const fecha = typeof fechaVencimiento === "string"
-    ? new Date(fechaVencimiento)
-    : fechaVencimiento;
+  const fecha = parseDateLocal(fechaVencimiento);
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -26,9 +47,7 @@ export function calcularRecargo(
 }
 
 export function calcularDiasVencido(fechaVencimiento: string | Date): number {
-  const fecha = typeof fechaVencimiento === "string"
-    ? new Date(fechaVencimiento)
-    : fechaVencimiento;
+  const fecha = parseDateLocal(fechaVencimiento);
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);

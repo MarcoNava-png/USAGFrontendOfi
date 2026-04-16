@@ -20,12 +20,14 @@ export function TicketCard({ ticket, onClick }: Props) {
   const estatus = ESTATUS_CONFIG[ticket.estatus]
   const categoria = CATEGORIA_CONFIG[ticket.categoria]
 
-  const fecha = new Date(ticket.createdAt).toLocaleDateString("es-MX", {
+  const fechaRaw = ticket.createdAt.endsWith("Z") ? ticket.createdAt : ticket.createdAt + "Z"
+  const fecha = new Date(fechaRaw).toLocaleDateString("es-MX", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Mexico_City",
   })
 
   return (

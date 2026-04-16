@@ -34,6 +34,7 @@ interface EditSubjectDialogProps {
 }
 
 interface FormValues {
+  nombreMateria: string;
   cuatrimestre: string;
   esOptativa: string;
 }
@@ -48,6 +49,7 @@ export function EditSubjectDialog({
 
   const form = useForm<FormValues>({
     defaultValues: {
+      nombreMateria: "",
       cuatrimestre: "",
       esOptativa: "false",
     },
@@ -56,6 +58,7 @@ export function EditSubjectDialog({
   useEffect(() => {
     if (subject) {
       form.reset({
+        nombreMateria: subject.nombreMateria ?? subject.materia ?? "",
         cuatrimestre: subject.cuatrimestre?.toString() ?? "",
         esOptativa: subject.esOptativa ? "true" : "false",
       });
@@ -73,6 +76,7 @@ export function EditSubjectDialog({
         idMateria: subject.idMateria,
         cuatrimestre: Number(data.cuatrimestre),
         esOptativa: data.esOptativa === "true",
+        nombreMateria: data.nombreMateria,
       });
       toast.success("Materia actualizada exitosamente");
       onOpenChange(false);
@@ -95,14 +99,18 @@ export function EditSubjectDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <FormLabel>Materia</FormLabel>
-                <Input
-                  value={subject?.nombreMateria ?? subject?.materia ?? ""}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="nombreMateria"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre de la Materia</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Nombre de la materia" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <div className="space-y-2">
                 <FormLabel>Plan de Estudios</FormLabel>

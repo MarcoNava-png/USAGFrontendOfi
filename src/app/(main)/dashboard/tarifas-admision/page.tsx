@@ -16,12 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCampusList } from "@/services/campus-service";
 import { getStudyPlans } from "@/services/catalogs-service";
 import {
   listarTarifasAdmision,
   eliminarTarifaAdmision,
   cambiarEstadoTarifaAdmision,
 } from "@/services/tarifas-admision-service";
+import { Campus } from "@/types/campus";
 import { StudyPlan } from "@/types/catalog";
 import { TarifaAdmisionDto } from "@/types/tarifa-admision";
 
@@ -29,15 +31,21 @@ import { TarifaAdmisionModal } from "./_components/tarifa-admision-modal";
 
 export default function TarifasAdmisionPage() {
   const [tarifas, setTarifas] = useState<TarifaAdmisionDto[]>([]);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
   const [planes, setPlanes] = useState<StudyPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [filtroCampus, setFiltroCampus] = useState<string>("TODOS");
+  const [filtroPlan, setFiltroPlan] = useState<string>("TODOS");
   const [filtroActivo, setFiltroActivo] = useState<string>("true");
   const [modalOpen, setModalOpen] = useState(false);
   const [tarifaEditar, setTarifaEditar] = useState<TarifaAdmisionDto | null>(null);
 
   useEffect(() => {
-    getStudyPlans().then(setPlanes).catch(() => {});
+    Promise.all([
+      getCampusList().then((res) => setCampuses(res.items ?? [])),
+      getStudyPlans().then(setPlanes),
+    ]).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -97,6 +105,19 @@ export default function TarifasAdmisionPage() {
   const totalMonto = (tarifa: TarifaAdmisionDto) =>
     tarifa.detalles.filter((d) => d.esAplicable).reduce((acc, d) => acc + d.monto, 0);
 
+  const planesFiltradosPorCampus = filtroCampus === "TODOS"
+    ? planes
+    : planes.filter((p) => String(p.idCampus) === filtroCampus);
+
+  const tarifasFiltradas = tarifas.filter((t) => {
+    if (filtroCampus !== "TODOS") {
+      const plan = planes.find((p) => p.idPlanEstudios === t.idPlanEstudios);
+      if (!plan || String(plan.idCampus) !== filtroCampus) return false;
+    }
+    if (filtroPlan !== "TODOS" && String(t.idPlanEstudios) !== filtroPlan) return false;
+    return true;
+  });
+
   if (loading && tarifas.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -128,8 +149,38 @@ export default function TarifasAdmisionPage() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="w-56">
+          <div className="flex items-center gap-4 overflow-x-auto pb-2">
+            <div className="min-w-[200px] shrink-0">
+              <Select value={filtroCampus} onValueChange={(v) => { setFiltroCampus(v); setFiltroPlan("TODOS"); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por campus..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos los Campus</SelectItem>
+                  {campuses.map((c) => (
+                    <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                      {c.claveCampus} - {c.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[250px] shrink-0">
+              <Select value={filtroPlan} onValueChange={setFiltroPlan}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por plan..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos los Planes</SelectItem>
+                  {planesFiltradosPorCampus.map((p) => (
+                    <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
+                      {p.nombrePlanEstudios}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[150px] shrink-0">
               <Select value={filtroActivo} onValueChange={setFiltroActivo}>
                 <SelectTrigger>
                   <SelectValue />
@@ -148,51 +199,65 @@ export default function TarifasAdmisionPage() {
       <Card>
         <CardHeader>
           <CardTitle>Tarifas de Admisión</CardTitle>
-          <CardDescription>Total: {tarifas.length} tarifa{tarifas.length !== 1 ? "s" : ""}</CardDescription>
+          <CardDescription>Total: {tarifasFiltradas.length} tarifa{tarifasFiltradas.length !== 1 ? "s" : ""}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="whitespace-nowrap">Campus</TableHead>
                   <TableHead>Plan de Estudios</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead className="text-center">Conceptos</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center">Conv. Mensualidad</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">Conceptos</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Total</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">Prom. Mens.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">Costos Conv.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">Estado</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tarifas.map((tarifa) => (
+                {tarifasFiltradas.map((tarifa) => (
                   <TableRow key={tarifa.idTarifaAdmision}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{tarifa.nombrePlanEstudios}</p>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {tarifa.nombreCampus || "-"}
+                    </TableCell>
+                    <TableCell className="max-w-[220px] overflow-hidden">
+                      <div className="overflow-hidden">
+                        <p className="font-medium text-sm truncate" title={tarifa.nombrePlanEstudios}>{tarifa.nombrePlanEstudios}</p>
                         <p className="text-xs text-muted-foreground font-mono">{tarifa.clavePlanEstudios}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{tarifa.nombre}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="max-w-[200px] overflow-hidden">
+                      <p className="truncate font-medium" title={tarifa.nombre}>{tarifa.nombre}</p>
+                    </TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
                       <Badge variant="outline">{tarifa.detalles.length}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="text-right font-mono whitespace-nowrap">
                       ${totalMonto(tarifa).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center whitespace-nowrap">
                       {tarifa.aplicaConvenioMensualidad ? (
                         <Badge variant="default" className="bg-blue-600">Sí</Badge>
                       ) : (
                         <Badge variant="outline">No</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center whitespace-nowrap">
+                      {tarifa.esConvenioEmpresarial ? (
+                        <Badge variant="default" className="bg-purple-600">Sí</Badge>
+                      ) : (
+                        <Badge variant="outline">No</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
                       <Badge variant={tarifa.activo ? "default" : "secondary"}>
                         {tarifa.activo ? "Activa" : "Inactiva"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
                       <div className="flex justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => handleEditar(tarifa)}>
                           <Edit className="h-4 w-4" />
@@ -211,9 +276,11 @@ export default function TarifasAdmisionPage() {
             </Table>
           </div>
 
-          {tarifas.length === 0 && (
+          {tarifasFiltradas.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
-              No se encontraron tarifas de admisión
+              {filtroCampus !== "TODOS" || filtroPlan !== "TODOS"
+                ? "No se encontraron tarifas para los filtros seleccionados"
+                : "No se encontraron tarifas de admisión"}
             </div>
           )}
         </CardContent>
@@ -224,6 +291,7 @@ export default function TarifasAdmisionPage() {
         onClose={handleCloseModal}
         tarifaToEdit={tarifaEditar}
         planes={planes}
+        campuses={campuses}
       />
     </div>
   );

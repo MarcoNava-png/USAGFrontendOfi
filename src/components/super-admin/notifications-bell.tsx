@@ -134,7 +134,7 @@ export function NotificationsBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96">
+      <DropdownMenuContent align="end" className="w-96" sideOffset={8} collisionPadding={16}>
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notificaciones</span>
           <div className="flex items-center gap-1">
@@ -162,7 +162,7 @@ export function NotificationsBell() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="max-h-[min(400px,calc(var(--radix-dropdown-menu-content-available-height,400px)-100px))]">
           {notifications.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />

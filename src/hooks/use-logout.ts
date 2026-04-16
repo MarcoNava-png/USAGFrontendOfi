@@ -12,7 +12,7 @@ export function useLogout() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
 
-    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = "access_token=; path=/; max-age=0; SameSite=Strict; Secure";
 
     clearPermissionsCache();
 

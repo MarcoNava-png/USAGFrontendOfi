@@ -69,6 +69,7 @@ export function CreateStudyPlanDialog({ open, setOpen, onSuccess }: CreateStudyP
         idPeriodicidad: Number(data.idPeriodicidad),
         idNivelEducativo: Number(data.idNivelEducativo),
         idCampus: Number(data.idCampus),
+        esOficial: true,
       });
       toast.success("Plan de estudios creado exitosamente");
       setOpen(false);
