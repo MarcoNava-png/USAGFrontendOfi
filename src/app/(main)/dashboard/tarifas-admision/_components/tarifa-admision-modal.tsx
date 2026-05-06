@@ -172,6 +172,7 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes, campu
 
       if (isEditing) {
         await actualizarTarifaAdmision(tarifaToEdit!.idTarifaAdmision, {
+          idPlanEstudios: Number(idPlanEstudios),
           nombre,
           aplicaConvenioMensualidad,
           esConvenioEmpresarial,
@@ -198,11 +199,10 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes, campu
     }
   }
 
-  const planesFiltradosPorCampus = isEditing
-    ? planes
-    : selectedCampus
+  const planesFiltradosPorCampus = (selectedCampus
     ? planes.filter((p) => String(p.idCampus) === selectedCampus)
-    : planes;
+    : planes
+  ).filter((p) => p.activo !== false || p.idPlanEstudios === tarifaToEdit?.idPlanEstudios);
 
   const conceptosDisponibles = conceptos.filter(
     (c) => !detalles.some((d) => d.idConceptoPago === c.idConceptoPago)
@@ -224,64 +224,49 @@ export function TarifaAdmisionModal({ open, onClose, tarifaToEdit, planes, campu
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {isEditing ? (
-              <>
-                <div className="space-y-2">
-                  <Label>Campus</Label>
-                  <Input
-                    value={tarifaToEdit?.nombreCampus || "Sin campus asignado"}
-                    disabled
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Plan de Estudios</Label>
-                  <Input
-                    value={`${tarifaToEdit?.clavePlanEstudios} - ${tarifaToEdit?.nombrePlanEstudios}`}
-                    disabled
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="campus">
-                    Campus <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={selectedCampus}
-                    onValueChange={(v) => { setSelectedCampus(v); setIdPlanEstudios(""); }}
-                  >
-                    <SelectTrigger id="campus">
-                      <SelectValue placeholder="Selecciona un campus" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campuses.map((c) => (
-                        <SelectItem key={c.idCampus} value={String(c.idCampus)}>
-                          {c.claveCampus} - {c.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plan">
-                    Plan de Estudios <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={idPlanEstudios} onValueChange={setIdPlanEstudios} disabled={!selectedCampus}>
-                    <SelectTrigger id="plan">
-                      <SelectValue placeholder={selectedCampus ? "Selecciona un plan" : "Primero selecciona un campus"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {planesFiltradosPorCampus.map((p) => (
-                        <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
-                          {p.clavePlanEstudios} - {p.nombrePlanEstudios}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="campus">
+                Campus <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={selectedCampus}
+                onValueChange={(v) => { setSelectedCampus(v); setIdPlanEstudios(""); }}
+              >
+                <SelectTrigger id="campus">
+                  <SelectValue placeholder="Selecciona un campus" />
+                </SelectTrigger>
+                <SelectContent>
+                  {campuses.map((c) => (
+                    <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                      {c.claveCampus} - {c.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="plan">
+                Plan de Estudios <span className="text-red-500">*</span>
+              </Label>
+              <Select value={idPlanEstudios} onValueChange={setIdPlanEstudios} disabled={!selectedCampus}>
+                <SelectTrigger id="plan">
+                  <SelectValue placeholder={selectedCampus ? "Selecciona un plan" : "Primero selecciona un campus"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {planesFiltradosPorCampus.map((p) => (
+                    <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>
+                      {p.clavePlanEstudios} - {p.nombrePlanEstudios}
+                      {p.activo === false ? " (Inactivo)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isEditing && tarifaToEdit && Number(idPlanEstudios) !== tarifaToEdit.idPlanEstudios && (
+                <p className="text-xs text-amber-600">
+                  Cambiarás el plan de estudios de esta tarifa.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

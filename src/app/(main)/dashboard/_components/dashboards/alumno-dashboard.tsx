@@ -81,7 +81,7 @@ export function AlumnoDashboard({ data }: AlumnoDashboardProps) {
           description={data.tieneDeuda ? `$${data.montoDeuda?.toLocaleString("es-MX")} pendiente` : undefined}
           icon={data.tieneDeuda ? AlertTriangle : CheckCircle}
           gradient={data.tieneDeuda ? "from-red-500 to-red-600" : "from-emerald-500 to-emerald-600"}
-          link={data.tieneDeuda ? "/dashboard/payments" : undefined}
+          link={data.tieneDeuda ? "/dashboard/portal-alumno/mis-pagos" : undefined}
         />
       </StatGrid>
 
@@ -103,7 +103,7 @@ export function AlumnoDashboard({ data }: AlumnoDashboardProps) {
                   </p>
                 </div>
               </div>
-              <Link href="/dashboard/payments">
+              <Link href="/dashboard/portal-alumno/mis-pagos">
                 <Button variant="destructive">Pagar ahora</Button>
               </Link>
             </div>
@@ -174,7 +174,7 @@ export function AlumnoDashboard({ data }: AlumnoDashboardProps) {
                 </CardTitle>
                 <CardDescription>Tus ultimas evaluaciones</CardDescription>
               </div>
-              <Link href="/dashboard/grades">
+              <Link href="/dashboard/portal-alumno/mis-calificaciones">
                 <Button variant="outline" size="sm">
                   Ver todas
                 </Button>

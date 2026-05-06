@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 
-import { Receipt, DollarSign, Calendar, FileText, Plus, FileSpreadsheet, Trash2, AlertTriangle, HandCoins, Building } from "lucide-react";
+import { Receipt, DollarSign, Calendar, FileText, Plus, FileSpreadsheet, Trash2, AlertTriangle, HandCoins, Building, StickyNote, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -38,10 +38,12 @@ import {
   repairReceiptsWithoutDetails,
   buscarPlantillaParaAspirante,
   generarRecibosDesdeePlantilla,
+  generarMensualidadesCompletas,
 } from "@/services/applicants-service";
 import { listarConceptosPago } from "@/services/conceptos-pago-service";
 import { obtenerPromocionesActivas, formatearBeneficio } from "@/services/convenios-service";
 import { listarEmpresas } from "@/services/empresas-service";
+import { aplicarDescuentoRecibo } from "@/services/receipts-service";
 import {
   listarTarifasAdmision,
   generarRecibosAdmision,
@@ -76,6 +78,12 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [receiptToDelete, setReceiptToDelete] = useState<number | null>(null);
   const [confirmRepairOpen, setConfirmRepairOpen] = useState(false);
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [discountReceiptId, setDiscountReceiptId] = useState<number | null>(null);
+  const [discountMode, setDiscountMode] = useState<"porcentaje" | "monto">("porcentaje");
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [discountReason, setDiscountReason] = useState<string>("");
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
 
   // Nuevos estados para ConceptoPago
   const [conceptos, setConceptos] = useState<ConceptoPago[]>([]);
@@ -188,7 +196,6 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
     }
   };
 
-  // Generar recibos desde Plantilla
   const handleGenerateFromPlantilla = async () => {
     if (!applicant || !plantilla) return;
 
@@ -233,13 +240,26 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
         parseInt(selectedTarifa),
         applicant.idAspirante,
         {
-          pagoCompleto,
+          pagoCompleto: false,
           idEmpresa,
           conceptos,
         }
       );
       const total = result.totalRecibos;
-      toast.success(`Se generaron ${total} recibo(s) de admisión`);
+
+      let mensualidadesGeneradas = 0;
+      if (pagoCompleto) {
+        try {
+          const resMens = await generarMensualidadesCompletas(applicant.idAspirante);
+          mensualidadesGeneradas = resMens.recibosGenerados;
+        } catch (mensError: unknown) {
+          const err = mensError as { response?: { data?: { Error?: string } }; message?: string };
+          toast.warning(err?.response?.data?.Error ?? "Recibos de admisión generados, pero no se pudieron generar las mensualidades");
+        }
+      }
+
+      const sufijo = mensualidadesGeneradas > 0 ? ` y ${mensualidadesGeneradas} mensualidad(es)` : "";
+      toast.success(`Se generaron ${total} recibo(s) de admisión${sufijo}`);
       loadReceipts();
       onPaymentRegistered?.();
     } catch (error: unknown) {
@@ -315,6 +335,45 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
   const openDeleteConfirmation = (idRecibo: number) => {
     setReceiptToDelete(idRecibo);
     setConfirmDeleteOpen(true);
+  };
+
+  const openDiscountModal = (idRecibo: number) => {
+    setDiscountReceiptId(idRecibo);
+    setDiscountMode("porcentaje");
+    setDiscountValue("");
+    setDiscountReason("");
+    setDiscountModalOpen(true);
+  };
+
+  const handleApplyDiscount = async () => {
+    if (!discountReceiptId) return;
+    const numericValue = parseFloat(discountValue);
+    if (isNaN(numericValue) || numericValue < 0) {
+      toast.error("Valor de descuento inválido");
+      return;
+    }
+    if (discountMode === "porcentaje" && numericValue > 100) {
+      toast.error("El porcentaje no puede ser mayor a 100");
+      return;
+    }
+    setApplyingDiscount(true);
+    try {
+      await aplicarDescuentoRecibo(discountReceiptId, {
+        porcentaje: discountMode === "porcentaje" ? numericValue : undefined,
+        monto: discountMode === "monto" ? numericValue : undefined,
+        motivo: discountReason || undefined,
+      });
+      toast.success("Descuento aplicado");
+      setDiscountModalOpen(false);
+      loadReceipts();
+      onPaymentRegistered?.();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message ?? err?.message ?? "Error al aplicar descuento");
+      console.error(error);
+    } finally {
+      setApplyingDiscount(false);
+    }
   };
 
   const handleDeleteReceipt = async () => {
@@ -418,6 +477,27 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
     return { total, pagado, pendiente, descuentoTotal };
   };
 
+  const tarifaActualSeleccionada = tarifas.find((t) => String(t.idTarifaAdmision) === selectedTarifa);
+  const conceptoColegiaturaTarifa = tarifaActualSeleccionada?.detalles.find(
+    (d) =>
+      d.esAplicable &&
+      (d.nombreConcepto?.toUpperCase().includes("COLEGIATURA") ||
+        d.nombreConcepto?.toUpperCase().includes("MENSUALIDAD"))
+  );
+  const colegiaturaSeraGenerada = conceptoColegiaturaTarifa
+    ? conceptosSeleccionados.includes(conceptoColegiaturaTarifa.idConceptoPago)
+    : false;
+  const yaSeGeneraronMensualidades = receipts.some((r) =>
+    r.detalles.some((d) => d.descripcion?.toUpperCase().includes("MENSUALIDAD -"))
+  );
+  const mostrarTogglePagoCompleto = colegiaturaSeraGenerada && !yaSeGeneraronMensualidades;
+
+  useEffect(() => {
+    if (!mostrarTogglePagoCompleto && pagoCompleto) {
+      setPagoCompleto(false);
+    }
+  }, [mostrarTogglePagoCompleto, pagoCompleto]);
+
   if (!applicant) return null;
 
   const stats = getTotalStats();
@@ -474,10 +554,12 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
 
             {/* Seccion de generacion con Tabs */}
             <div className="rounded-lg border bg-gray-50 p-4">
-              <h3 className="font-semibold flex items-center gap-2 mb-4">
-                <FileSpreadsheet className="h-5 w-5" />
-                Generar Nuevo Recibo
-              </h3>
+              <div className="mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Generar Nuevo Recibo
+                </h3>
+              </div>
 
               <Tabs defaultValue="tarifa" className="w-full">
                 <TabsList className="grid w-full grid-cols-1">
@@ -738,27 +820,32 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                         );
                       })()}
 
-                      <div className="flex items-center justify-between p-3 border rounded-lg bg-white">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-medium">Pago Completo (incluir mensualidades)</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Genera también los recibos de mensualidad del primer cuatrimestre
-                          </p>
+                      {mostrarTogglePagoCompleto && (
+                        <div className="flex items-center justify-between p-3 border rounded-lg bg-emerald-50 border-emerald-200">
+                          <div className="space-y-0.5">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                              <HandCoins className="h-4 w-4 text-emerald-600" />
+                              Pagar Cuatrimestre/Semestre Completo
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Además del recibo de colegiatura, genera un recibo por cada mensualidad restante del periodo
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs ${pagoCompleto ? "text-muted-foreground" : "font-medium"}`}>No</span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={pagoCompleto}
+                              onClick={() => setPagoCompleto(!pagoCompleto)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${pagoCompleto ? "bg-emerald-600" : "bg-gray-200"}`}
+                            >
+                              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${pagoCompleto ? "translate-x-6" : "translate-x-1"}`} />
+                            </button>
+                            <span className={`text-xs ${pagoCompleto ? "font-medium" : "text-muted-foreground"}`}>Sí</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs ${pagoCompleto ? "text-muted-foreground" : "font-medium"}`}>No</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={pagoCompleto}
-                            onClick={() => setPagoCompleto(!pagoCompleto)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${pagoCompleto ? "bg-primary" : "bg-gray-200"}`}
-                          >
-                            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${pagoCompleto ? "translate-x-6" : "translate-x-1"}`} />
-                          </button>
-                          <span className={`text-xs ${pagoCompleto ? "font-medium" : "text-muted-foreground"}`}>Sí</span>
-                        </div>
-                      </div>
+                      )}
 
                       <div className="flex justify-end gap-2">
                         <Button
@@ -867,6 +954,17 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                         >
                           {getStatusText(recibo.estatus)}
                         </span>
+                        {recibo.saldo === recibo.total && recibo.estatus !== EstatusRecibo.CANCELADO && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDiscountModal(recibo.idRecibo)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Aplicar descuento"
+                          >
+                            <Percent className="h-4 w-4" />
+                          </Button>
+                        )}
                         {recibo.saldo === recibo.total && (
                           <Button
                             variant="ghost"
@@ -884,6 +982,16 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {applicant?.notas && applicant.notas.trim().length > 0 && (
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <StickyNote className="h-4 w-4 text-amber-600" />
+              <h3 className="text-sm font-semibold text-amber-900">Notas del aspirante</h3>
+            </div>
+            <p className="whitespace-pre-wrap text-sm text-amber-900/90">{applicant.notas}</p>
           </div>
         )}
 
@@ -943,6 +1051,68 @@ export function ReceiptsManagementModal({ open, applicant, onClose, onPaymentReg
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={discountModalOpen} onOpenChange={setDiscountModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5 text-blue-600" />
+              Aplicar descuento al recibo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="mb-2 block">Tipo de descuento</Label>
+              <RadioGroup
+                value={discountMode}
+                onValueChange={(v) => setDiscountMode(v as "porcentaje" | "monto")}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="porcentaje" id="d-pct" />
+                  <Label htmlFor="d-pct" className="cursor-pointer">Porcentaje (%)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="monto" id="d-mon" />
+                  <Label htmlFor="d-mon" className="cursor-pointer">Monto fijo ($)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            <div>
+              <Label htmlFor="discount-value" className="mb-1 block">
+                {discountMode === "porcentaje" ? "Porcentaje (0-100)" : "Monto ($)"}
+              </Label>
+              <Input
+                id="discount-value"
+                type="number"
+                step={discountMode === "porcentaje" ? "0.01" : "1"}
+                min="0"
+                max={discountMode === "porcentaje" ? "100" : undefined}
+                placeholder={discountMode === "porcentaje" ? "10" : "500.00"}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="discount-reason" className="mb-1 block">Motivo (opcional)</Label>
+              <Input
+                id="discount-reason"
+                placeholder="Pago de cuatrimestre completo"
+                value={discountReason}
+                onChange={(e) => setDiscountReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDiscountModalOpen(false)} disabled={applyingDiscount}>
+              Cancelar
+            </Button>
+            <Button onClick={handleApplyDiscount} disabled={applyingDiscount || !discountValue}>
+              {applyingDiscount ? "Aplicando..." : "Aplicar descuento"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmRepairOpen} onOpenChange={setConfirmRepairOpen}>
         <AlertDialogContent>

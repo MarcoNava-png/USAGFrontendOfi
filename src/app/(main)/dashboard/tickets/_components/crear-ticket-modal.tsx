@@ -120,9 +120,13 @@ export function CrearTicketModal({ open, onClose }: Props) {
               placeholder="Detalla el problema, pasos para reproducirlo, etc."
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              rows={4}
-              maxLength={2000}
+              rows={8}
+              maxLength={20000}
+              className="min-h-[180px] resize-y"
             />
+            <div className="text-[10px] text-muted-foreground text-right">
+              {descripcion.length.toLocaleString()} / 20,000
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

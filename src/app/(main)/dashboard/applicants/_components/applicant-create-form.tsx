@@ -249,8 +249,11 @@ export function ApplicantCreateForm({
 
   const searchedTownships = useMemo(() => {
     if (!coloniaSearch) return filteredTownships;
-    return filteredTownships.filter((t) =>
-      t.asentamiento.toLowerCase().includes(coloniaSearch.toLowerCase())
+    const term = coloniaSearch.toLowerCase().trim();
+    return filteredTownships.filter(
+      (t) =>
+        t.asentamiento.toLowerCase().includes(term) ||
+        t.codigo.toLowerCase().includes(term)
     );
   }, [filteredTownships, coloniaSearch]);
 
@@ -643,12 +646,16 @@ export function ApplicantCreateForm({
                     <PopoverContent className="w-[400px] p-0" align="start">
                       <Command>
                         <CommandInput
-                          placeholder="Escribe para buscar colonia..."
+                          placeholder="Buscar por colonia o código postal..."
                           value={coloniaSearch}
                           onValueChange={setColoniaSearch}
                         />
                         <CommandList>
-                          <CommandEmpty>No se encontraron colonias</CommandEmpty>
+                          <CommandEmpty>
+                            <div className="px-2 py-3 text-xs text-muted-foreground">
+                              No se encontraron resultados. Los códigos postales se actualizan; intenta buscar por el nombre de la colonia.
+                            </div>
+                          </CommandEmpty>
                           <CommandGroup className="max-h-[300px] overflow-y-auto">
                             {searchedTownships.map((township) => (
                               <CommandItem
@@ -679,6 +686,9 @@ export function ApplicantCreateForm({
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Puedes buscar por nombre de colonia o por código postal. Si el CP no aparece, busca por nombre: los códigos cambian con el tiempo.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -958,13 +968,14 @@ export function ApplicantCreateForm({
               control={form.control}
               name="notas"
               render={({ field }) => (
-                <FormItem className="lg:col-span-4">
+                <FormItem className="lg:col-span-2">
                   <FormLabel>Notas / Observaciones</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Notas adicionales (opcional)"
-                      className="resize-none"
-                      rows={2}
+                      className="resize-y min-h-[72px]"
+                      rows={3}
+                      maxLength={500}
                       {...field}
                     />
                   </FormControl>

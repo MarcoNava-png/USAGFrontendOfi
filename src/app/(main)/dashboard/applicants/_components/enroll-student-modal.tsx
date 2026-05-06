@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer, BookOpen, Mail } from "lucide-react";
+import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer, BookOpen, Mail, IdCard, Users, Download, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,16 +17,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { enrollApplicantAsStudent, getApplicantAdmissionSheet, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
-import { getAcademicPeriods } from "@/services/catalogs-service";
+import { enrollApplicantAsStudent, getApplicantAdmissionSheet, downloadApplicantEnrollmentSheet, getApplicantInscripcionPrevia, downloadEnrollmentReceipt } from "@/services/applicants-service";
 import {
   Applicant,
   FichaAdmisionDto,
   InscribirAspiranteRequest,
   InscripcionAspiranteResultDto,
+  InscripcionPreviaAspiranteDto,
   EstatusDocumentoEnum,
 } from "@/types/applicant";
-import { AcademicPeriod } from "@/types/catalog";
 
 interface EnrollStudentModalProps {
   open: boolean;
@@ -40,15 +39,17 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [fichaAdmision, setFichaAdmision] = useState<FichaAdmisionDto | null>(null);
-  const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
+  const [previa, setPrevia] = useState<InscripcionPreviaAspiranteDto | null>(null);
 
-  const [idPeriodoAcademico, setIdPeriodoAcademico] = useState<string>("");
+  const [idGrupo, setIdGrupo] = useState<string>("");
   const [forzarInscripcion, setForzarInscripcion] = useState(false);
   const [observaciones, setObservaciones] = useState("");
   const [crearCorreoAzure, setCrearCorreoAzure] = useState(true);
 
   const [canEnroll, setCanEnroll] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const [resultado, setResultado] = useState<InscripcionAspiranteResultDto | null>(null);
 
   useEffect(() => {
     if (open && applicant) {
@@ -63,13 +64,13 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
 
     setLoading(true);
     try {
-      const [fichaData, periodsData] = await Promise.all([
+      const [fichaData, previaData] = await Promise.all([
         getApplicantAdmissionSheet(applicant.idAspirante),
-        getAcademicPeriods(),
+        getApplicantInscripcionPrevia(applicant.idAspirante),
       ]);
 
       setFichaAdmision(fichaData);
-      setAcademicPeriods(periodsData);
+      setPrevia(previaData);
 
       validateRequirements(fichaData);
     } catch (error) {
@@ -84,11 +85,13 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     const errors: string[] = [];
 
     const documentosObligatorios = ficha.documentos.filter((d) => d.esObligatorio);
-    const documentosPendientes = documentosObligatorios.filter((d) => d.estatus !== EstatusDocumentoEnum.VALIDADO);
+    const cumple = (d: typeof documentosObligatorios[number]) =>
+      d.estatus === EstatusDocumentoEnum.VALIDADO || d.tieneProrrogaVigente === true;
+    const documentosPendientes = documentosObligatorios.filter((d) => !cumple(d));
 
     if (documentosPendientes.length > 0) {
       errors.push(
-        `Documentos pendientes de validar: ${documentosPendientes.map((d) => d.descripcion).join(", ")}`,
+        `Documentos pendientes (sin prórroga vigente): ${documentosPendientes.map((d) => d.descripcion).join(", ")}`,
       );
     }
 
@@ -108,24 +111,21 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
   };
 
   const resetForm = () => {
-    setIdPeriodoAcademico("");
+    setIdGrupo("");
     setForzarInscripcion(false);
     setObservaciones("");
     setCrearCorreoAzure(true);
     setFichaAdmision(null);
+    setPrevia(null);
     setValidationErrors([]);
     setCanEnroll(false);
+    setResultado(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!applicant) return;
-
-    if (!idPeriodoAcademico) {
-      toast.error("Debe seleccionar un periodo académico para inscribir.");
-      return;
-    }
 
     if (!canEnroll && !forzarInscripcion) {
       toast.error("No se cumplen los requisitos para inscribir. Active 'Forzar inscripción' si desea continuar.");
@@ -135,34 +135,20 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     setSubmitting(true);
     try {
       const request: InscribirAspiranteRequest = {
-        idPeriodoAcademico: idPeriodoAcademico ? parseInt(idPeriodoAcademico) : null,
+        idPeriodoAcademico: previa?.idPeriodoAcademico ?? null,
+        idGrupo: idGrupo ? parseInt(idGrupo) : null,
         forzarInscripcion,
         observaciones: observaciones || null,
         crearCorreoAzure,
       };
-
-      console.log("📤 Inscribiendo aspirante:", request);
 
       const result: InscripcionAspiranteResultDto = await enrollApplicantAsStudent(
         applicant.idAspirante,
         request,
       );
 
-      console.log("✅ Inscripción exitosa:", result);
-
-      toast.success(
-        <div className="space-y-2">
-          <p className="font-bold">Inscripción exitosa</p>
-          <p>Matrícula: {result.matricula}</p>
-          <p>Usuario: {result.credenciales.usuario}</p>
-          <p>Contraseña temporal: {result.credenciales.passwordTemporal}</p>
-        </div>,
-        { duration: 10000 },
-      );
-
+      setResultado(result);
       onEnrollmentSuccess();
-      onClose();
-      resetForm();
     } catch (error: unknown) {
       console.error("Error al inscribir:", error);
       const err = error as { response?: { data?: { mensaje?: string } }; message?: string };
@@ -171,6 +157,28 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDescargarComprobante = async () => {
+    if (!resultado) return;
+    try {
+      await downloadEnrollmentReceipt(resultado.idEstudiante, resultado.credenciales.passwordTemporal);
+      toast.success("Comprobante descargado");
+    } catch {
+      toast.error("Error al descargar comprobante");
+    }
+  };
+
+  const handleCopiarCredenciales = () => {
+    if (!resultado) return;
+    const texto = `Matrícula: ${resultado.matricula}\nUsuario: ${resultado.credenciales.usuario}\nContraseña temporal: ${resultado.credenciales.passwordTemporal}`;
+    navigator.clipboard.writeText(texto);
+    toast.success("Credenciales copiadas");
+  };
+
+  const handleCerrarPostInscripcion = () => {
+    onClose();
+    resetForm();
   };
 
   const formatCurrency = (amount: number) => {
@@ -197,17 +205,14 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
     }
   };
 
-  const getDocumentStatusIcon = (estatus: EstatusDocumentoEnum) => {
-    switch (estatus) {
-      case EstatusDocumentoEnum.VALIDADO:
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case EstatusDocumentoEnum.RECHAZADO:
-        return <AlertCircle className="w-4 h-4 text-red-600" />;
-      case EstatusDocumentoEnum.SUBIDO:
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-gray-400" />;
-    }
+  const getDocumentStatusIcon = (doc: { estatus: EstatusDocumentoEnum; tieneProrrogaVigente?: boolean; prorrogaVencida?: boolean }) => {
+    if (doc.estatus === EstatusDocumentoEnum.VALIDADO)
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
+    if (doc.tieneProrrogaVigente) return <Clock className="w-4 h-4 text-amber-600" />;
+    if (doc.prorrogaVencida) return <AlertCircle className="w-4 h-4 text-red-600" />;
+    if (doc.estatus === EstatusDocumentoEnum.RECHAZADO) return <AlertCircle className="w-4 h-4 text-red-600" />;
+    if (doc.estatus === EstatusDocumentoEnum.SUBIDO) return <Clock className="w-4 h-4 text-yellow-600" />;
+    return <AlertCircle className="w-4 h-4 text-gray-400" />;
   };
 
   return (
@@ -225,6 +230,53 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
 
         {loading ? (
           <div className="py-8 text-center text-sm text-gray-500">Cargando información...</div>
+        ) : resultado ? (
+          <div className="space-y-5">
+            <div className="p-4 rounded-lg bg-emerald-50 border-2 border-emerald-300">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-emerald-900">Inscripción exitosa</h3>
+              </div>
+              <p className="text-sm text-emerald-800 mb-3">
+                El aspirante <strong>{resultado.nombreCompleto}</strong> ahora es estudiante activo.
+              </p>
+              <div className="bg-white border rounded-md p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Matrícula</span>
+                  <code className="font-mono font-bold">{resultado.matricula}</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Correo institucional</span>
+                  <code className="font-mono text-sm break-all">{resultado.credenciales.usuario}</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Contraseña temporal</span>
+                  <code className="font-mono font-bold text-red-700">{resultado.credenciales.passwordTemporal}</code>
+                </div>
+                {resultado.codigoGrupo && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Grupo asignado</span>
+                    <span className="font-medium">{resultado.codigoGrupo}{resultado.nombreGrupo ? ` · ${resultado.nombreGrupo}` : ""}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-amber-700 mt-3 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Guarda o descarga estas credenciales ahora. La contraseña no se mostrará de nuevo.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={handleCopiarCredenciales} className="text-xs gap-1">
+                <Copy className="w-3 h-3" /> Copiar
+              </Button>
+              <Button type="button" onClick={handleDescargarComprobante} className="text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
+                <Download className="w-3 h-3" /> Descargar comprobante PDF
+              </Button>
+              <Button type="button" variant="default" onClick={handleCerrarPostInscripcion} className="text-xs">
+                Cerrar
+              </Button>
+            </div>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div
@@ -252,11 +304,31 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                       {fichaAdmision.documentos
                         .filter((d) => d.esObligatorio)
                         .map((doc, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            {getDocumentStatusIcon(doc.estatus)}
-                            <span className={doc.estatus === EstatusDocumentoEnum.VALIDADO ? "text-green-700" : ""}>
+                          <div key={idx} className="flex items-center gap-2 flex-wrap">
+                            {getDocumentStatusIcon(doc)}
+                            <span
+                              className={
+                                doc.estatus === EstatusDocumentoEnum.VALIDADO
+                                  ? "text-green-700"
+                                  : doc.tieneProrrogaVigente
+                                    ? "text-amber-700"
+                                    : doc.prorrogaVencida
+                                      ? "text-red-700"
+                                      : ""
+                              }
+                            >
                               {doc.descripcion}
                             </span>
+                            {doc.tieneProrrogaVigente && doc.fechaProrroga && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                                Prórroga: {new Date(doc.fechaProrroga).toLocaleDateString("es-MX")}
+                              </span>
+                            )}
+                            {doc.prorrogaVencida && (
+                              <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-semibold">
+                                PRÓRROGA VENCIDA
+                              </span>
+                            )}
                           </div>
                         ))}
                     </div>
@@ -359,22 +431,61 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
               )}
 
               <div className="grid grid-cols-1 gap-4">
+                {previa && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <IdCard className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-emerald-700 uppercase">Matrícula proyectada</p>
+                        <p className="text-sm font-bold font-mono">{previa.matriculaProyectada}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Mail className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-emerald-700 uppercase">Correo proyectado</p>
+                        <p className="text-xs font-medium break-all">{previa.correoProyectado}</p>
+                      </div>
+                    </div>
+                    {previa.nombrePeriodoAcademico && (
+                      <div className="flex items-start gap-2 md:col-span-2">
+                        <Clock className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-emerald-700 uppercase">Periodo Académico (del aspirante)</p>
+                          <p className="text-xs font-medium">{previa.nombrePeriodoAcademico}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="idPeriodoAcademico" className="text-xs">
-                    Periodo Académico <span className="text-red-500">*</span>
+                  <Label htmlFor="idGrupo" className="text-xs flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    Grupo (opcional - lo puedes asignar después)
                   </Label>
-                  <Select value={idPeriodoAcademico} onValueChange={setIdPeriodoAcademico}>
+                  <Select value={idGrupo} onValueChange={setIdGrupo}>
                     <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Seleccione un periodo académico" />
+                      <SelectValue placeholder={previa && previa.gruposDisponibles.length === 0 ? "No hay grupos disponibles" : "Seleccione un grupo"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {academicPeriods.map((period) => (
-                        <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
-                          {period.nombre}
+                      {previa?.gruposDisponibles.map((g) => (
+                        <SelectItem
+                          key={g.idGrupo}
+                          value={g.idGrupo.toString()}
+                          disabled={!g.tieneCupo}
+                        >
+                          {g.codigoGrupo || g.nombreGrupo} · Cuatri {g.numeroCuatrimestre}
+                          {g.turno ? ` · ${g.turno}` : ""}
+                          {` · ${g.ocupados}/${g.capacidadMaxima}`}
+                          {!g.tieneCupo ? " · SIN CUPO" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Si asigna grupo, el alumno quedará inscrito automáticamente a todas las materias de ese grupo.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -463,7 +574,7 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submitting || !idPeriodoAcademico || (!canEnroll && !forzarInscripcion)}
+                  disabled={submitting || (!canEnroll && !forzarInscripcion)}
                   className="text-xs"
                 >
                   {submitting ? "Procesando..." : "Inscribir como Estudiante"}

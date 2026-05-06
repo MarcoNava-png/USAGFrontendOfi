@@ -37,8 +37,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getApplicantsList, getApplicantCounters, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
+import { getApplicantsList, getApplicantCounters, getApplicantAsesores, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
+import documentacionAspirantesService from "@/services/documentacion-aspirantes-service";
+import type { DocumentacionAspiranteResumenDto } from "@/types/documentacion-aspirantes";
 import { getCampusList } from "@/services/campus-service";
 import {
   getAcademicPeriods,
@@ -146,6 +149,15 @@ function Page() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
+  const [asesores, setAsesores] = useState<{ id: string; nombre: string }[]>([]);
+  const [filtroAsesor, setFiltroAsesor] = useState<string>("");
+  const [resumenDocs, setResumenDocs] = useState<Record<number, {
+    totalDocumentos: number;
+    documentosCompletos: number;
+    documentosConProrroga: number;
+    prorrogasVencidas: number;
+    estatusGeneral: string;
+  }>>({});
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -158,13 +170,25 @@ function Page() {
     const filterToSend: string | undefined = debouncedFilter.trim() === "" ? undefined : debouncedFilter;
     setLoading(true);
     Promise.all([
-      getApplicantsList({ page: pageIndex + 1, pageSize, filter: filterToSend }),
+      getApplicantsList({ page: pageIndex + 1, pageSize, filter: filterToSend, createdBy: filtroAsesor || undefined }),
       getApplicantCounters(),
+      documentacionAspirantesService.getResumenDocumentacion().catch(() => [] as DocumentacionAspiranteResumenDto[]),
     ])
-      .then(([res, counts]) => {
+      .then(([res, counts, resumenes]) => {
         setData(res.items);
         setTotalRows(res.totalItems ?? 0);
         setCounters(counts);
+        const map: Record<number, typeof resumenDocs[number]> = {};
+        for (const r of resumenes) {
+          map[r.idAspirante] = {
+            totalDocumentos: r.totalDocumentos,
+            documentosCompletos: r.documentosCompletos,
+            documentosConProrroga: r.documentosConProrroga,
+            prorrogasVencidas: r.prorrogasVencidas,
+            estatusGeneral: r.estatusGeneral,
+          };
+        }
+        setResumenDocs(map);
       })
       .finally(() => setLoading(false));
   };
@@ -191,7 +215,11 @@ function Page() {
       loadApplicants();
     }, 500);
     return () => clearTimeout(handler);
-  }, [pageIndex, pageSize, debouncedFilter]);
+  }, [pageIndex, pageSize, debouncedFilter, filtroAsesor]);
+
+  useEffect(() => {
+    getApplicantAsesores().then(setAsesores).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -254,29 +282,23 @@ function Page() {
 
   return (
     <div className="@container/main flex flex-col gap-4 space-y-4 md:gap-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <div
-              className="p-2 rounded-lg"
-              style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.1), rgba(30, 74, 143, 0.1))' }}
-            >
-              <Users className="h-8 w-8" style={{ color: '#14356F' }} />
-            </div>
-            Aspirantes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona los aspirantes del proceso de admisión
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filtrar por nombre o email"
-            className="min-w-[220px] rounded-lg border px-3 py-2 text-sm focus-visible:ring-[#14356F]"
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              <div
+                className="p-2 rounded-lg"
+                style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.1), rgba(30, 74, 143, 0.1))' }}
+              >
+                <Users className="h-8 w-8" style={{ color: '#14356F' }} />
+              </div>
+              Aspirantes
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Gestiona los aspirantes del proceso de admisión
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
           {canHideApplicants && (
             <Button variant="outline" asChild className="gap-1">
               <Link href="/dashboard/applicants/commissions">
@@ -292,6 +314,32 @@ function Page() {
           >
             Crear aspirante
           </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-white shadow-sm">
+          <Input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Buscar por nombre, email, CURP o telefono..."
+            className="flex-1 min-w-[200px]"
+          />
+          <Select value={filtroAsesor || "TODOS"} onValueChange={(v) => { setFiltroAsesor(v === "TODOS" ? "" : v); setPageIndex(0); }}>
+            <SelectTrigger className="w-[250px]">
+              <SelectValue placeholder="Registrado por..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los asesores</SelectItem>
+              {asesores.map((a) => (
+                <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(filter || filtroAsesor) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilter(""); setFiltroAsesor(""); setPageIndex(0); }} className="text-muted-foreground hover:text-foreground">
+              Limpiar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -431,9 +479,43 @@ function Page() {
                   </span>
                 </td>
                 <td className="px-2 py-2 text-center">
-                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getDocumentStatusBadgeClass(applicant.estatusDocumentos)}`}>
-                    {applicant.estatusDocumentos ?? "INCOMP"}
-                  </span>
+                  {(() => {
+                    const res = resumenDocs[applicant.idAspirante];
+                    if (!res) {
+                      return (
+                        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getDocumentStatusBadgeClass(applicant.estatusDocumentos)}`}>
+                          {applicant.estatusDocumentos ?? "INCOMP"}
+                        </span>
+                      );
+                    }
+                    const completos = res.documentosCompletos;
+                    const total = res.totalDocumentos;
+                    const vencidas = res.prorrogasVencidas;
+                    const prorrogas = res.documentosConProrroga;
+                    const clase = vencidas > 0
+                      ? "bg-red-100 text-red-800 border-red-300"
+                      : completos === total
+                        ? "bg-green-100 text-green-800 border-green-300"
+                        : prorrogas > 0
+                          ? "bg-amber-100 text-amber-800 border-amber-300"
+                          : "bg-orange-100 text-orange-800 border-orange-300";
+                    return (
+                      <button
+                        type="button"
+                        title={vencidas > 0 ? `${vencidas} prórroga(s) vencida(s)` : prorrogas > 0 ? `${prorrogas} con prórroga vigente` : completos === total ? "Todos recibidos" : `${total - completos} pendientes`}
+                        className={`inline-flex flex-col items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold border ${clase} hover:opacity-80`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setApplicantForDocuments(applicant);
+                          setDocumentsModalOpen(true);
+                        }}
+                      >
+                        <span>{completos}/{total}</span>
+                        {vencidas > 0 && <span className="text-[8px]">{vencidas} vencida{vencidas !== 1 ? 's' : ''}</span>}
+                        {vencidas === 0 && prorrogas > 0 && <span className="text-[8px]">{prorrogas} prórroga{prorrogas !== 1 ? 's' : ''}</span>}
+                      </button>
+                    );
+                  })()}
                 </td>
                 <td className="px-2 py-2">
                   <div className="flex items-center justify-center gap-1">

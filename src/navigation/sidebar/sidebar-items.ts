@@ -29,6 +29,9 @@ import {
   School,
   Upload,
   NotebookPen,
+  User,
+  CalendarCheck,
+  Key,
   type LucideIcon,
 } from "lucide-react";
 
@@ -150,6 +153,7 @@ export const sidebarItems: NavGroup[] = [
         icon: ClipboardList,
         requiredModule: "Admisiones",
         isNew: true,
+        badgeKey: "prorrogasVencidas",
       },
     ],
   },
@@ -265,6 +269,13 @@ export const sidebarItems: NavGroup[] = [
         title: "Egresados y Titulados",
         url: "/dashboard/egresados",
         icon: GraduationCap,
+        requiredModule: "Estudiantes",
+        isNew: true,
+      },
+      {
+        title: "Accesos de Alumnos / Docentes",
+        url: "/dashboard/accesos-alumnos-docentes",
+        icon: Key,
         requiredModule: "Estudiantes",
         isNew: true,
       },
@@ -471,11 +482,40 @@ export const sidebarItems: NavGroup[] = [
     requiredRole: "alumno",
     items: [
       {
+        title: "Mi Perfil",
+        url: "/dashboard/portal-alumno/mi-perfil",
+        icon: User,
+        requiredModule: "PortalAlumno",
+      },
+      {
+        title: "Mis Materias",
+        url: "/dashboard/portal-alumno/mis-materias",
+        icon: BookOpen,
+        requiredModule: "PortalAlumno",
+      },
+      {
+        title: "Mis Calificaciones",
+        url: "/dashboard/portal-alumno/mis-calificaciones",
+        icon: GraduationCap,
+        requiredModule: "PortalAlumno",
+      },
+      {
+        title: "Mi Asistencia",
+        url: "/dashboard/portal-alumno/mi-asistencia",
+        icon: CalendarCheck,
+        requiredModule: "PortalAlumno",
+      },
+      {
+        title: "Mis Pagos",
+        url: "/dashboard/portal-alumno/mis-pagos",
+        icon: DollarSign,
+        requiredModule: "PortalAlumno",
+      },
+      {
         title: "Mis Tareas",
         url: "/dashboard/portal-alumno/tareas",
         icon: NotebookPen,
         requiredModule: "PortalAlumno",
-        isNew: true,
       },
     ],
   },

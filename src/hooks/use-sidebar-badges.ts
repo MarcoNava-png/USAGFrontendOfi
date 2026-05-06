@@ -3,17 +3,20 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import documentosSolicitudesService from '@/services/documentos-solicitudes-service'
+import documentacionAspirantesService from '@/services/documentacion-aspirantes-service'
 import apiClient from '@/services/api-client'
 
 export interface SidebarBadges {
   solicitudesDocumentos: number
   solicitudesBaja: number
+  prorrogasVencidas: number
 }
 
 export function useSidebarBadges() {
   const [badges, setBadges] = useState<SidebarBadges>({
     solicitudesDocumentos: 0,
     solicitudesBaja: 0,
+    prorrogasVencidas: 0,
   })
   const [loading, setLoading] = useState(true)
 
@@ -27,14 +30,16 @@ export function useSidebarBadges() {
     }
 
     try {
-      const [contadorSolicitudes, contadorBajas] = await Promise.all([
+      const [contadorSolicitudes, contadorBajas, resumenDocs] = await Promise.all([
         documentosSolicitudesService.getContadorPendientes().catch(() => 0),
         apiClient.get<{ pendientes: number }>('/solicitudes-baja/pendientes/count').then(r => r.data.pendientes).catch(() => 0),
+        documentacionAspirantesService.getResumenDocumentacion({ estatus: 'PRORROGA_VENCIDA' }).catch(() => []),
       ])
       setBadges((prev) => ({
         ...prev,
         solicitudesDocumentos: contadorSolicitudes,
         solicitudesBaja: contadorBajas,
+        prorrogasVencidas: resumenDocs.length,
       }))
     } catch (error) {
       console.error('Error fetching sidebar badges:', error)

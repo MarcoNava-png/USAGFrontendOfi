@@ -11,6 +11,7 @@ import {
   FichaAdmisionDto,
   InscribirAspiranteRequest,
   InscripcionAspiranteResultDto,
+  InscripcionPreviaAspiranteDto,
   PayloadCreateApplicant,
   PayloadTrackingLog,
   PayloadUpdateApplicant,
@@ -27,10 +28,19 @@ export async function getApplicantsList(dataOptions: {
   page?: number;
   pageSize?: number;
   filter?: string;
+  createdBy?: string;
 }): Promise<ApplicantsResponse> {
-  const { data } = await apiClient.get<ApplicantsResponse>(
-    `/Aspirante?page=${dataOptions.page ?? 1}&pageSize=${dataOptions.pageSize ?? 20}&filter=${dataOptions.filter ?? ""}`,
-  );
+  const params = new URLSearchParams();
+  params.set("page", String(dataOptions.page ?? 1));
+  params.set("pageSize", String(dataOptions.pageSize ?? 20));
+  if (dataOptions.filter) params.set("filter", dataOptions.filter);
+  if (dataOptions.createdBy) params.set("registradoPor", dataOptions.createdBy);
+  const { data } = await apiClient.get<ApplicantsResponse>(`/Aspirante?${params.toString()}`);
+  return data;
+}
+
+export async function getApplicantAsesores(): Promise<{ id: string; nombre: string }[]> {
+  const { data } = await apiClient.get<{ id: string; nombre: string }[]>("/Aspirante/asesores");
   return data;
 }
 
@@ -131,6 +141,25 @@ export async function getApplicantStatistics(periodoId?: number): Promise<Estadi
 export async function getApplicantAdmissionSheet(aspiranteId: number): Promise<FichaAdmisionDto> {
   const { data } = await apiClient.get<FichaAdmisionDto>(`/Aspirante/${aspiranteId}/ficha-admision`);
   return data;
+}
+
+export async function getApplicantInscripcionPrevia(aspiranteId: number): Promise<InscripcionPreviaAspiranteDto> {
+  const { data } = await apiClient.get<InscripcionPreviaAspiranteDto>(`/Aspirante/${aspiranteId}/inscripcion-previa`);
+  return data;
+}
+
+export async function downloadEnrollmentReceipt(idEstudiante: number, passwordTemporal?: string): Promise<void> {
+  const params = passwordTemporal ? `?passwordTemporal=${encodeURIComponent(passwordTemporal)}` : "";
+  const response = await apiClient.get(`/estudiantes/${idEstudiante}/comprobante-inscripcion/pdf${params}`, {
+    responseType: "blob",
+  });
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `comprobante-inscripcion-${idEstudiante}.pdf`;
+  a.click();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function downloadApplicantEnrollmentSheet(aspiranteId: number, openInNewTab: boolean = false): Promise<void> {
@@ -272,6 +301,23 @@ export async function generarRecibosDesdeePlantilla(
   const { data } = await apiClient.post<ReciboDto[]>(
     `/Aspirante/${aspiranteId}/generar-recibos-plantilla`,
     { idPlantillaCobro, eliminarPendientesExistentes }
+  );
+  return data;
+}
+
+export interface GenerarMensualidadesResultDto {
+  success: boolean;
+  mensaje: string;
+  recibosGenerados: number;
+  mensualidadesPorPeriodo: number;
+  recibos: ReciboDto[];
+}
+
+export async function generarMensualidadesCompletas(
+  aspiranteId: number
+): Promise<GenerarMensualidadesResultDto> {
+  const { data } = await apiClient.post<GenerarMensualidadesResultDto>(
+    `/Aspirante/${aspiranteId}/generar-mensualidades-completas`
   );
   return data;
 }

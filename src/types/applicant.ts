@@ -24,6 +24,7 @@ export interface Applicant {
   cuatrimestreInteres?: number;
   idEmpresa?: number | null;
   nombreEmpresa?: string | null;
+  notas?: string | null;
 }
 
 export interface PayloadCreateApplicant {
@@ -162,6 +163,8 @@ export interface AspiranteDocumentoDto {
   estatus: EstatusDocumentoEnum;
   urlArchivo?: string | null;
   notas?: string | null;
+  fechaProrroga?: string | null;
+  motivoProrroga?: string | null;
 }
 
 export interface DocumentoRequisitoDto {
@@ -296,6 +299,10 @@ export interface DocumentoDto {
   fechaSubida?: string | null;
   urlArchivo?: string | null;
   notas?: string | null;
+  fechaProrroga?: string | null;
+  motivoProrroga?: string | null;
+  tieneProrrogaVigente?: boolean;
+  prorrogaVencida?: boolean;
 }
 
 export interface ConceptoReciboDto {
@@ -373,7 +380,7 @@ export interface FichaAdmisionDto {
 export interface DocumentoValidacionDto {
   descripcion: string;
   esObligatorio: boolean;
-  estatus: EstatusDocumentoEnum;
+  estatus: string;
   cumple: boolean;
 }
 
@@ -409,6 +416,9 @@ export interface InscripcionAspiranteResultDto {
   email: string;
   fechaIngreso: string;
   planEstudios: string;
+  idGrupo?: number | null;
+  nombreGrupo?: string | null;
+  codigoGrupo?: string | null;
   credenciales: CredencialesAccesoDto;
   recibosGenerados: ReciboGeneradoDto[];
   validaciones: ValidacionesInscripcionDto;
@@ -419,9 +429,40 @@ export interface InscripcionAspiranteResultDto {
 
 export interface InscribirAspiranteRequest {
   idPeriodoAcademico?: number | null;
+  idGrupo?: number | null;
   forzarInscripcion?: boolean;
   observaciones?: string | null;
   crearCorreoAzure?: boolean;
+}
+
+export interface GrupoDisponibleParaAspiranteDto {
+  idGrupo: number;
+  nombreGrupo: string;
+  codigoGrupo?: string | null;
+  numeroCuatrimestre: number;
+  turno?: string | null;
+  idTurno?: number | null;
+  capacidadMaxima: number;
+  ocupados: number;
+  cupoDisponible: number;
+  tieneCupo: boolean;
+  periodoAcademico?: string | null;
+  idPeriodoAcademico: number;
+}
+
+export interface InscripcionPreviaAspiranteDto {
+  idAspirante: number;
+  nombreCompleto: string;
+  matriculaProyectada: string;
+  correoProyectado: string;
+  idPlanEstudios?: number | null;
+  nombrePlanEstudios?: string | null;
+  clavePlanEstudios?: string | null;
+  idPeriodoAcademico?: number | null;
+  nombrePeriodoAcademico?: string | null;
+  turnoAspirante?: string | null;
+  idTurnoAspirante?: number | null;
+  gruposDisponibles: GrupoDisponibleParaAspiranteDto[];
 }
 
 export interface CancelarAspiranteRequest {

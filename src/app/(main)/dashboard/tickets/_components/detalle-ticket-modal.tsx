@@ -254,7 +254,7 @@ export function DetalleTicketModal({
               Comentarios ({ticket.comentarios.length})
             </h4>
 
-            <div className="space-y-3 max-h-[250px] overflow-y-auto">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {ticket.comentarios.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay comentarios aún.
@@ -310,9 +310,13 @@ export function DetalleTicketModal({
                   placeholder="Escribe un comentario..."
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
-                  rows={2}
-                  maxLength={2000}
+                  rows={10}
+                  maxLength={20000}
+                  className="min-h-[220px] resize-y"
                 />
+                <div className="text-[10px] text-muted-foreground text-right">
+                  {comentario.length.toLocaleString()} / 20,000
+                </div>
                 <div className="flex items-center gap-2">
                   {archivoComentario ? (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground flex-1">

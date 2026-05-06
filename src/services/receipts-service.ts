@@ -159,6 +159,23 @@ export async function cancelarRecibo(idRecibo: number, motivo: string): Promise<
   return data;
 }
 
+export interface AplicarDescuentoPayload {
+  porcentaje?: number;
+  monto?: number;
+  motivo?: string;
+}
+
+export async function aplicarDescuentoRecibo(
+  idRecibo: number,
+  payload: AplicarDescuentoPayload
+): Promise<Receipt> {
+  const { data } = await apiClient.put<Receipt>(
+    `/recibos/${idRecibo}/aplicar-descuento`,
+    payload
+  );
+  return data;
+}
+
 export async function reversarRecibo(idRecibo: number, motivo: string): Promise<Receipt> {
   const { data } = await apiClient.put<Receipt>(`/recibos/${idRecibo}/reversar`, {
     motivo,

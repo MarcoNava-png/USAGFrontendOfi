@@ -14,6 +14,7 @@ import {
   Loader2,
   UserX,
   Users,
+  FileWarning,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,6 +47,10 @@ import {
   descargarReporteBajasPdf,
   descargarReporteBajasExcel,
   getReporteBajas,
+  descargarAlumnosInscritosExcel,
+  getAlumnosInscritos,
+  descargarAdeudoDocumentosExcel,
+  getAdeudoDocumentos,
   descargarBlob,
   getGrupos,
   getPeriodosAcademicos,
@@ -76,19 +81,23 @@ interface CampusItem {
 interface PlanEstudioItem {
   idPlanEstudios: number;
   nombrePlanEstudios: string;
+  idCampus?: number;
 }
 
 interface GrupoItem {
   idGrupo: number;
   nombreGrupo: string;
+  codigoGrupo?: string;
   planEstudios?: string;
   idPlanEstudios?: number;
 }
 
 interface GrupoMateriaItem {
   idGrupoMateria: number;
+  nombreMateria?: string;
   materia?: string;
   nombre?: string;
+  claveMateria?: string;
 }
 
 interface ParcialItem {
@@ -499,7 +508,7 @@ export default function ReportesAcademicosPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap">
+        <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 [&>*]:flex-none">
           <TabsTrigger value="estudiantes" className="flex items-center gap-1">
             <Users className="w-4 h-4" /> Estudiantes
           </TabsTrigger>
@@ -529,6 +538,12 @@ export default function ReportesAcademicosPage() {
           </TabsTrigger>
           <TabsTrigger value="bajas" className="flex items-center gap-1">
             <UserX className="w-4 h-4" /> Bajas
+          </TabsTrigger>
+          <TabsTrigger value="alumnos-inscritos" className="flex items-center gap-1">
+            <Users className="w-4 h-4" /> Inscritos por Periodo
+          </TabsTrigger>
+          <TabsTrigger value="adeudo-documentos" className="flex items-center gap-1">
+            <FileWarning className="w-4 h-4" /> Adeudo de Documentos
           </TabsTrigger>
         </TabsList>
 
@@ -595,7 +610,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {gruposFiltrados.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.nombreGrupo}
+                          {g.codigoGrupo ?? g.nombreGrupo}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -773,7 +788,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {grupoMaterias.map((gm) => (
                         <SelectItem key={gm.idGrupoMateria} value={gm.idGrupoMateria.toString()}>
-                          {gm.materia ?? gm.nombre ?? `Materia ${gm.idGrupoMateria}`}
+                          {gm.nombreMateria ?? gm.materia ?? gm.nombre ?? `Materia ${gm.idGrupoMateria}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -924,17 +939,71 @@ export default function ReportesAcademicosPage() {
               <CardDescription>Lista imprimible para pase de asistencia en aula</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <Label>Grupo</Label>
-                  <Select value={selectedGrupo} onValueChange={setSelectedGrupo} disabled={!selectedPeriodo}>
+                  <Label>Campus</Label>
+                  <Select
+                    value={selectedCampus}
+                    onValueChange={(v) => {
+                      setSelectedCampus(v);
+                      setSelectedPlanEstudios("");
+                      setSelectedGrupo("");
+                      setSelectedGrupoMateria("");
+                    }}
+                    disabled={!selectedPeriodo}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Grupo..." />
+                      <SelectValue placeholder={selectedPeriodo ? "Seleccionar campus..." : "Primero selecciona un periodo"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {grupos.map((g) => (
+                      {campusList.map((c) => (
+                        <SelectItem key={c.idCampus} value={c.idCampus.toString()}>
+                          {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Plan de Estudios</Label>
+                  <Select
+                    value={selectedPlanEstudios}
+                    onValueChange={(v) => {
+                      setSelectedPlanEstudios(v);
+                      setSelectedGrupo("");
+                      setSelectedGrupoMateria("");
+                    }}
+                    disabled={!selectedCampus}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedCampus ? "Seleccionar plan..." : "Primero selecciona un campus"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {planesList.map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.idPlanEstudios.toString()}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Grupo</Label>
+                  <Select
+                    value={selectedGrupo}
+                    onValueChange={(v) => {
+                      setSelectedGrupo(v);
+                      setSelectedGrupoMateria("");
+                    }}
+                    disabled={!selectedPlanEstudios}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedPlanEstudios ? "Seleccionar grupo..." : "Primero selecciona un plan"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gruposFiltrados.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.nombreGrupo}
+                          {g.codigoGrupo ?? g.nombreGrupo}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -944,12 +1013,12 @@ export default function ReportesAcademicosPage() {
                   <Label>Materia</Label>
                   <Select value={selectedGrupoMateria} onValueChange={setSelectedGrupoMateria} disabled={!selectedGrupo}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Materia..." />
+                      <SelectValue placeholder={selectedGrupo ? "Seleccionar materia..." : "Primero selecciona un grupo"} />
                     </SelectTrigger>
                     <SelectContent>
                       {grupoMaterias.map((gm) => (
                         <SelectItem key={gm.idGrupoMateria} value={gm.idGrupoMateria.toString()}>
-                          {gm.materia ?? gm.nombre ?? `Materia ${gm.idGrupoMateria}`}
+                          {gm.nombreMateria ?? gm.materia ?? gm.nombre ?? `Materia ${gm.idGrupoMateria}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1576,6 +1645,16 @@ export default function ReportesAcademicosPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ────── Alumnos Inscritos por Periodo ────── */}
+        <TabsContent value="alumnos-inscritos">
+          <AlumnosInscritosReporte periodoActivo={selectedPeriodo} periodos={periodos} campusList={campusList} planes={planesList} />
+        </TabsContent>
+
+        {/* ────── Adeudo de Documentos ────── */}
+        <TabsContent value="adeudo-documentos">
+          <AdeudoDocumentosReporte periodoActivo={selectedPeriodo} periodos={periodos} campusList={campusList} planes={planesList} />
+        </TabsContent>
       </Tabs>
 
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1585,5 +1664,566 @@ export default function ReportesAcademicosPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+interface PeriodoItem { idPeriodoAcademico: number; nombre: string }
+interface PlanItem { idPlanEstudios: number; nombrePlanEstudios: string; idCampus?: number }
+interface CampusFilterItem { idCampus: number; nombre: string }
+
+interface GrupoConCampus {
+  idGrupo: number;
+  codigoGrupo?: string;
+  nombreGrupo?: string;
+  idPlanEstudios: number;
+  planEstudios?: string;
+  idCampus?: number;
+  campus?: string;
+  turno?: string;
+}
+
+function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-dashed rounded-lg bg-muted/30">
+      <FileText className="w-12 h-12 text-muted-foreground/50 mb-3" />
+      <h3 className="text-base font-semibold text-foreground mb-1">{titulo}</h3>
+      <p className="text-sm text-muted-foreground max-w-md">{descripcion}</p>
+    </div>
+  );
+}
+
+interface AlumnoInscritoPreview {
+  idEstudiante: number;
+  matricula: string;
+  nombreCompleto: string;
+  planEstudios: string;
+  campus?: string;
+  grupoCodigo?: string;
+  turno?: string;
+  numeroCuatrimestre?: number;
+  periodoAcademico: string;
+  email?: string;
+  telefono?: string;
+}
+
+interface AlumnosInscritosData {
+  totalAlumnos: number;
+  nombresPeriodo: string[];
+  nombrePlanEstudios?: string;
+  alumnos: AlumnoInscritoPreview[];
+}
+
+function AlumnosInscritosReporte({ periodoActivo, periodos, campusList, planes }: { periodoActivo: string; periodos: PeriodoItem[]; campusList: CampusFilterItem[]; planes: PlanItem[] }) {
+  const [idCampus, setIdCampus] = useState<string>("todos");
+  const [idPlan, setIdPlan] = useState<string>("todos");
+  const [idGrupo, setIdGrupo] = useState<string>("todos");
+  const [grupos, setGrupos] = useState<GrupoConCampus[]>([]);
+  const [cargandoGrupos, setCargandoGrupos] = useState(false);
+  const [consultando, setConsultando] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const [data, setData] = useState<AlumnosInscritosData | null>(null);
+
+  const idPeriodoNum = periodoActivo ? Number(periodoActivo) : undefined;
+  const nombrePeriodo = periodos.find(p => p.idPeriodoAcademico === idPeriodoNum)?.nombre;
+  const nombreCampus = idCampus && idCampus !== "todos" ? campusList.find(c => c.idCampus === Number(idCampus))?.nombre : undefined;
+  const nombrePlan = idPlan && idPlan !== "todos" ? planes.find(p => p.idPlanEstudios === Number(idPlan))?.nombrePlanEstudios : undefined;
+  const nombreGrupo = idGrupo && idGrupo !== "todos" ? grupos.find(g => g.idGrupo === Number(idGrupo))?.codigoGrupo : undefined;
+
+  useEffect(() => {
+    if (!idPeriodoNum) {
+      setGrupos([]);
+      return;
+    }
+    setCargandoGrupos(true);
+    getGroups(1, 500, idPeriodoNum)
+      .then((res: unknown) => {
+        const items = ((res as { items?: unknown[] })?.items ?? (Array.isArray(res) ? res : [])) as GrupoConCampus[];
+        setGrupos(items);
+      })
+      .catch(() => setGrupos([]))
+      .finally(() => setCargandoGrupos(false));
+    setData(null);
+    setIdCampus("todos");
+    setIdPlan("todos");
+    setIdGrupo("todos");
+  }, [idPeriodoNum]);
+
+  const planesFiltrados = useMemo(() => {
+    if (!idCampus || idCampus === "todos") return planes;
+    return planes.filter(p => p.idCampus === Number(idCampus));
+  }, [planes, idCampus]);
+
+  const gruposFiltrados = useMemo(() => {
+    let res = grupos;
+    if (idCampus && idCampus !== "todos") res = res.filter(g => g.idCampus === Number(idCampus));
+    if (idPlan && idPlan !== "todos") res = res.filter(g => g.idPlanEstudios === Number(idPlan));
+    return res;
+  }, [grupos, idCampus, idPlan]);
+
+  useEffect(() => {
+    if (idPlan !== "todos" && !planesFiltrados.some(p => p.idPlanEstudios === Number(idPlan))) {
+      setIdPlan("todos");
+    }
+  }, [planesFiltrados, idPlan]);
+
+  useEffect(() => {
+    if (idGrupo !== "todos" && !gruposFiltrados.some(g => g.idGrupo === Number(idGrupo))) {
+      setIdGrupo("todos");
+    }
+  }, [gruposFiltrados, idGrupo]);
+
+  const campusParam = idCampus && idCampus !== "todos" ? Number(idCampus) : undefined;
+  const planParam = idPlan && idPlan !== "todos" ? Number(idPlan) : undefined;
+  const grupoParam = idGrupo && idGrupo !== "todos" ? Number(idGrupo) : undefined;
+
+  const consultar = async () => {
+    if (!idPeriodoNum) {
+      toast.error("Selecciona un periodo académico arriba");
+      return;
+    }
+    setConsultando(true);
+    try {
+      const res = await getAlumnosInscritos([idPeriodoNum], planParam, campusParam, grupoParam);
+      setData(res);
+      if (!res?.alumnos?.length) toast.info("No se encontraron alumnos con los filtros seleccionados");
+    } catch {
+      toast.error("Error al consultar el reporte");
+    } finally {
+      setConsultando(false);
+    }
+  };
+
+  const descargar = async () => {
+    if (!idPeriodoNum) {
+      toast.error("Selecciona un periodo académico arriba");
+      return;
+    }
+    setGenerando(true);
+    try {
+      const blob = await descargarAlumnosInscritosExcel([idPeriodoNum], planParam, campusParam, grupoParam);
+      descargarBlob(blob, `AlumnosInscritos_${nombrePeriodo?.replace(/\s+/g, "_") ?? "reporte"}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("Reporte descargado");
+    } catch {
+      toast.error("Error al generar el reporte");
+    } finally {
+      setGenerando(false);
+    }
+  };
+
+  const onChangeCampus = (v: string) => { setIdCampus(v); setIdPlan("todos"); setIdGrupo("todos"); setData(null); };
+  const onChangePlan = (v: string) => { setIdPlan(v); setIdGrupo("todos"); setData(null); };
+  const onChangeGrupo = (v: string) => { setIdGrupo(v); setData(null); };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Alumnos Inscritos por Periodo
+            </CardTitle>
+            <CardDescription className="mt-1">Lista de alumnos inscritos en el periodo seleccionado. Filtra por campus o grupo.</CardDescription>
+          </div>
+          {nombrePeriodo && (
+            <Badge variant="secondary" className="h-7 px-3">
+              <Clock className="w-3.5 h-3.5 mr-1.5" />
+              {nombrePeriodo}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {!idPeriodoNum ? (
+          <EstadoVacio titulo="Selecciona un periodo académico" descripcion="Elige un periodo en la parte superior de la página para comenzar a generar este reporte." />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Campus</Label>
+                <Select value={idCampus} onValueChange={onChangeCampus}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los campus</SelectItem>
+                    {campusList.map((c) => (
+                      <SelectItem key={c.idCampus} value={String(c.idCampus)}>{c.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Plan de estudios</Label>
+                <Select value={idPlan} onValueChange={onChangePlan}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los planes ({planesFiltrados.length})</SelectItem>
+                    {planesFiltrados.map((p) => (
+                      <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>{p.nombrePlanEstudios}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Grupo</Label>
+                <Select value={idGrupo} onValueChange={onChangeGrupo} disabled={cargandoGrupos}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder={cargandoGrupos ? "Cargando..." : "Todos los grupos"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los grupos ({gruposFiltrados.length})</SelectItem>
+                    {gruposFiltrados.map((g) => (
+                      <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>
+                        {g.codigoGrupo ?? g.nombreGrupo} {g.turno ? `· ${g.turno}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={consultar} disabled={consultando} className="gap-2">
+                {consultando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+                Generar reporte
+              </Button>
+              <Button onClick={descargar} disabled={generando} className="gap-2" variant="outline">
+                {generando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Descargar Excel
+              </Button>
+            </div>
+
+            {data && (
+              <div className="mt-2 space-y-3 border-t pt-4">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Badge className="h-7 px-3">{data.totalAlumnos} {data.totalAlumnos === 1 ? "alumno" : "alumnos"}</Badge>
+                  {nombreCampus && <Badge variant="outline">Campus: {nombreCampus}</Badge>}
+                  {nombrePlan && <Badge variant="outline" className="max-w-xs truncate">Plan: {nombrePlan}</Badge>}
+                  {nombreGrupo && <Badge variant="outline">Grupo: {nombreGrupo}</Badge>}
+                </div>
+                {data.alumnos?.length > 0 ? (
+                  <div className="border rounded-md max-h-[480px] overflow-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow>
+                          <TableHead>Matrícula</TableHead>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Campus</TableHead>
+                          <TableHead>Grupo</TableHead>
+                          <TableHead>Turno</TableHead>
+                          <TableHead>Cuatri</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.alumnos.slice(0, 100).map((a) => (
+                          <TableRow key={`${a.idEstudiante}-${a.grupoCodigo}`}>
+                            <TableCell className="font-mono text-xs">{a.matricula}</TableCell>
+                            <TableCell className="font-medium">{a.nombreCompleto}</TableCell>
+                            <TableCell className="text-xs">{a.planEstudios}</TableCell>
+                            <TableCell className="text-xs">{a.campus ?? "-"}</TableCell>
+                            <TableCell>{a.grupoCodigo ?? "-"}</TableCell>
+                            <TableCell className="text-xs">{a.turno ?? "-"}</TableCell>
+                            <TableCell>{a.numeroCuatrimestre ?? "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {data.alumnos.length > 100 && (
+                      <div className="p-2 text-xs text-muted-foreground text-center bg-muted/40">
+                        Mostrando los primeros 100 de {data.alumnos.length}. Descarga el Excel para ver todos.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <EstadoVacio titulo="Sin resultados" descripcion="No hay alumnos inscritos que coincidan con los filtros seleccionados." />
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface AlumnoAdeudoPreview {
+  idEstudiante: number;
+  matricula: string;
+  nombreCompleto: string;
+  planEstudios: string;
+  grupoCodigo?: string;
+  documentosFaltantes: number;
+  conProrrogaVigente: number;
+  conProrrogaVencida: number;
+  sinProrroga: number;
+}
+
+interface AdeudoDocumentosData {
+  totalAlumnosConAdeudo: number;
+  totalDocumentosFaltantes: number;
+  conProrrogaVigente: number;
+  conProrrogaVencida: number;
+  sinProrroga: number;
+  alumnos: AlumnoAdeudoPreview[];
+}
+
+function AdeudoDocumentosReporte({ periodoActivo, periodos, campusList, planes }: { periodoActivo: string; periodos: PeriodoItem[]; campusList: CampusFilterItem[]; planes: PlanItem[] }) {
+  const [idCampus, setIdCampus] = useState<string>("todos");
+  const [idPlan, setIdPlan] = useState<string>("todos");
+  const [idGrupo, setIdGrupo] = useState<string>("todos");
+  const [tipoFiltro, setTipoFiltro] = useState<string>("todos");
+  const [grupos, setGrupos] = useState<GrupoConCampus[]>([]);
+  const [cargandoGrupos, setCargandoGrupos] = useState(false);
+  const [consultando, setConsultando] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const [data, setData] = useState<AdeudoDocumentosData | null>(null);
+
+  const idPeriodoNum = periodoActivo ? Number(periodoActivo) : undefined;
+  const nombrePeriodo = periodos.find(p => p.idPeriodoAcademico === idPeriodoNum)?.nombre;
+  const nombreCampus = idCampus && idCampus !== "todos" ? campusList.find(c => c.idCampus === Number(idCampus))?.nombre : undefined;
+  const nombrePlan = idPlan && idPlan !== "todos" ? planes.find(p => p.idPlanEstudios === Number(idPlan))?.nombrePlanEstudios : undefined;
+  const nombreGrupo = idGrupo && idGrupo !== "todos" ? grupos.find(g => g.idGrupo === Number(idGrupo))?.codigoGrupo : undefined;
+
+  useEffect(() => {
+    if (!idPeriodoNum) {
+      setGrupos([]);
+      return;
+    }
+    setCargandoGrupos(true);
+    getGroups(1, 500, idPeriodoNum)
+      .then((res: unknown) => {
+        const items = ((res as { items?: unknown[] })?.items ?? (Array.isArray(res) ? res : [])) as GrupoConCampus[];
+        setGrupos(items);
+      })
+      .catch(() => setGrupos([]))
+      .finally(() => setCargandoGrupos(false));
+    setData(null);
+    setIdCampus("todos");
+    setIdPlan("todos");
+    setIdGrupo("todos");
+  }, [idPeriodoNum]);
+
+  const planesFiltrados = useMemo(() => {
+    if (!idCampus || idCampus === "todos") return planes;
+    return planes.filter(p => p.idCampus === Number(idCampus));
+  }, [planes, idCampus]);
+
+  const gruposFiltrados = useMemo(() => {
+    let res = grupos;
+    if (idCampus && idCampus !== "todos") res = res.filter(g => g.idCampus === Number(idCampus));
+    if (idPlan && idPlan !== "todos") res = res.filter(g => g.idPlanEstudios === Number(idPlan));
+    return res;
+  }, [grupos, idCampus, idPlan]);
+
+  useEffect(() => {
+    if (idPlan !== "todos" && !planesFiltrados.some(p => p.idPlanEstudios === Number(idPlan))) {
+      setIdPlan("todos");
+    }
+  }, [planesFiltrados, idPlan]);
+
+  useEffect(() => {
+    if (idGrupo !== "todos" && !gruposFiltrados.some(g => g.idGrupo === Number(idGrupo))) {
+      setIdGrupo("todos");
+    }
+  }, [gruposFiltrados, idGrupo]);
+
+  const periodoParam = idPeriodoNum;
+  const campusParam = idCampus && idCampus !== "todos" ? Number(idCampus) : undefined;
+  const grupoParam = idGrupo && idGrupo !== "todos" ? Number(idGrupo) : undefined;
+  const tipoParam = tipoFiltro && tipoFiltro !== "todos" ? tipoFiltro : undefined;
+  const planesArrayParam = idPlan && idPlan !== "todos" ? [Number(idPlan)] : [];
+
+  const consultar = async () => {
+    setConsultando(true);
+    try {
+      const res = await getAdeudoDocumentos(planesArrayParam, periodoParam, tipoParam, campusParam, grupoParam);
+      setData(res);
+      if (!res?.alumnos?.length) toast.info("No se encontraron alumnos con adeudo");
+    } catch {
+      toast.error("Error al consultar el reporte");
+    } finally {
+      setConsultando(false);
+    }
+  };
+
+  const descargar = async () => {
+    setGenerando(true);
+    try {
+      const blob = await descargarAdeudoDocumentosExcel(planesArrayParam, periodoParam, tipoParam, campusParam, grupoParam);
+      descargarBlob(blob, `AdeudoDocumentos_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("Reporte descargado");
+    } catch {
+      toast.error("Error al generar el reporte");
+    } finally {
+      setGenerando(false);
+    }
+  };
+
+  const onChangeCampus = (v: string) => { setIdCampus(v); setIdPlan("todos"); setIdGrupo("todos"); setData(null); };
+  const onChangePlan = (v: string) => { setIdPlan(v); setIdGrupo("todos"); setData(null); };
+  const onChangeGrupo = (v: string) => { setIdGrupo(v); setData(null); };
+  const onChangeTipo = (v: string) => { setTipoFiltro(v); setData(null); };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileWarning className="w-5 h-5 text-amber-600" />
+              Adeudo de Documentos (Expediente)
+            </CardTitle>
+            <CardDescription className="mt-1">Alumnos que no han entregado documentos obligatorios. Filtra por campus, grupo o estatus de prórroga.</CardDescription>
+          </div>
+          {nombrePeriodo && (
+            <Badge variant="secondary" className="h-7 px-3">
+              <Clock className="w-3.5 h-3.5 mr-1.5" />
+              {nombrePeriodo}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <Label className="text-sm font-medium">Campus</Label>
+            <Select value={idCampus} onValueChange={onChangeCampus}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los campus</SelectItem>
+                {campusList.map((c) => (
+                  <SelectItem key={c.idCampus} value={String(c.idCampus)}>{c.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm font-medium">Plan de estudios</Label>
+            <Select value={idPlan} onValueChange={onChangePlan}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los planes ({planesFiltrados.length})</SelectItem>
+                {planesFiltrados.map((p) => (
+                  <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>{p.nombrePlanEstudios}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm font-medium">Grupo</Label>
+            <Select value={idGrupo} onValueChange={onChangeGrupo} disabled={!idPeriodoNum || cargandoGrupos}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue placeholder={!idPeriodoNum ? "Selecciona un periodo" : cargandoGrupos ? "Cargando..." : "Todos los grupos"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los grupos ({gruposFiltrados.length})</SelectItem>
+                {gruposFiltrados.map((g) => (
+                  <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>
+                    {g.codigoGrupo ?? g.nombreGrupo} {g.turno ? `· ${g.turno}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm font-medium">Estatus de prórroga</Label>
+            <Select value={tipoFiltro} onValueChange={onChangeTipo}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="SIN_PRORROGA">Sin prórroga</SelectItem>
+                <SelectItem value="PRORROGA_VIGENTE">Prórroga vigente</SelectItem>
+                <SelectItem value="PRORROGA_VENCIDA">Prórroga vencida</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={consultar} disabled={consultando} className="gap-2">
+            {consultando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+            Generar reporte
+          </Button>
+          <Button onClick={descargar} disabled={generando} className="gap-2" variant="outline">
+            {generando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Descargar Excel
+          </Button>
+        </div>
+
+        {data && (
+          <div className="mt-2 space-y-4 border-t pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="border rounded-lg p-3 bg-muted/30">
+                <div className="text-xs text-muted-foreground">Alumnos</div>
+                <div className="text-2xl font-bold">{data.totalAlumnosConAdeudo}</div>
+              </div>
+              <div className="border rounded-lg p-3 bg-muted/30">
+                <div className="text-xs text-muted-foreground">Docs faltantes</div>
+                <div className="text-2xl font-bold">{data.totalDocumentosFaltantes}</div>
+              </div>
+              <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                <div className="text-xs text-green-800">Prórroga vigente</div>
+                <div className="text-2xl font-bold text-green-700">{data.conProrrogaVigente}</div>
+              </div>
+              <div className="border rounded-lg p-3 bg-red-50 border-red-200">
+                <div className="text-xs text-red-800">Prórroga vencida</div>
+                <div className="text-2xl font-bold text-red-700">{data.conProrrogaVencida}</div>
+              </div>
+              <div className="border rounded-lg p-3 bg-amber-50 border-amber-200">
+                <div className="text-xs text-amber-800">Sin prórroga</div>
+                <div className="text-2xl font-bold text-amber-700">{data.sinProrroga}</div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+              {nombreCampus && <Badge variant="outline">Campus: {nombreCampus}</Badge>}
+              {nombrePlan && <Badge variant="outline" className="max-w-xs truncate">Plan: {nombrePlan}</Badge>}
+              {nombreGrupo && <Badge variant="outline">Grupo: {nombreGrupo}</Badge>}
+              {tipoParam && <Badge variant="outline">{tipoParam.replace("_", " ").toLowerCase()}</Badge>}
+            </div>
+
+            {data.alumnos?.length > 0 ? (
+              <div className="border rounded-md max-h-[480px] overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background">
+                    <TableRow>
+                      <TableHead>Matrícula</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Grupo</TableHead>
+                      <TableHead className="text-center">Faltantes</TableHead>
+                      <TableHead className="text-center">Vigente</TableHead>
+                      <TableHead className="text-center">Vencida</TableHead>
+                      <TableHead className="text-center">Sin prórroga</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.alumnos.slice(0, 100).map((a) => (
+                      <TableRow key={a.idEstudiante} className={a.conProrrogaVencida > 0 ? "bg-red-50/60" : ""}>
+                        <TableCell className="font-mono text-xs">{a.matricula}</TableCell>
+                        <TableCell className="font-medium">{a.nombreCompleto}</TableCell>
+                        <TableCell className="text-xs">{a.planEstudios}</TableCell>
+                        <TableCell>{a.grupoCodigo ?? "-"}</TableCell>
+                        <TableCell className="text-center font-semibold">{a.documentosFaltantes}</TableCell>
+                        <TableCell className="text-center text-green-700">{a.conProrrogaVigente || "-"}</TableCell>
+                        <TableCell className="text-center text-red-700 font-semibold">{a.conProrrogaVencida || "-"}</TableCell>
+                        <TableCell className="text-center text-amber-700">{a.sinProrroga || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {data.alumnos.length > 100 && (
+                  <div className="p-2 text-xs text-muted-foreground text-center bg-muted/40">
+                    Mostrando los primeros 100 de {data.alumnos.length}. Descarga el Excel para ver todos.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <EstadoVacio titulo="Sin adeudos" descripcion="No se encontraron alumnos con documentos pendientes para los filtros seleccionados." />
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

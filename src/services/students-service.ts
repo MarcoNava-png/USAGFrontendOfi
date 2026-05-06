@@ -133,3 +133,37 @@ export async function getKardexEstudiante(idEstudiante: number): Promise<KardexD
     motivosBloqueo: [],
   };
 }
+
+
+export interface AspiranteDocumentoDto {
+  idAspiranteDocumento: number;
+  idDocumentoRequisito: number;
+  clave: string;
+  descripcion: string;
+  estatus: number;
+  urlArchivo?: string | null;
+  notas?: string | null;
+  fechaProrroga?: string | null;
+  motivoProrroga?: string | null;
+}
+
+export async function getStudentExpediente(studentId: number): Promise<AspiranteDocumentoDto[]> {
+  const { data } = await apiClient.get<AspiranteDocumentoDto[]>(`/estudiantes/${studentId}/expediente`);
+  return data;
+}
+
+export async function uploadStudentExpedienteFile(
+  studentId: number,
+  idDocumentoRequisito: number,
+  archivo: File,
+  notas?: string,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("idDocumentoRequisito", String(idDocumentoRequisito));
+  formData.append("archivo", archivo);
+  if (notas) formData.append("notas", notas);
+  await apiClient.post(`/estudiantes/${studentId}/expediente/cargar`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+}
+

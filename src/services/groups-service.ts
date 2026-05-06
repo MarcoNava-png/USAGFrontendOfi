@@ -115,6 +115,21 @@ export async function removeSubjectFromGroup(idGrupoMateria: number): Promise<vo
   await apiClient.delete(`/grupos/materias/${idGrupoMateria}`);
 }
 
+export interface SincronizacionInscripcionesResult {
+  idGrupo: number;
+  nombreGrupo?: string;
+  codigoGrupo?: string;
+  totalEstudiantes: number;
+  totalMaterias: number;
+  inscripcionesCreadas: number;
+  yaEstabaSincronizado: boolean;
+}
+
+export async function syncGroupEnrollments(idGrupo: number): Promise<SincronizacionInscripcionesResult> {
+  const { data } = await apiClient.post<SincronizacionInscripcionesResult>(`/grupos/${idGrupo}/sincronizar-inscripciones`);
+  return data;
+}
+
 export async function promoteStudents(request: PromocionRequest): Promise<PromocionResponse> {
   const { data } = await apiClient.post<PromocionResponse>("/grupos/promocion", request);
   return data;

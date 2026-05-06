@@ -41,6 +41,7 @@ export interface CrearTarifaAdmisionDto {
 }
 
 export interface ActualizarTarifaAdmisionDto {
+  idPlanEstudios?: number;
   nombre: string;
   aplicaConvenioMensualidad: boolean;
   esConvenioEmpresarial: boolean;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { BookOpen, Plus, Trash2, User, MapPin, Clock, Edit, Zap } from "lucide-react";
+import { BookOpen, Plus, Trash2, User, MapPin, Clock, Edit, Zap, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateScheduleSummary, calculateWeeklyHours } from "@/lib/schedule-validation";
-import { getGroupSubjects, removeSubjectFromGroup, addSubjectToGroup } from "@/services/groups-service";
+import { getGroupSubjects, removeSubjectFromGroup, addSubjectToGroup, syncGroupEnrollments } from "@/services/groups-service";
 import { getMattersByStudyPlan } from "@/services/matter-plan-service";
 import { GrupoMateria } from "@/types/group";
 
@@ -59,6 +59,23 @@ export function GroupSubjectsModal({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
   const [showAutoLoadDialog, setShowAutoLoadDialog] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  const handleSyncEnrollments = async () => {
+    setSyncLoading(true);
+    try {
+      const result = await syncGroupEnrollments(idGrupo);
+      if (result.yaEstabaSincronizado) {
+        toast.success("Todo en orden: las inscripciones ya estaban sincronizadas");
+      } else {
+        toast.success(`Se crearon ${result.inscripcionesCreadas} inscripciones faltantes`);
+      }
+    } catch {
+      toast.error("Error al sincronizar inscripciones");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -230,6 +247,17 @@ export function GroupSubjectsModal({
                 >
                   <Zap className="w-4 h-4 mr-1" />
                   {autoLoading ? "Cargando..." : "Auto Cargar"}
+                </Button>
+                <Button
+                  onClick={handleSyncEnrollments}
+                  size="sm"
+                  variant="outline"
+                  disabled={syncLoading}
+                  className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                  title="Crea inscripciones faltantes para los alumnos del grupo"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1 ${syncLoading ? "animate-spin" : ""}`} />
+                  {syncLoading ? "Sincronizando..." : "Sincronizar"}
                 </Button>
                 <Button onClick={() => setShowAddModal(true)} size="sm">
                   <Plus className="w-4 h-4 mr-1" />

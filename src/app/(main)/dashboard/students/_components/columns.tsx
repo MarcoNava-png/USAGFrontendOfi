@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { BookOpen, GraduationCap, DollarSign, CheckCircle, XCircle, FileText } from "lucide-react";
+import { BookOpen, GraduationCap, DollarSign, CheckCircle, XCircle, FileText, FolderOpen } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Student } from "@/types/student";
 
 import { EnrollGrupoMateriaModal } from "./enroll-grupomateria-modal";
 import { StudentDocumentsModal } from "./student-documents-modal";
+import { StudentExpedienteModal } from "./student-expediente-modal";
 import { StudentPaymentsModal } from "./student-payments-modal";
 
 interface ActionsCellProps {
@@ -28,6 +29,7 @@ function ActionsCell({ student, onRefresh, currentPeriodId }: ActionsCellProps) 
   const [openEnroll, setOpenEnroll] = useState(false);
   const [openPayments, setOpenPayments] = useState(false);
   const [openDocuments, setOpenDocuments] = useState(false);
+  const [openExpediente, setOpenExpediente] = useState(false);
   const [pagosPendientes, setPagosPendientes] = useState<boolean | null>(null);
   const router = useRouter();
 
@@ -100,6 +102,15 @@ function ActionsCell({ student, onRefresh, currentPeriodId }: ActionsCellProps) 
       >
         <FileText className="w-3 h-3" />
       </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpenExpediente(true)}
+        title="Expediente digital (escaneos)"
+        className="h-8 px-2"
+      >
+        <FolderOpen className="w-3 h-3" />
+      </Button>
       <EnrollGrupoMateriaModal
         open={openEnroll}
         studentId={student.idEstudiante}
@@ -119,6 +130,12 @@ function ActionsCell({ student, onRefresh, currentPeriodId }: ActionsCellProps) 
       <StudentDocumentsModal
         open={openDocuments}
         onClose={() => setOpenDocuments(false)}
+        studentId={student.idEstudiante}
+        studentName={student.nombreCompleto}
+      />
+      <StudentExpedienteModal
+        open={openExpediente}
+        onClose={() => setOpenExpediente(false)}
         studentId={student.idEstudiante}
         studentName={student.nombreCompleto}
       />

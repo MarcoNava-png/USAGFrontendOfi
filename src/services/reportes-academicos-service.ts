@@ -158,3 +158,50 @@ export function descargarBlob(blob: Blob, filename: string) {
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
+
+// ──────── Alumnos Inscritos por Periodo ────────
+
+function buildAlumnosInscritosParams(idsPeriodo: number[], idPlanEstudios?: number, idCampus?: number, idGrupo?: number) {
+  const params = new URLSearchParams();
+  params.set("idsPeriodo", idsPeriodo.join(","));
+  if (idPlanEstudios && !Number.isNaN(idPlanEstudios)) params.set("idPlanEstudios", String(idPlanEstudios));
+  if (idCampus && !Number.isNaN(idCampus)) params.set("idCampus", String(idCampus));
+  if (idGrupo && !Number.isNaN(idGrupo)) params.set("idGrupo", String(idGrupo));
+  return params;
+}
+
+export async function getAlumnosInscritos(idsPeriodo: number[], idPlanEstudios?: number, idCampus?: number, idGrupo?: number) {
+  const params = buildAlumnosInscritosParams(idsPeriodo, idPlanEstudios, idCampus, idGrupo);
+  const { data } = await apiClient.get(`/reportes-academicos/alumnos-inscritos?${params}`);
+  return data;
+}
+
+export async function descargarAlumnosInscritosExcel(idsPeriodo: number[], idPlanEstudios?: number, idCampus?: number, idGrupo?: number): Promise<Blob> {
+  const params = buildAlumnosInscritosParams(idsPeriodo, idPlanEstudios, idCampus, idGrupo);
+  const { data } = await apiClient.get(`/reportes-academicos/alumnos-inscritos/excel?${params}`, { responseType: "blob" });
+  return data;
+}
+
+// ──────── Adeudo de Documentos ────────
+
+function buildAdeudoParams(idsPlanEstudios: number[], idPeriodoAcademico?: number, tipoFiltro?: string, idCampus?: number, idGrupo?: number) {
+  const params = new URLSearchParams();
+  if (idsPlanEstudios.length > 0) params.set("idsPlanEstudios", idsPlanEstudios.join(","));
+  if (idPeriodoAcademico && !Number.isNaN(idPeriodoAcademico)) params.set("idPeriodoAcademico", String(idPeriodoAcademico));
+  if (tipoFiltro) params.set("tipoFiltro", tipoFiltro);
+  if (idCampus && !Number.isNaN(idCampus)) params.set("idCampus", String(idCampus));
+  if (idGrupo && !Number.isNaN(idGrupo)) params.set("idGrupo", String(idGrupo));
+  return params;
+}
+
+export async function getAdeudoDocumentos(idsPlanEstudios: number[], idPeriodoAcademico?: number, tipoFiltro?: string, idCampus?: number, idGrupo?: number) {
+  const params = buildAdeudoParams(idsPlanEstudios, idPeriodoAcademico, tipoFiltro, idCampus, idGrupo);
+  const { data } = await apiClient.get(`/reportes-academicos/adeudo-documentos?${params}`);
+  return data;
+}
+
+export async function descargarAdeudoDocumentosExcel(idsPlanEstudios: number[], idPeriodoAcademico?: number, tipoFiltro?: string, idCampus?: number, idGrupo?: number): Promise<Blob> {
+  const params = buildAdeudoParams(idsPlanEstudios, idPeriodoAcademico, tipoFiltro, idCampus, idGrupo);
+  const { data } = await apiClient.get(`/reportes-academicos/adeudo-documentos/excel?${params}`, { responseType: "blob" });
+  return data;
+}
