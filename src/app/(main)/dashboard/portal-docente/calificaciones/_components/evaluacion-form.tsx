@@ -37,7 +37,7 @@ const evaluacionSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido").max(100),
   tipoEvaluacion: z.string().min(1, "Tipo requerido"),
   pesoEvaluacion: z.coerce.number().min(1, "Minimo 1%").max(100, "Maximo 100%"),
-  maxPuntos: z.coerce.number().min(1, "Minimo 1 punto"),
+  maxPuntos: z.coerce.number().min(1, "Minimo 1 punto").max(10, "Maximo 10 puntos"),
 })
 
 type EvaluacionFormValues = z.infer<typeof evaluacionSchema>
@@ -64,7 +64,7 @@ export function EvaluacionFormDialog({ onSubmit }: EvaluacionFormProps) {
       nombre: "",
       tipoEvaluacion: "",
       pesoEvaluacion: 0,
-      maxPuntos: 100,
+      maxPuntos: 10,
     },
   })
 

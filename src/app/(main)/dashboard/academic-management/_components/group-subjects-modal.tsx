@@ -114,9 +114,27 @@ export function GroupSubjectsModal({
       loadSubjects();
     } catch (error: unknown) {
       console.error("Error removing subject:", error);
-      const err = error as { response?: { data?: { mensaje?: string } }; message?: string };
-      const errorMessage = err?.response?.data?.mensaje ?? err?.message ?? "Error al eliminar la materia";
-      toast.error(errorMessage);
+      const err = error as { response?: { data?: { Error?: string; mensaje?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.Error ?? err?.response?.data?.mensaje ?? err?.message ?? "Error al eliminar la materia";
+
+      if (errorMessage.includes("estudiante") || errorMessage.includes("inscrito")) {
+        const forzar = confirm(
+          `${errorMessage}\n\n¿Forzar eliminación?\n\nSi confirmas, se cancelarán las inscripciones y calificaciones de los alumnos en esta materia. La materia NO se elimina del plan de estudios oficial.`
+        );
+        if (forzar) {
+          try {
+            await removeSubjectFromGroup(idGrupoMateria, true);
+            toast.success("Materia eliminada del grupo (inscripciones canceladas)");
+            loadSubjects();
+            return;
+          } catch (forceError: unknown) {
+            const forceErr = forceError as { response?: { data?: { Error?: string; mensaje?: string } }; message?: string };
+            toast.error(forceErr?.response?.data?.Error ?? forceErr?.message ?? "Error al forzar la eliminación");
+          }
+        }
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setDeletingId(null);
     }

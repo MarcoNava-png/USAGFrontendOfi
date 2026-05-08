@@ -111,8 +111,9 @@ export async function getGrupoMateriaById(idGrupoMateria: number): Promise<Grupo
   return data;
 }
 
-export async function removeSubjectFromGroup(idGrupoMateria: number): Promise<void> {
-  await apiClient.delete(`/grupos/materias/${idGrupoMateria}`);
+export async function removeSubjectFromGroup(idGrupoMateria: number, forzar = false): Promise<void> {
+  const params = forzar ? "?forzar=true" : "";
+  await apiClient.delete(`/grupos/materias/${idGrupoMateria}${params}`);
 }
 
 export interface SincronizacionInscripcionesResult {

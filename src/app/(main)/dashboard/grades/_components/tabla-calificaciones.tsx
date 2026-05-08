@@ -135,7 +135,7 @@ export function TablaCalificaciones({ grupoMateriaId, parcialId }: TablaCalifica
         tipoEvaluacionEnum: TipoEvaluacion.Examen,
         nombre: "Calificación del Parcial",
         pesoEvaluacion: 100,
-        maxPuntos: 100,
+        maxPuntos: 10,
         puntos: calificacion,
         fechaAplicacion: new Date().toISOString(),
       });
