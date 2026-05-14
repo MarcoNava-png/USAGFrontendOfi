@@ -92,6 +92,20 @@ interface GrupoItem {
   idPlanEstudios?: number;
 }
 
+function formatGrupoLabel(g: GrupoItem): string {
+  const codigo = g.codigoGrupo ?? g.nombreGrupo;
+  if (!g.planEstudios) return codigo;
+  const planCorto = g.planEstudios
+    .replace(/LICENCIATURA EN /i, "LIC. ")
+    .replace(/LICENCIATURA DE /i, "LIC. ")
+    .replace(/BACHILLERATO /i, "BACH. ")
+    .replace(/ESPECIALIDAD EN /i, "ESP. ")
+    .replace(/AUXILIAR DE /i, "AUX. ")
+    .replace(/TÉCNICO SUPERIOR UNIVERSITARIO /i, "TSU ")
+    .substring(0, 35);
+  return `${codigo} - ${planCorto}`;
+}
+
 interface GrupoMateriaItem {
   idGrupoMateria: number;
   nombreMateria?: string;
@@ -610,7 +624,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {gruposFiltrados.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.codigoGrupo ?? g.nombreGrupo}
+                          {formatGrupoLabel(g)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -705,7 +719,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {boletaGrupos.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.nombreGrupo}
+                          {formatGrupoLabel(g)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -773,7 +787,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {grupos.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.nombreGrupo}
+                          {formatGrupoLabel(g)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -853,7 +867,7 @@ export default function ReportesAcademicosPage() {
                       <SelectContent>
                         {grupos.map((g) => (
                           <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                            {g.nombreGrupo}
+                            {formatGrupoLabel(g)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1003,7 +1017,7 @@ export default function ReportesAcademicosPage() {
                     <SelectContent>
                       {gruposFiltrados.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
-                          {g.codigoGrupo ?? g.nombreGrupo}
+                          {formatGrupoLabel(g)}
                         </SelectItem>
                       ))}
                     </SelectContent>

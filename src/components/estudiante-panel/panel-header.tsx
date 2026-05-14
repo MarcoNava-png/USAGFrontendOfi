@@ -36,8 +36,8 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
 
   const handleCambiarMatricula = async () => {
     const matriculaUpper = nuevaMatricula.trim().toUpperCase();
-    if (!/^[A-Z]{1,3}\d{6}$/.test(matriculaUpper)) {
-      toast.error("Formato inválido. Debe ser 1-3 letras + 6 dígitos. Ej: L000001, LE000001, LC000001");
+    if (!/^[A-Z]{1,3}\d{5}$/.test(matriculaUpper)) {
+      toast.error("Formato inválido. Debe ser 1-3 letras + 5 dígitos. Ej: L00001, LE00001, LC00001");
       return;
     }
     setGuardando(true);
@@ -127,7 +127,7 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
                   size="icon"
                   className="h-6 w-6"
                   onClick={() => {
-                    setNuevaMatricula(/^[A-Z]{1,3}\d{6}$/.test(panel.matricula) ? panel.matricula : "");
+                    setNuevaMatricula(/^[A-Z]{1,3}\d{5}$/.test(panel.matricula) ? panel.matricula : "");
                     setModalOpen(true);
                   }}
                 >
@@ -259,7 +259,7 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
                 maxLength={9}
               />
               <p className="text-xs text-muted-foreground">
-                Formato: 1-3 letras + 6 dígitos (ej: L000001, LE000001, LC000001).
+                Formato: 1-3 letras + 5 dígitos (ej: L00001, LE00001, LC00001).
                 El correo institucional se actualizará automáticamente.
               </p>
             </div>
