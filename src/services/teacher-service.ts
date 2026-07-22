@@ -38,6 +38,10 @@ export async function updateTeacher(payload: PayloadUpdateTeacher): Promise<Teac
   return data;
 }
 
+export async function deleteTeacher(idProfesor: number): Promise<void> {
+  await apiClient.delete(`/Profesor/${idProfesor}`);
+}
+
 export async function validateTeacherSchedule(
   idProfesor: number,
   horarioJson: import("@/types/group").HorarioMateria[],

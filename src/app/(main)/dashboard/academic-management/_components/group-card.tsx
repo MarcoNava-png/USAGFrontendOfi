@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   BookOpen,
   Calendar,
+  History,
   MoreVertical,
   TrendingUp,
   Trash2,
@@ -21,9 +22,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePermissions } from "@/hooks/use-permissions";
 import { deleteGroup } from "@/services/groups-service";
 import { GrupoResumen } from "@/types/group";
 
+import { GenerarCuatrimestresAnterioresModal } from "./generar-cuatrimestres-anteriores-modal";
 import { GroupSubjectsModal } from "./group-subjects-modal";
 import { PromoteStudentsModal } from "./promote-students-modal";
 import { StudentsInGroupModal } from "./students-in-group-modal";
@@ -39,8 +42,14 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
   const [showSubjectsModal, setShowSubjectsModal] = useState(false);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [showGenerarAnteriores, setShowGenerarAnteriores] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const { permissions } = usePermissions();
+  const puedeGenerarAnteriores =
+    (numeroCuatrimestre ?? 0) > 1 &&
+    (permissions?.roles?.some((r) => ["superadmin", "admin", "controlescolar"].includes(r)) ?? false);
 
   const ocupacion = grupo.capacidadMaxima > 0
     ? Math.round((grupo.totalEstudiantes / grupo.capacidadMaxima) * 100)
@@ -90,6 +99,12 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Promover Estudiantes
               </DropdownMenuItem>
+              {puedeGenerarAnteriores && (
+                <DropdownMenuItem onClick={() => setShowGenerarAnteriores(true)}>
+                  <History className="w-4 h-4 mr-2" />
+                  Generar cuatrimestres anteriores
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -202,6 +217,16 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
         onSuccess={onUpdate}
         periodicidadLabel={periodicidadLabel}
       />
+
+      {puedeGenerarAnteriores && (
+        <GenerarCuatrimestresAnterioresModal
+          open={showGenerarAnteriores}
+          onOpenChange={setShowGenerarAnteriores}
+          idGrupo={grupo.idGrupo}
+          nombreGrupo={grupo.nombreGrupo}
+          onSuccess={onUpdate}
+        />
+      )}
 
       <ConfirmDeleteDialog
         open={showDeleteDialog}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Download, FileCode, Loader2 } from "lucide-react";
+import { Download, FileCode, Loader2, Send, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,9 @@ interface Props {
 export function DetalleCertificadoModal({ open, onOpenChange, certificadoId, onStatusChanged }: Props) {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [consultando, setConsultando] = useState(false);
+  const [descargandoSep, setDescargandoSep] = useState(false);
   const [detalle, setDetalle] = useState<any>(null);
   const [tab, setTab] = useState("datos");
 
@@ -79,6 +82,65 @@ export function DetalleCertificadoModal({ open, onOpenChange, certificadoId, onS
     } catch (err: any) {
       toast.error(err?.response?.data?.error || "Error al generar XML");
     } finally { setGenerating(false); }
+  };
+
+  const handleEnviarSep = async () => {
+    if (!certificadoId) return;
+    setEnviando(true);
+    try {
+      const { data } = await apiClient.post(`${BASE}/${certificadoId}/enviar-sep`);
+      if (data.exitoso) {
+        toast.success(`Enviado a SEP. Número de Lote: ${data.numeroLote}`);
+      } else {
+        toast.warning(data.mensaje || "La SEP rechazó el envío");
+      }
+      loadDetalle();
+      onStatusChanged?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Error al enviar a SEP");
+    } finally { setEnviando(false); }
+  };
+
+  const handleConsultarSep = async () => {
+    if (!certificadoId) return;
+    setConsultando(true);
+    try {
+      const { data } = await apiClient.post(`${BASE}/${certificadoId}/consultar-sep`);
+      toast.info(data.mensaje || `Estatus de lote: ${data.estatusLote}`);
+      loadDetalle();
+      onStatusChanged?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Error al consultar estatus");
+    } finally { setConsultando(false); }
+  };
+
+  const handleDescargarSep = async () => {
+    if (!certificadoId) return;
+    setDescargandoSep(true);
+    try {
+      const { data } = await apiClient.post(`${BASE}/${certificadoId}/descargar-sep`);
+      if (data.folioControl) {
+        toast.success(`Folio de Control SEP: ${data.folioControl}`);
+      } else {
+        toast.info(data.mensaje || "Resultado descargado");
+      }
+      if (data.archivoBase64) {
+        const bin = atob(data.archivoBase64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const blob = new Blob([arr], { type: "application/zip" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `ResultadoSEP_Lote${data.numeroLote}.zip`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      }
+      loadDetalle();
+      onStatusChanged?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Error al descargar resultado");
+    } finally { setDescargandoSep(false); }
   };
 
   const handleDescargarXml = async () => {
@@ -195,7 +257,7 @@ export function DetalleCertificadoModal({ open, onOpenChange, certificadoId, onS
 
             <TabsContent value="xml" className="mt-4 space-y-4">
               <div className="flex items-center gap-3">
-                {(detalle.estatusTexto === "Registro" || detalle.estatusTexto === "Rechazado") && (
+                {detalle.estatusTexto !== "Registrado" && detalle.estatusTexto !== "Cancelado" && (
                   <Button onClick={handleGenerarXml} disabled={generating} className="gap-2">
                     {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCode className="h-4 w-4" />}
                     {detalle.xmlGenerado ? "Regenerar XML" : "Generar XML"}
@@ -207,7 +269,33 @@ export function DetalleCertificadoModal({ open, onOpenChange, certificadoId, onS
                     Descargar XML
                   </Button>
                 )}
+                {detalle.xmlGenerado && detalle.selloDigital && detalle.estatusTexto !== "Registrado" && detalle.estatusTexto !== "Cancelado" && (
+                  <Button onClick={handleEnviarSep} disabled={enviando} className="gap-2 bg-purple-600 hover:bg-purple-700">
+                    {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {detalle.numeroLoteSEP ? "Reenviar a SEP" : "Enviar a SEP"}
+                  </Button>
+                )}
+                {detalle.numeroLoteSEP && (
+                  <Button variant="outline" onClick={handleConsultarSep} disabled={consultando} className="gap-2">
+                    {consultando ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Consultar estatus (Lote {detalle.numeroLoteSEP})
+                  </Button>
+                )}
+                {detalle.numeroLoteSEP && (
+                  <Button variant="outline" onClick={handleDescargarSep} disabled={descargandoSep} className="gap-2">
+                    {descargandoSep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Descargar resultado SEP
+                  </Button>
+                )}
               </div>
+
+              {detalle.xmlGenerado && (
+                <div className={`text-xs rounded-md px-3 py-2 ${detalle.selloDigital ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                  {detalle.selloDigital
+                    ? "✓ XML sellado (firmado con la e.firma del responsable). Listo para enviar a SEP."
+                    : "⚠ El XML no está sellado. Verifica que la e.firma (.cer/.key + contraseña) del responsable esté cargada y vuelve a generar el XML."}
+                </div>
+              )}
 
               {detalle.xmlGenerado ? (
                 <div className="border rounded-lg bg-gray-50 p-4 max-h-[50vh] overflow-auto">

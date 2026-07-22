@@ -59,6 +59,8 @@ export interface Receipt {
   totalAPagarHoy?: number;
   diasVencido?: number;
   conceptoResumen?: string;
+  fechaPago?: string | null;
+  cobradoPor?: string | null;
 }
 
 export interface GenerateReceiptsRequest {
@@ -89,8 +91,23 @@ export interface ReceiptFilters {
   idEstudiante?: number | null;
   estatus?: ReceiptStatus | ReceiptStatus[] | null;
   soloVencidos?: boolean;
+  soloSinPeriodo?: boolean;
   matricula?: string;
   folio?: string;
+  tamanioPagina?: number;
+}
+
+export interface PeriodoReciboResumen {
+  idPeriodoAcademico: number;
+  nombre: string;
+  clave?: string | null;
+  anio?: number | null;
+  totalRecibos: number;
+}
+
+export interface PeriodosConRecibos {
+  periodos: PeriodoReciboResumen[];
+  sinPeriodo: number;
 }
 
 export interface PlantillaCobro {
@@ -332,6 +349,7 @@ export interface GenerarRecibosMasivosRequest {
   idPlantillaCobro: number;
   idPeriodoAcademico: number;
   soloSimular?: boolean;
+  actualizarExistentes?: boolean;
   idEstudiantes?: number[] | null;
 }
 
@@ -353,6 +371,7 @@ export interface GenerarRecibosMasivosResult {
   montoTotal: number;
   totalDescuentosBecas: number;
   estudiantesOmitidos: number;
+  recibosReemplazados?: number;
   errores?: string[] | null;
   detalleEstudiantes?: ReciboEstudianteResumen[] | null;
 }

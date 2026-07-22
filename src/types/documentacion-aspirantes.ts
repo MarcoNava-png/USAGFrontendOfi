@@ -24,6 +24,10 @@ export interface AspiranteDocumentoDetalleDto {
   prorrogaVencida: boolean
   urlArchivo: string | null
   notas: string | null
+  entregado: boolean
+  fechaEntrega: string | null
+  fechaValidacion: string | null
+  validadoPor: string | null
 }
 
 export interface AsignarProrrogaRequest {

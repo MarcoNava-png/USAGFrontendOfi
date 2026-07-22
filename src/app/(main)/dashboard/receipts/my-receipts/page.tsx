@@ -25,7 +25,7 @@ import {
   calcularDiasVencido,
   descargarReciboPDF as descargarPDF,
 } from "@/lib/payment-utils";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
 import { listarRecibos, descargarReciboPDF } from "@/services/receipts-service";
 import { AcademicPeriod } from "@/types/academic-period";
 import { Receipt, ReceiptStatus } from "@/types/receipt";
@@ -173,7 +173,7 @@ export default function MyReceiptsPage() {
                       key={periodo.idPeriodoAcademico}
                       value={periodo.idPeriodoAcademico.toString()}
                     >
-                      {periodo.nombre}
+                      {formatPeriodoLabel(periodo)}
                     </SelectItem>
                   ))}
                 </SelectContent>

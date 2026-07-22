@@ -7,6 +7,7 @@ export interface User {
   biografia?: string | null;
   photoUrl?: string | null;
   roles?: string[];
+  idCampusAsignado?: number | null;
 }
 
 export interface CreateUserRequest {
@@ -18,6 +19,7 @@ export interface CreateUserRequest {
   biografia?: string;
   photoUrl?: string;
   roles: string[];
+  idCampusAsignado?: number | null;
   crearCorreoAzure?: boolean;
 }
 
@@ -28,6 +30,7 @@ export interface UpdateUserRequest {
   telefono?: string;
   biografia?: string;
   roles?: string[];
+  idCampusAsignado?: number | null;
 }
 
 export interface UsersResponse {

@@ -5,11 +5,19 @@ import { toast } from "sonner";
 import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getStudyPlans } from "@/services/catalogs-service";
 import { enrollStudentInGroup, searchGroups } from "@/services/groups-service";
+import {
+  asignarGrupoPreinscripcion,
+  cancelarPreinscripcion,
+  getPendientes,
+  PreInscripcionDto,
+} from "@/services/pre-inscripcion-service";
 import { getStudentsWithoutGroup } from "@/services/students-service";
 import { Campus } from "@/types/campus";
 import { AcademicPeriod, StudyPlan } from "@/types/catalog";
 import { Group, GroupEnrollmentResult } from "@/types/group";
 import { Student } from "@/types/student";
+
+export type EnrollmentMode = "actual" | "pendientes";
 
 export function useGroupEnrollment() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -34,6 +42,11 @@ export function useGroupEnrollment() {
   const [pendingEnrollment, setPendingEnrollment] = useState<{ idGrupo: number; codigoGrupo: string } | null>(null);
   const [showAlreadyInGroupModal, setShowAlreadyInGroupModal] = useState(false);
   const [alreadyInGroupInfo, setAlreadyInGroupInfo] = useState<{ studentName: string; groupCode: string } | null>(null);
+
+  const [mode, setMode] = useState<EnrollmentMode>("actual");
+  const [preinscripciones, setPreinscripciones] = useState<PreInscripcionDto[]>([]);
+  const [selectedPreinscripcionId, setSelectedPreinscripcionId] = useState<number | null>(null);
+  const [cancelingPreinscripcionId, setCancelingPreinscripcionId] = useState<number | null>(null);
 
   // Filter plans by selected campus
   const studyPlans = selectedCampusId
@@ -61,7 +74,18 @@ export function useGroupEnrollment() {
     if (selectedPlanId && selectedPeriodId) {
       loadAvailableGroups();
     }
-  }, [selectedPlanId, selectedPeriodId, cuatrimestreFilter]);
+  }, [selectedPlanId, selectedPeriodId, cuatrimestreFilter, mode]);
+
+  useEffect(() => {
+    if (mode === "pendientes") {
+      loadPreinscripciones();
+    }
+  }, [mode, selectedPlanId, selectedPeriodId]);
+
+  useEffect(() => {
+    setSelectedStudentId(null);
+    setSelectedPreinscripcionId(null);
+  }, [mode]);
 
   const loadInitialData = async () => {
     setInitialLoading(true);
@@ -96,6 +120,7 @@ export function useGroupEnrollment() {
         searchGroups({
           idPlanEstudios: parseInt(selectedPlanId),
           numeroCuatrimestre: parseInt(cuatrimestreFilter),
+          idPeriodoAcademico: parseInt(selectedPeriodId),
         }),
         getStudentsWithoutGroup(
           parseInt(selectedPlanId),
@@ -110,6 +135,71 @@ export function useGroupEnrollment() {
       setStudents([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPreinscripciones = async () => {
+    try {
+      const plan = selectedPlanId ? parseInt(selectedPlanId) : undefined;
+      const periodo = selectedPeriodId ? parseInt(selectedPeriodId) : undefined;
+      const data = await getPendientes(plan, periodo);
+      setPreinscripciones(data);
+    } catch (error) {
+      toast.error("Error al cargar las inscripciones pendientes");
+      setPreinscripciones([]);
+    }
+  };
+
+  const handleAssignGroupPreinscripcion = async (idGrupo: number, codigoGrupo: string) => {
+    if (enrolling || enrollingGroupId !== null) {
+      toast.warning("Ya hay una asignación en proceso. Por favor espera.");
+      return;
+    }
+    if (!selectedPreinscripcionId) {
+      toast.error("Selecciona un alumno apartado primero");
+      return;
+    }
+
+    setEnrolling(true);
+    setEnrollingGroupId(idGrupo);
+    try {
+      await asignarGrupoPreinscripcion(selectedPreinscripcionId, idGrupo);
+      toast.success(`Alumno asignado al grupo ${codigoGrupo}`);
+      setSelectedPreinscripcionId(null);
+      await loadPreinscripciones();
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { Error?: string; error?: string; mensaje?: string; Message?: string } };
+        message?: string;
+      };
+      const errorData = err?.response?.data;
+      const errorMessage =
+        errorData?.Error ||
+        errorData?.error ||
+        errorData?.mensaje ||
+        errorData?.Message ||
+        err?.message ||
+        "Error al asignar el grupo";
+      toast.error(errorMessage, { duration: 6000 });
+    } finally {
+      setEnrolling(false);
+      setEnrollingGroupId(null);
+    }
+  };
+
+  const handleCancelPreinscripcion = async (idPreInscripcion: number) => {
+    setCancelingPreinscripcionId(idPreInscripcion);
+    try {
+      await cancelarPreinscripcion(idPreInscripcion);
+      toast.success("Apartado cancelado");
+      if (selectedPreinscripcionId === idPreInscripcion) {
+        setSelectedPreinscripcionId(null);
+      }
+      await loadPreinscripciones();
+    } catch (error) {
+      toast.error("Error al cancelar el apartado");
+    } finally {
+      setCancelingPreinscripcionId(null);
     }
   };
 
@@ -280,5 +370,10 @@ export function useGroupEnrollment() {
     showForceEnrollDialog, setShowForceEnrollDialog,
     handleForceEnrollConfirm, handleForceEnrollCancel, pendingEnrollment,
     showAlreadyInGroupModal, setShowAlreadyInGroupModal, alreadyInGroupInfo,
+    mode, setMode,
+    preinscripciones,
+    selectedPreinscripcionId, setSelectedPreinscripcionId,
+    cancelingPreinscripcionId,
+    handleAssignGroupPreinscripcion, handleCancelPreinscripcion,
   };
 }

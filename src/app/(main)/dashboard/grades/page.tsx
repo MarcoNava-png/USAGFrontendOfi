@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-import { Award, BookOpen, GraduationCap, TrendingUp } from "lucide-react";
+import { Award, BookOpen, GraduationCap, TrendingUp, CalendarDays } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
+import type { AcademicPeriod } from "@/types/academic-period";
 
 import { GruposAcordeon } from "./_components/grupos-acordeon";
 import { SelectPlanEstudios } from "./_components/select-plan-estudios";
@@ -12,6 +16,19 @@ import { SelectPlanEstudios } from "./_components/select-plan-estudios";
 export default function GradesPage() {
   const [selectedPlanEstudios, setSelectedPlanEstudios] = useState<number | null>(null);
   const [minimaAprobatoria, setMinimaAprobatoria] = useState<number>(7);
+  const [periodos, setPeriodos] = useState<AcademicPeriod[]>([]);
+  const [selectedPeriodo, setSelectedPeriodo] = useState<number | null>(null);
+
+  useEffect(() => {
+    getAcademicPeriodsList()
+      .then((res) => {
+        const items = Array.isArray(res?.items) ? res.items : [];
+        setPeriodos(items);
+        const actual = items.find((p) => p.esPeriodoActual);
+        if (actual) setSelectedPeriodo(actual.idPeriodoAcademico);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -90,7 +107,29 @@ export default function GradesPage() {
             Selecciona el plan de estudios para ver los grupos y materias disponibles
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
+        <CardContent className="pt-4 space-y-4">
+          <div className="w-full space-y-1.5 sm:max-w-sm">
+            <Label className="flex items-center gap-1 text-sm">
+              <CalendarDays className="h-3.5 w-3.5" /> Periodo
+            </Label>
+            <Select
+              value={selectedPeriodo?.toString() ?? "todos"}
+              onValueChange={(val) => setSelectedPeriodo(val === "todos" ? null : parseInt(val))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Todos los periodos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los periodos</SelectItem>
+                {periodos.map((p) => (
+                  <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
+                    {formatPeriodoLabel(p)}
+                    {p.esPeriodoActual ? " (actual)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <SelectPlanEstudios
             value={selectedPlanEstudios}
             onChange={(v) => setSelectedPlanEstudios(v)}
@@ -99,7 +138,11 @@ export default function GradesPage() {
         </CardContent>
       </Card>
       {selectedPlanEstudios ? (
-        <GruposAcordeon planEstudiosId={selectedPlanEstudios} minimaAprobatoria={minimaAprobatoria} />
+        <GruposAcordeon
+          planEstudiosId={selectedPlanEstudios}
+          minimaAprobatoria={minimaAprobatoria}
+          idPeriodoAcademico={selectedPeriodo ?? undefined}
+        />
       ) : (
         <Card>
           <CardContent className="py-16 text-center">

@@ -88,12 +88,13 @@ export default function UsersPage() {
     try {
       setLoading(true);
       const data = await getAllUsers();
-      // Filtrar usuarios con rol "docente" ya que se gestionan en la pagina de Docentes
-      const nonTeacherUsers = data.filter(
-        (user: User) => !user.roles?.some((role) => role.toLowerCase() === "docente")
+      // Docentes y alumnos tienen sus propias pantallas; aqui solo se gestiona personal del sistema
+      const rolesExcluidos = ["docente", "alumno"];
+      const personalUsers = data.filter(
+        (user: User) => !user.roles?.some((role) => rolesExcluidos.includes(role.toLowerCase()))
       );
-      setUsers(nonTeacherUsers);
-      setFilteredUsers(nonTeacherUsers);
+      setUsers(personalUsers);
+      setFilteredUsers(personalUsers);
     } catch {
       toast.error("Error al cargar usuarios", {
         description: "No se pudieron cargar los usuarios",

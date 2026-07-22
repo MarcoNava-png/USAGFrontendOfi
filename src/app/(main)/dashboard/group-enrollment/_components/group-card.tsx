@@ -10,9 +10,11 @@ interface GroupCardProps {
   onEnroll: (idGrupo: number, codigoGrupo: string) => void;
   disabled?: boolean;
   enrolling?: boolean;
+  actionLabel?: string;
+  enrollingLabel?: string;
 }
 
-export function GroupCard({ group, onEnroll, disabled, enrolling }: GroupCardProps) {
+export function GroupCard({ group, onEnroll, disabled, enrolling, actionLabel, enrollingLabel }: GroupCardProps) {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -31,7 +33,7 @@ export function GroupCard({ group, onEnroll, disabled, enrolling }: GroupCardPro
             <p className="text-sm text-gray-600">{group.nombreGrupo}</p>
           </div>
           <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-            {group.consecutivoPeriodicidad}° Cuatri
+            {group.codigoGrupo ? group.codigoGrupo.charAt(0) : group.consecutivoPeriodicidad}° Cuatri
           </div>
         </div>
         <div className="space-y-2 text-sm">
@@ -80,7 +82,7 @@ export function GroupCard({ group, onEnroll, disabled, enrolling }: GroupCardPro
           type="button"
         >
           <UserPlus className="w-4 h-4 mr-2" />
-          {enrolling ? "Inscribiendo..." : "Inscribir a este Grupo"}
+          {enrolling ? (enrollingLabel ?? "Inscribiendo...") : (actionLabel ?? "Inscribir a este Grupo")}
         </Button>
       </div>
     </div>

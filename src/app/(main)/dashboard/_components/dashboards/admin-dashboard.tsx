@@ -28,6 +28,7 @@ import { RecibosStatusChart } from "../charts/recibos-status-chart";
 import { MorosidadChart } from "../charts/morosidad-chart";
 import { MetodoPagoChart } from "../charts/metodo-pago-chart";
 import { AlertCard } from "../shared/alert-card";
+import { CarteraVencidaSection } from "../shared/cartera-vencida-section";
 import { QuickActions } from "../shared/quick-actions";
 import { StatCard, StatGrid } from "../shared/stat-card";
 
@@ -131,6 +132,8 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           </div>
         ) : null}
       </div>
+
+      {data.carteraVencida && <CarteraVencidaSection data={data.carteraVencida} />}
 
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

@@ -7,6 +7,7 @@ import {
   CarteraVencidaReporte,
   IngresosPeriodoReporte,
   ReceiptStatus,
+  PeriodosConRecibos,
 } from "@/types/receipt";
 
 import apiClient from "./api-client";
@@ -105,14 +106,25 @@ export async function listarRecibosAdmin(filtros: ReceiptFilters): Promise<Recib
   if (filtros.soloVencidos) {
     params.append("soloVencidos", "true");
   }
+  if (filtros.soloSinPeriodo) {
+    params.append("soloSinPeriodo", "true");
+  }
   if (filtros.matricula) {
     params.append("matricula", filtros.matricula);
   }
   if (filtros.folio) {
     params.append("folio", filtros.folio);
   }
+  if (filtros.tamanioPagina) {
+    params.append("tamanioPagina", filtros.tamanioPagina.toString());
+  }
 
   const { data } = await apiClient.get<RecibosAdminResponse>(`/recibos/admin?${params.toString()}`);
+  return data;
+}
+
+export async function getPeriodosConRecibos(): Promise<PeriodosConRecibos> {
+  const { data } = await apiClient.get<PeriodosConRecibos>(`/recibos/periodos-resumen`);
   return data;
 }
 

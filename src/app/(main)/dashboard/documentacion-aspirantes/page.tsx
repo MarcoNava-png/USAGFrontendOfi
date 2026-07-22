@@ -471,8 +471,16 @@ export default function DocumentacionAspirantesPage() {
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span>Estatus: {doc.estatus}</span>
+                          {doc.entregado && (
+                            <span className="text-amber-600 font-medium">
+                              Entregado{doc.fechaEntrega ? ` (${formatDate(doc.fechaEntrega)})` : ''}
+                            </span>
+                          )}
+                          {doc.estatus === 'VALIDADO' && doc.validadoPor && (
+                            <span className="text-green-600 font-medium">Validado por: {doc.validadoPor}</span>
+                          )}
                           {doc.fechaSubida && <span>Subido: {formatDate(doc.fechaSubida)}</span>}
                           {doc.fechaProrroga && (
                             <span className={doc.prorrogaVencida ? 'text-red-600 font-semibold' : 'text-blue-600'}>
@@ -490,31 +498,27 @@ export default function DocumentacionAspirantesPage() {
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant={doc.estatus === 'VALIDADO' ? 'default' : 'outline'}
-                        className={`text-xs gap-1 ${doc.estatus === 'VALIDADO' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                        variant={doc.entregado ? 'default' : 'outline'}
+                        className={`text-xs gap-1 ${doc.entregado ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
                         onClick={async (e) => {
                           e.stopPropagation()
                           try {
                             const result = await documentacionAspirantesService.toggleRecibido(doc.idAspiranteDocumento)
-                            toast.success(result.recibido ? 'Documento marcado como recibido' : 'Documento desmarcado')
+                            toast.success(result.entregado ? 'Marcado como entregado' : 'Entrega desmarcada')
                             loadData()
                             if (selectedAspirante) {
                               const updatedDocs = selectedAspirante.documentos.map(d =>
                                 d.idAspiranteDocumento === doc.idAspiranteDocumento
-                                  ? { ...d, estatus: result.estatus }
+                                  ? { ...d, entregado: result.entregado }
                                   : d
                               )
-                              setSelectedAspirante({
-                                ...selectedAspirante,
-                                documentos: updatedDocs,
-                                documentosCompletos: updatedDocs.filter(d => d.estatus === 'VALIDADO').length
-                              })
+                              setSelectedAspirante({ ...selectedAspirante, documentos: updatedDocs })
                             }
                           } catch { toast.error('Error al actualizar') }
                         }}
                       >
-                        {doc.estatus === 'VALIDADO' ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        {doc.estatus === 'VALIDADO' ? 'Recibido' : 'Marcar recibido'}
+                        {doc.entregado ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        {doc.entregado ? 'Entregado' : 'Marcar entregado'}
                       </Button>
                       {doc.estatus === 'PENDIENTE' && (
                         <Button

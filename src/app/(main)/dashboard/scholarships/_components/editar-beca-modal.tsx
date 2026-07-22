@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { actualizarBeca } from "@/services/becas-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
 import { AcademicPeriod } from "@/types/catalog";
@@ -250,7 +251,7 @@ export function EditarBecaModal({ open, onClose, beca }: Props) {
                         key={periodo.idPeriodoAcademico}
                         value={periodo.idPeriodoAcademico.toString()}
                       >
-                        {periodo.nombre}
+                        {formatPeriodoLabel(periodo)}
                         {periodo.esPeriodoActual && " (Actual)"}
                       </SelectItem>
                     ))}

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getCampusList } from "@/services/campus-service";
 import { getStudyPlansList } from "@/services/study-plans-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import type { Campus } from "@/types/campus";
 import type { StudyPlan } from "@/types/study-plan";
 import type { AcademicPeriod } from "@/types/academic-period";
@@ -204,7 +205,7 @@ export default function AttendancesPage() {
                 <SelectContent>
                   {periodos.map((p: any) => (
                     <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
-                      {p.nombre} {p.esPeriodoActual && "(Actual)"}
+                      {formatPeriodoLabel(p)} {p.esPeriodoActual && "(Actual)"}
                     </SelectItem>
                   ))}
                 </SelectContent>

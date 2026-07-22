@@ -28,7 +28,7 @@ export const createApplicantSchema = z.object({
   institucionProcedencia: z.string().optional(),
   idModalidad: z.coerce.number().int().optional(),
   grupoDiasImparticion: z.coerce.number().int().optional(),
-  idPeriodoAcademico: z.coerce.number().int().optional(),
+  idPeriodoAcademico: z.coerce.number({ invalid_type_error: "Selecciona el periodo académico" }).int().min(1, "Selecciona el periodo académico"),
   recorridoPlantel: z.boolean().optional(),
   trabaja: z.boolean().optional(),
   nombreEmpresa: z.string().optional(),

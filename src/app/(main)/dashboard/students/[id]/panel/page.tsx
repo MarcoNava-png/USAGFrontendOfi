@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Download, Mail, MoreVertical, RefreshCw, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 
+import { ApartarPeriodoButton } from "@/components/estudiante-panel/apartar-periodo-button";
 import { PanelHeader } from "@/components/estudiante-panel/panel-header";
 import { PanelStatsCards } from "@/components/estudiante-panel/panel-stats-cards";
 import { BecasTab } from "@/components/estudiante-panel/tabs/becas-tab";
@@ -234,6 +235,13 @@ export default function PanelEstudiantePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ApartarPeriodoButton
+            idEstudiante={panel.idEstudiante}
+            matricula={panel.matricula}
+            idPlanEstudios={panel.informacionAcademica?.idPlanEstudios ?? null}
+            planEstudios={panel.informacionAcademica?.planEstudios ?? null}
+          />
+
           <Button
             variant="outline"
             size="sm"
@@ -306,7 +314,7 @@ export default function PanelEstudiantePage() {
             )}
             {panel.fechaBaja && (
               <span className="text-xs text-red-400">
-                ({new Date(panel.fechaBaja.endsWith("Z") ? panel.fechaBaja : panel.fechaBaja + "Z").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Mexico_City" })})
+                ({new Date((panel.fechaBaja.endsWith("Z") || panel.fechaBaja.includes("+")) ? panel.fechaBaja : panel.fechaBaja + "Z").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Mexico_City" })})
               </span>
             )}
           </AlertDescription>

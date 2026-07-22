@@ -654,7 +654,7 @@ export default function CashierPage() {
             <CardHeader style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.03), rgba(30, 74, 143, 0.05))' }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle style={{ color: '#14356F' }}>Recibos Pendientes ({resultado.recibos.length})</CardTitle>
+                  <CardTitle style={{ color: '#14356F' }}>{mostrarTodos ? "Todos los Recibos" : "Recibos Pendientes"} ({resultado.recibos.length})</CardTitle>
                   <CardDescription>Selecciona los recibos a pagar - Haz clic en el folio para ver el desglose</CardDescription>
                 </div>
                 <Button
@@ -739,7 +739,7 @@ export default function CashierPage() {
                           <TableCell>
                             <div>
                               {formatDateLocal(recibo.fechaVencimiento)}
-                              {diasVencido > 0 && (
+                              {diasVencido > 0 && recibo.saldo > 0 && !isPaidOrPartial(recibo.estatus) && (
                                 <Badge variant="destructive" className="ml-2">
                                   {diasVencido} día(s) vencido
                                 </Badge>

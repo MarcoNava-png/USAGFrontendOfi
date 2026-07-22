@@ -36,10 +36,21 @@ function redirectToLogin() {
   }
 }
 
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/forgot', '/auth/reset']
+
 axiosInstance.interceptors.request.use(
   config => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token')
+      const url = config.url ?? ''
+      const isAuthEndpoint = AUTH_ENDPOINTS.some((e) => url.includes(e))
+      if (isAuthEndpoint) {
+        return config
+      }
+
+      const isSuperAdminRoute = window.location.pathname.startsWith('/dashboard/super-admin')
+      const token = isSuperAdminRoute
+        ? localStorage.getItem('super_admin_token') ?? localStorage.getItem('access_token')
+        : localStorage.getItem('access_token')
 
       if (token != null && token != undefined) {
         if (isTokenExpired(token)) {

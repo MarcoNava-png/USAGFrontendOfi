@@ -20,7 +20,7 @@ export function TicketCard({ ticket, onClick }: Props) {
   const estatus = ESTATUS_CONFIG[ticket.estatus]
   const categoria = CATEGORIA_CONFIG[ticket.categoria]
 
-  const fechaRaw = ticket.createdAt.endsWith("Z") ? ticket.createdAt : ticket.createdAt + "Z"
+  const fechaRaw = (ticket.createdAt.endsWith("Z") || ticket.createdAt.includes("+")) ? ticket.createdAt : ticket.createdAt + "Z"
   const fecha = new Date(fechaRaw).toLocaleDateString("es-MX", {
     day: "2-digit",
     month: "short",

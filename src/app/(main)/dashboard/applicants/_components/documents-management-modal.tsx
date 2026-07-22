@@ -65,15 +65,15 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
   const handleToggle = async (doc: AspiranteDocumentoDto | undefined) => {
     if (!doc) return;
     try {
-      const { data } = await apiClient.put<{ estatus: string; recibido: boolean }>(
+      const { data } = await apiClient.put<{ entregado: boolean; recibido: boolean }>(
         `/aspirante/documentos/${doc.idAspiranteDocumento}/toggle-recibido`
       );
       setDocuments(prev => prev.map(d =>
         d.idAspiranteDocumento === doc.idAspiranteDocumento
-          ? { ...d, estatus: data.recibido ? EstatusDocumentoEnum.VALIDADO : EstatusDocumentoEnum.PENDIENTE }
+          ? { ...d, entregado: data.entregado }
           : d
       ));
-      toast.success(data.recibido ? "Documento marcado como recibido" : "Documento desmarcado");
+      toast.success(data.entregado ? "Documento marcado como entregado" : "Entrega desmarcada");
     } catch {
       toast.error("Error al actualizar documento");
     }
@@ -127,7 +127,7 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
 
   const totalRecibidos = requirements.filter(r => {
     const doc = getDoc(r.idDocumentoRequisito);
-    return doc?.estatus === EstatusDocumentoEnum.VALIDADO;
+    return doc?.entregado === true;
   }).length;
 
   const totalProrrogaVigente = requirements.filter(r => prorrogaVigente(getDoc(r.idDocumentoRequisito))).length;
@@ -177,7 +177,7 @@ export function DocumentsManagementModal({ open, applicant, onClose }: Documents
             <div className="space-y-2">
               {requirements.map((req) => {
                 const doc = getDoc(req.idDocumentoRequisito);
-                const isRecibido = doc?.estatus === EstatusDocumentoEnum.VALIDADO;
+                const isRecibido = doc?.entregado === true;
                 const vigente = prorrogaVigente(doc);
                 const vencida = prorrogaVencida(doc);
 

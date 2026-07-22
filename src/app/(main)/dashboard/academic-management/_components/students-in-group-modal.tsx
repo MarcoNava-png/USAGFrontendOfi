@@ -47,6 +47,8 @@ interface StudentDisplay {
   fechaInscripcion: string;
   materiasInscritas?: number;
   fuente: 'directo' | 'materias';
+  promovido?: boolean;
+  promovidoA?: string;
 }
 
 export function StudentsInGroupModal({
@@ -111,6 +113,8 @@ export function StudentsInGroupModal({
               planEstudios: est.planEstudios,
               estado: est.estado,
               fechaInscripcion: est.fechaInscripcion,
+              promovido: est.promovido,
+              promovidoA: est.promovidoA,
               fuente: 'directo',
             });
           }
@@ -277,6 +281,11 @@ export function StudentsInGroupModal({
                           {student.fuente === 'directo' && (
                             <Badge variant="secondary" className="text-xs">
                               Inscripción directa
+                            </Badge>
+                          )}
+                          {student.promovido && (
+                            <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 text-xs">
+                              ✓ Promovido{student.promovidoA ? ` a ${student.promovidoA.trim()}` : ""}
                             </Badge>
                           )}
                         </div>

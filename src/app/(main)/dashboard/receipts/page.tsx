@@ -47,21 +47,22 @@ import {
   isPaidOrPartial,
   isCanceledOrPaid,
 } from "@/lib/payment-utils";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import {
-  listarRecibos,
+  listarRecibosAdmin,
+  getPeriodosConRecibos,
   cancelarRecibo,
   reversarRecibo,
   descargarReciboPDF,
   exportarCarteraVencida,
   exportarIngresosPeriodo,
 } from "@/services/receipts-service";
-import { AcademicPeriod } from "@/types/academic-period";
-import { Receipt, ReceiptStatus } from "@/types/receipt";
+import { Receipt, ReceiptStatus, PeriodoReciboResumen } from "@/types/receipt";
 
 export default function ReceiptsAdminPage() {
   const [recibos, setRecibos] = useState<Receipt[]>([]);
-  const [periodos, setPeriodos] = useState<AcademicPeriod[]>([]);
+  const [periodos, setPeriodos] = useState<PeriodoReciboResumen[]>([]);
+  const [sinPeriodo, setSinPeriodo] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const [filtros, setFiltros] = useState({
@@ -93,8 +94,9 @@ export default function ReceiptsAdminPage() {
 
   async function cargarPeriodos() {
     try {
-      const data = await getAcademicPeriodsList();
-      setPeriodos(data.items);
+      const data = await getPeriodosConRecibos();
+      setPeriodos(data.periodos);
+      setSinPeriodo(data.sinPeriodo);
     } catch (error) {
       console.error("Error al cargar periodos:", error);
     }
@@ -116,7 +118,9 @@ export default function ReceiptsAdminPage() {
         }
       }
       if (filtros.folio) params.folio = filtros.folio;
-      if (filtros.idPeriodoAcademico && filtros.idPeriodoAcademico !== "TODOS") {
+      if (filtros.idPeriodoAcademico === "SIN_PERIODO") {
+        params.soloSinPeriodo = true;
+      } else if (filtros.idPeriodoAcademico && filtros.idPeriodoAcademico !== "TODOS") {
         params.idPeriodoAcademico = parseInt(filtros.idPeriodoAcademico);
       }
       if (filtros.estatus !== "TODOS") {
@@ -125,9 +129,10 @@ export default function ReceiptsAdminPage() {
       if (filtros.soloVencidos) {
         params.soloVencidos = true;
       }
+      params.tamanioPagina = 10000;
 
-      const data = await listarRecibos(params);
-      setRecibos(Array.isArray(data) ? data : []);
+      const data = await listarRecibosAdmin(params);
+      setRecibos(Array.isArray(data?.recibos) ? data.recibos : []);
     } catch (error) {
       toast.error("Error al buscar recibos");
       console.error(error);
@@ -339,9 +344,12 @@ export default function ReceiptsAdminPage() {
                   <SelectItem value="TODOS">Todos</SelectItem>
                   {periodos.map((p) => (
                     <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
-                      {p.nombre}
+                      {formatPeriodoLabel(p)} ({p.totalRecibos})
                     </SelectItem>
                   ))}
+                  {sinPeriodo > 0 && (
+                    <SelectItem value="SIN_PERIODO">Sin periodo asignado ({sinPeriodo})</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -421,6 +429,7 @@ export default function ReceiptsAdminPage() {
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Cobro</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -461,6 +470,18 @@ export default function ReceiptsAdminPage() {
                       </TableCell>
                       <TableCell>
                         <ReceiptStatusBadge status={recibo.estatus as ReceiptStatus} />
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {recibo.cobradoPor || recibo.fechaPago ? (
+                          <>
+                            {recibo.cobradoPor && <div className="font-medium">{recibo.cobradoPor}</div>}
+                            {recibo.fechaPago && (
+                              <div className="text-xs text-muted-foreground">{formatDateLocal(recibo.fechaPago)}</div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">

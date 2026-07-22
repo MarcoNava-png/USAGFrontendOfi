@@ -2,11 +2,16 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
+import { Pencil, Trash2 } from "lucide-react";
+
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Button } from "@/components/ui/button";
 import { Teacher } from "@/types/teacher";
 
-export const teachersColumns = (onEdit: (teacher: Teacher) => void): ColumnDef<Teacher>[] => [
+export const teachersColumns = (
+  onEdit: (teacher: Teacher) => void,
+  onDelete: (teacher: Teacher) => void,
+): ColumnDef<Teacher>[] => [
   {
     accessorKey: "idProfesor",
     header: ({ column }) => <DataTableColumnHeader column={column} title="ID" />,
@@ -33,9 +38,21 @@ export const teachersColumns = (onEdit: (teacher: Teacher) => void): ColumnDef<T
     cell: ({ row }) => {
       const teacher = row.original;
       return (
-        <Button variant="outline" size="sm" onClick={() => onEdit(teacher)}>
-          Editar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(teacher)}>
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDelete(teacher)}
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            Eliminar
+          </Button>
+        </div>
       );
     },
   },

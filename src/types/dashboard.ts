@@ -43,6 +43,35 @@ export interface AdminDashboard {
 
   alertas: Alerta[];
   accionesRapidas: AccionRapida[];
+
+  carteraVencida?: CarteraVencida;
+}
+
+export interface CarteraCampus {
+  campus: string;
+  deuda: number;
+  alumnos: number;
+}
+
+export interface CarteraAntiguedad {
+  rango: string;
+  deuda: number;
+  recibos: number;
+}
+
+export interface CarteraConcepto {
+  concepto: string;
+  importe: number;
+}
+
+export interface CarteraVencida {
+  totalVencida: number;
+  totalAlumnos: number;
+  recaudadoMesTotal: number;
+  porCampus: CarteraCampus[];
+  porAntiguedad: CarteraAntiguedad[];
+  porConcepto: CarteraConcepto[];
+  recaudadoMesPorCampus: CarteraCampus[];
 }
 
 export interface ProgramaResumen {
@@ -68,6 +97,8 @@ export interface DirectorDashboard {
 
   programasResumen: ProgramaResumen[];
   alertas: Alerta[];
+
+  carteraVencida?: CarteraVencida;
 }
 
 export interface Moroso {

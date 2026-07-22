@@ -32,6 +32,7 @@ import {
   User,
   CalendarCheck,
   Key,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -141,6 +142,12 @@ export const sidebarItems: NavGroup[] = [
         requiredModule: "Admisiones",
       },
       {
+        title: "Comisiones",
+        url: "/dashboard/applicants/commissions",
+        icon: HandCoins,
+        requiredModule: "Admisiones",
+      },
+      {
         title: "Promociones",
         url: "/dashboard/convenios",
         icon: HandCoins,
@@ -226,7 +233,9 @@ export const sidebarItems: NavGroup[] = [
         subItems: [
           { title: "Estudiantes por Grupo", url: "/dashboard/students", newTab: false, requiredModule: "Estudiantes" },
           { title: "Inscripción a Grupos", url: "/dashboard/group-enrollment", newTab: false, requiredModule: "Estudiantes" },
+          { title: "Diagnóstico de Inscripciones", url: "/dashboard/diagnostico-inscripcion", newTab: false, requiredModule: "Estudiantes", isNew: true },
           { title: "Calificaciones", url: "/dashboard/grades", newTab: false, requiredModule: "Academico" },
+          { title: "Captura de Calificaciones", url: "/dashboard/captura-calificaciones", newTab: false, requiredModule: "Academico", isNew: true },
           { title: "Asistencias", url: "/dashboard/attendances", newTab: false, requiredModule: "Academico" },
         ],
       },
@@ -264,6 +273,13 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/reportes-academicos",
         icon: FileBarChart,
         requiredModule: "Estudiantes",
+      },
+      {
+        title: "Constructor de Reportes",
+        url: "/dashboard/reportes-builder",
+        icon: FileBarChart,
+        requiredModule: "Estudiantes",
+        isNew: true,
       },
       {
         title: "Egresados y Titulados",
@@ -446,28 +462,35 @@ export const sidebarItems: NavGroup[] = [
         requiredModule: "Configuracion",
         isNew: true,
       },
+      {
+        title: "Configuración de Calificaciones",
+        url: "/dashboard/configuracion-calificaciones",
+        icon: SlidersHorizontal,
+        requiredModule: "Configuracion",
+        isNew: true,
+      },
     ],
   },
   {
     id: 8,
-    label: "SUPER ADMIN",
+    label: "AGREMIADOS",
     requiredModule: "SuperAdmin",
     items: [
       {
-        title: "Panel Multi-Escuela",
+        title: "Panel de Agremiados",
         url: "/dashboard/super-admin",
         icon: School,
         requiredModule: "SuperAdmin",
         isNew: true,
       },
       {
-        title: "Escuelas",
+        title: "Instituciones Agremiadas",
         url: "/dashboard/super-admin/tenants",
         icon: Building2,
         requiredModule: "SuperAdmin",
       },
       {
-        title: "Importar Escuelas",
+        title: "Importar Agremiados",
         url: "/dashboard/super-admin/tenants/import",
         icon: Upload,
         requiredModule: "SuperAdmin",
@@ -491,6 +514,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Mis Materias",
         url: "/dashboard/portal-alumno/mis-materias",
         icon: BookOpen,
+        requiredModule: "PortalAlumno",
+      },
+      {
+        title: "Mis Formatos",
+        url: "/dashboard/portal-alumno/mis-formatos",
+        icon: FileText,
         requiredModule: "PortalAlumno",
       },
       {

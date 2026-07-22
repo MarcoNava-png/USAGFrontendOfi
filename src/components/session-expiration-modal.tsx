@@ -31,9 +31,10 @@ function getTokenExpiration(): number | null {
   }
 }
 
-const INACTIVITY_WARNING_MS = 5 * 60 * 1000;
+const INACTIVITY_WARNING_MS = 30 * 60 * 1000;
 const COUNTDOWN_SECONDS = 60;
 const TOKEN_RENEW_THRESHOLD_MS = 10 * 60 * 1000;
+const SILENT_REFRESH_RETRY_MS = 30 * 1000;
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "click"] as const;
 
 export function SessionExpirationModal() {
@@ -44,7 +45,7 @@ export function SessionExpirationModal() {
   const isSuperAdmin = typeof window !== "undefined" && window.location.pathname.startsWith("/dashboard/super-admin");
   const lastActivityRef = useRef(Date.now());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const silentRefreshDoneRef = useRef(false);
+  const lastSilentRefreshRef = useRef(0);
   const modalOpenedAtRef = useRef<number | null>(null);
   const isLoggingOutRef = useRef(false);
 
@@ -85,12 +86,10 @@ export function SessionExpirationModal() {
   }, [open, isSuperAdmin]);
 
   const silentRefresh = useCallback(async () => {
-    if (silentRefreshDoneRef.current) return;
-    silentRefreshDoneRef.current = true;
-    const result = await refreshToken();
-    if (result.success) {
-      silentRefreshDoneRef.current = false;
-    }
+    const now = Date.now();
+    if (now - lastSilentRefreshRef.current < SILENT_REFRESH_RETRY_MS) return;
+    lastSilentRefreshRef.current = now;
+    await refreshToken();
   }, []);
 
   const check = useCallback(() => {
@@ -151,7 +150,7 @@ export function SessionExpirationModal() {
       setOpen(false);
       modalOpenedAtRef.current = null;
       resetActivity();
-      silentRefreshDoneRef.current = false;
+      lastSilentRefreshRef.current = 0;
       isLoggingOutRef.current = false;
       toast.success("Sesion renovada exitosamente");
     } else {

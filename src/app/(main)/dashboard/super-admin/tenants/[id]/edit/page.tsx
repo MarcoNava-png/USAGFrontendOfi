@@ -69,6 +69,7 @@ export default function EditTenantPage() {
         direccionFiscal: tenantData.direccionFiscal || undefined,
         rfc: tenantData.rfc || undefined,
         idPlanLicencia: tenantData.idPlanLicencia,
+        fechaVencimiento: tenantData.fechaVencimiento || undefined,
       })
     } catch (err) {
       toast.error('Error al cargar los datos')
@@ -307,6 +308,19 @@ export default function EditTenantPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fechaVencimiento">Vence la suscripción</Label>
+                <Input
+                  id="fechaVencimiento"
+                  type="date"
+                  value={formData.fechaVencimiento ? formData.fechaVencimiento.slice(0, 10) : ''}
+                  onChange={(e) => handleChange('fechaVencimiento', e.target.value || undefined)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Al llegar esta fecha, la escuela se suspende automáticamente. Sin fecha = suscripción sin vencimiento.
+                </p>
               </div>
             </div>
 

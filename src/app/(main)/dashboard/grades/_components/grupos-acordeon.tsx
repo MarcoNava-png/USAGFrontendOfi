@@ -16,6 +16,7 @@ import { TablaCalificacionesMatricial } from "./tabla-calificaciones-matricial";
 interface GruposAcordeonProps {
   planEstudiosId: number;
   minimaAprobatoria?: number;
+  idPeriodoAcademico?: number;
 }
 
 interface GrupoConMaterias {
@@ -30,7 +31,7 @@ interface GrupoConMaterias {
   materias: GrupoMateria[];
 }
 
-export function GruposAcordeon({ planEstudiosId, minimaAprobatoria = 7 }: GruposAcordeonProps) {
+export function GruposAcordeon({ planEstudiosId, minimaAprobatoria = 7, idPeriodoAcademico }: GruposAcordeonProps) {
   const [loading, setLoading] = useState(false);
   const [grupos, setGrupos] = useState<GrupoConMaterias[]>([]);
   const [gruposExpandidos, setGruposExpandidos] = useState<Set<number>>(new Set());
@@ -42,12 +43,12 @@ export function GruposAcordeon({ planEstudiosId, minimaAprobatoria = 7 }: Grupos
 
   useEffect(() => {
     loadGrupos();
-  }, [planEstudiosId]);
+  }, [planEstudiosId, idPeriodoAcademico]);
 
   const loadGrupos = async () => {
     setLoading(true);
     try {
-      const gestionAcademica = await getAcademicManagement(planEstudiosId);
+      const gestionAcademica = await getAcademicManagement(planEstudiosId, idPeriodoAcademico);
 
       const gruposConMaterias: GrupoConMaterias[] = [];
 

@@ -30,8 +30,44 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/services/api-client";
+import { getApplicantsList } from "@/services/applicants-service";
+import { getGrupos } from "@/services/catalogs-service";
+import { getStudentsList } from "@/services/students-service";
+import { getAllTeachers } from "@/services/teacher-service";
 
 const BASE = "/plantillas-reporte";
+
+interface Origen {
+  clave: string;
+  nombre: string;
+  descripcion: string;
+}
+
+interface VariableCatalogo {
+  clave: string;
+  descripcion: string;
+}
+
+interface EntidadOpcion {
+  id: number;
+  label: string;
+  sublabel: string;
+}
+
+const ENTIDAD_LABEL: Record<string, string> = {
+  estudiante: "alumno",
+  aspirante: "aspirante",
+  grupo: "grupo",
+  docente: "docente",
+};
+
+const ROLES_GENERA = [
+  { value: "alumno", label: "Alumno (su propio formato)" },
+  { value: "docente", label: "Docente (lo suyo / sus grupos)" },
+  { value: "controlescolar", label: "Control Escolar" },
+  { value: "director", label: "Director" },
+  { value: "coordinador", label: "Coordinador" },
+];
 
 const CATEGORIAS = [
   { value: "control_escolar", label: "Control Escolar" },
@@ -72,6 +108,8 @@ interface Plantilla {
   descripcion: string | null;
   categoria: string;
   nombreArchivoOriginal: string;
+  origen: string | null;
+  rolesGenera: string | null;
   activa: boolean;
   createdAt: string;
 }
@@ -90,9 +128,35 @@ export default function PlantillasReportePage() {
   const [codigoCustom, setCodigoCustom] = useState("");
   const [categoria, setCategoria] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [origen, setOrigen] = useState("");
+  const [rolesGenera, setRolesGenera] = useState<string[]>([]);
   const [archivo, setArchivo] = useState<File | null>(null);
 
-  useEffect(() => { loadData(); }, []);
+  const [origenes, setOrigenes] = useState<Origen[]>([]);
+  const [catalogo, setCatalogo] = useState<VariableCatalogo[]>([]);
+
+  const [genOpen, setGenOpen] = useState(false);
+  const [genPlantilla, setGenPlantilla] = useState<Plantilla | null>(null);
+  const [genQuery, setGenQuery] = useState("");
+  const [genEntidades, setGenEntidades] = useState<EntidadOpcion[]>([]);
+  const [genLoading, setGenLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => { loadData(); loadOrigenes(); }, []);
+
+  useEffect(() => {
+    if (!origen) { setCatalogo([]); return; }
+    apiClient.get<VariableCatalogo[]>(`${BASE}/origenes/${origen}/variables`)
+      .then(({ data }) => setCatalogo(data))
+      .catch(() => setCatalogo([]));
+  }, [origen]);
+
+  const loadOrigenes = async () => {
+    try {
+      const { data } = await apiClient.get<Origen[]>(`${BASE}/origenes`);
+      setOrigenes(data);
+    } catch { /* opcional */ }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -116,6 +180,8 @@ export default function PlantillasReportePage() {
       formData.append("codigo", codigo);
       formData.append("categoria", categoria);
       formData.append("descripcion", descripcion);
+      if (origen) formData.append("origen", origen);
+      if (rolesGenera.length > 0) formData.append("rolesGenera", rolesGenera.join(","));
       formData.append("archivo", archivo);
       await apiClient.post(BASE, formData);
       toast.success("Plantilla creada");
@@ -190,7 +256,78 @@ export default function PlantillasReportePage() {
 
   const resetForm = () => {
     setNombre(""); setCodigoSelect(""); setCodigoCustom("");
-    setCategoria(""); setDescripcion(""); setArchivo(null);
+    setCategoria(""); setDescripcion(""); setOrigen(""); setRolesGenera([]); setArchivo(null);
+  };
+
+  const toggleRol = (rol: string) => {
+    setRolesGenera((prev) => (prev.includes(rol) ? prev.filter((r) => r !== rol) : [...prev, rol]));
+  };
+
+  const abrirGenerar = (p: Plantilla) => {
+    setGenPlantilla(p);
+    setGenQuery("");
+    setGenEntidades([]);
+    setGenOpen(true);
+  };
+
+  const buscarEntidades = async () => {
+    if (!genPlantilla?.origen) return;
+    setGenLoading(true);
+    try {
+      const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+      const q = norm(genQuery);
+      let opciones: EntidadOpcion[] = [];
+
+      if (genPlantilla.origen === "estudiante") {
+        const r = await getStudentsList(1, 100000);
+        opciones = (r.items ?? []).map((e) => ({ id: e.idEstudiante, label: e.nombreCompleto, sublabel: e.matricula }));
+      } else if (genPlantilla.origen === "aspirante") {
+        const r = await getApplicantsList({ page: 1, pageSize: 100000, filter: genQuery || undefined });
+        opciones = ((r as any).items ?? []).map((a: any) => ({ id: a.idAspirante, label: a.nombreCompleto, sublabel: `ASP-${a.idAspirante}` }));
+      } else if (genPlantilla.origen === "grupo") {
+        const r = await getGrupos();
+        opciones = r.map((g) => ({ id: g.idGrupo, label: g.codigoGrupo || g.nombreGrupo, sublabel: `${(g as any).nombrePlanEstudios ?? ""} · Cuatri ${g.numeroCuatrimestre}` }));
+      } else if (genPlantilla.origen === "docente") {
+        const r = await getAllTeachers(1, 2000);
+        opciones = ((r as any).items ?? []).map((t: any) => ({ id: t.idProfesor, label: t.nombreCompleto, sublabel: t.correo ?? "" }));
+      }
+
+      const filtradas = opciones.filter((o) => !q || norm(o.label).includes(q) || norm(o.sublabel).includes(q)).slice(0, 60);
+      setGenEntidades(filtradas);
+    } catch {
+      toast.error("Error al buscar");
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const generarEntidad = async (id: number) => {
+    if (!genPlantilla) return;
+    setGenerating(true);
+    try {
+      const { data } = await apiClient.post(
+        `${BASE}/${genPlantilla.codigo}/generar-entidad/${id}`,
+        null,
+        { responseType: "blob" },
+      );
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${genPlantilla.codigo}_${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Formato generado");
+      setGenOpen(false);
+    } catch (err: any) {
+      const blob = err?.response?.data;
+      let msg = "Error al generar el formato";
+      if (blob instanceof Blob) {
+        try { msg = JSON.parse(await blob.text())?.error || msg; } catch { /* noop */ }
+      }
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -248,13 +385,24 @@ export default function PlantillasReportePage() {
                         <Badge className={p.activa ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}>
                           {p.activa ? "Activa" : "Inactiva"}
                         </Badge>
+                        {p.origen && (
+                          <Badge className="bg-indigo-100 text-indigo-800 text-xs">Origen: {p.origen}</Badge>
+                        )}
+                        {p.rolesGenera && (
+                          <Badge className="bg-amber-100 text-amber-800 text-xs">Genera: {p.rolesGenera}</Badge>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1">
                         Código: <code className="bg-gray-100 px-1 rounded">{p.codigo}</code> — Archivo: {p.nombreArchivoOriginal}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {p.origen && (
+                      <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => abrirGenerar(p)} title="Generar de prueba con datos reales (para desarrollar el formato)">
+                        <FileText className="h-3 w-3" /> Generar (prueba)
+                      </Button>
+                    )}
                     <Link href={`/dashboard/plantillas-reporte/editor?id=${p.id}`}>
                       <Button variant="default" size="sm" className="gap-1">
                         <Pencil className="h-3 w-3" /> Editar en línea
@@ -351,6 +499,50 @@ export default function PlantillasReportePage() {
               <Textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={2} />
             </div>
             <div className="space-y-2">
+              <Label>Origen de datos (autollenado)</Label>
+              <Select value={origen} onValueChange={setOrigen}>
+                <SelectTrigger><SelectValue placeholder="Sin origen (formato en blanco)" /></SelectTrigger>
+                <SelectContent>
+                  {origenes.map((o) => <SelectItem key={o.clave} value={o.clave}>{o.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {catalogo.length > 0 && (
+                <div className="rounded-md border bg-muted/30 p-2 max-h-40 overflow-auto">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Variables disponibles — cópialas a tu Word como <code className="bg-muted px-1 rounded">{"{{clave}}"}</code>:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {catalogo.map((v) => (
+                      <Badge key={v.clave} variant="outline" className="text-[10px] font-mono" title={v.descripcion}>
+                        {`{{${v.clave}}}`}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {origen && (
+              <div className="space-y-2">
+                <Label>¿Quién puede generar este formato?</Label>
+                <div className="grid grid-cols-2 gap-2 rounded-md border p-2">
+                  {ROLES_GENERA.map((r) => (
+                    <label key={r.value} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={rolesGenera.includes(r.value)}
+                        onChange={() => toggleRol(r.value)}
+                        className="h-4 w-4"
+                      />
+                      {r.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Define qué roles pueden generarlo en su pantalla (ej. el alumno desde su panel genera solo el suyo).
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
               <Label>Archivo (.docx o .xlsx) *</Label>
               <Input type="file" accept=".docx,.xlsx,.xls" onChange={(e) => setArchivo(e.target.files?.[0] || null)} />
             </div>
@@ -362,6 +554,52 @@ export default function PlantillasReportePage() {
               Crear Plantilla
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={genOpen} onOpenChange={setGenOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Generar de prueba</DialogTitle>
+            <DialogDescription>
+              {genPlantilla?.nombre} — busca un {ENTIDAD_LABEL[genPlantilla?.origen ?? ""] ?? "registro"} de prueba para verificar el formato con datos reales.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                value={genQuery}
+                onChange={(e) => setGenQuery(e.target.value)}
+                placeholder={`Buscar ${ENTIDAD_LABEL[genPlantilla?.origen ?? ""] ?? ""} (nombre o clave)`}
+                onKeyDown={(e) => e.key === "Enter" && buscarEntidades()}
+              />
+              <Button onClick={buscarEntidades} disabled={genLoading}>
+                {genLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+              </Button>
+            </div>
+            <div className="max-h-72 divide-y overflow-auto rounded-md border">
+              {genEntidades.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Busca un {ENTIDAD_LABEL[genPlantilla?.origen ?? ""] ?? "registro"} para generar el formato de prueba
+                </p>
+              ) : (
+                genEntidades.map((e) => (
+                  <button
+                    key={e.id}
+                    disabled={generating}
+                    onClick={() => generarEntidad(e.id)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted/50 disabled:opacity-50"
+                  >
+                    <span>
+                      <span className="font-medium">{e.label}</span>
+                      {e.sublabel && <span className="ml-2 font-mono text-xs text-muted-foreground">{e.sublabel}</span>}
+                    </span>
+                    {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-emerald-600" />}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

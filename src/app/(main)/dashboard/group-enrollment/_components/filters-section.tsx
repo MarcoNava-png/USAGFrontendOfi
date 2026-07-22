@@ -5,6 +5,7 @@ import { Building2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { Campus } from "@/types/campus";
 import { AcademicPeriod, StudyPlan } from "@/types/catalog";
 
@@ -107,7 +108,7 @@ export function FiltersSection({
               ) : (
                 academicPeriods.map((period) => (
                   <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
-                    {period.nombre}
+                    {formatPeriodoLabel(period)}
                   </SelectItem>
                 ))
               )}

@@ -820,7 +820,7 @@ export function ApplicantCreateForm({
               name="idPeriodoAcademico"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Periodo Académico</FormLabel>
+                  <FormLabel>Periodo Académico <span className="text-red-500">*</span></FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
                     value={field.value ? String(field.value) : ""}

@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { obtenerCatalogoBecas } from "@/services/beca-catalogo-service";
 import { asignarBecaDesdeCatalogo } from "@/services/becas-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
@@ -291,7 +292,7 @@ export function AsignarBecaModal({ open, onClose, idEstudiante }: Props) {
                         key={periodo.idPeriodoAcademico}
                         value={periodo.idPeriodoAcademico.toString()}
                       >
-                        {periodo.nombre}
+                        {formatPeriodoLabel(periodo)}
                         {periodo.esPeriodoActual && " (Actual)"}
                       </SelectItem>
                     ))}

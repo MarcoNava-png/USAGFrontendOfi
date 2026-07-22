@@ -29,12 +29,35 @@ export async function getApplicantsList(dataOptions: {
   pageSize?: number;
   filter?: string;
   createdBy?: string;
+  idPeriodoAcademico?: number;
+  soloSinPeriodo?: boolean;
+  estatus?: string[];
+  fechaRegistroDesde?: string;
+  fechaRegistroHasta?: string;
+  estatusPago?: string[];
+  estatusDocumentos?: string[];
+  idPlan?: number[];
+  accionTipo?: string;
+  soloOcultos?: boolean;
 }): Promise<ApplicantsResponse> {
   const params = new URLSearchParams();
   params.set("page", String(dataOptions.page ?? 1));
   params.set("pageSize", String(dataOptions.pageSize ?? 20));
   if (dataOptions.filter) params.set("filter", dataOptions.filter);
   if (dataOptions.createdBy) params.set("registradoPor", dataOptions.createdBy);
+  if (dataOptions.soloSinPeriodo) {
+    params.set("soloSinPeriodo", "true");
+  } else if (dataOptions.idPeriodoAcademico !== undefined) {
+    params.set("idPeriodoAcademico", String(dataOptions.idPeriodoAcademico));
+  }
+  if (dataOptions.estatus && dataOptions.estatus.length > 0) params.set("estatus", dataOptions.estatus.join(","));
+  if (dataOptions.fechaRegistroDesde) params.set("fechaRegistroDesde", dataOptions.fechaRegistroDesde);
+  if (dataOptions.fechaRegistroHasta) params.set("fechaRegistroHasta", dataOptions.fechaRegistroHasta);
+  if (dataOptions.estatusPago && dataOptions.estatusPago.length > 0) params.set("estatusPago", dataOptions.estatusPago.join(","));
+  if (dataOptions.estatusDocumentos && dataOptions.estatusDocumentos.length > 0) params.set("estatusDocumentos", dataOptions.estatusDocumentos.join(","));
+  if (dataOptions.idPlan && dataOptions.idPlan.length > 0) params.set("idPlan", dataOptions.idPlan.join(","));
+  if (dataOptions.accionTipo) params.set("accionTipo", dataOptions.accionTipo);
+  if (dataOptions.soloOcultos) params.set("soloOcultos", "true");
   const { data } = await apiClient.get<ApplicantsResponse>(`/Aspirante?${params.toString()}`);
   return data;
 }
@@ -162,6 +185,23 @@ export async function downloadEnrollmentReceipt(idEstudiante: number, passwordTe
   window.URL.revokeObjectURL(url);
 }
 
+export async function downloadApplicantEnrollmentReceipt(aspiranteId: number, openInNewTab: boolean = false): Promise<void> {
+  const response = await apiClient.get(`/Aspirante/${aspiranteId}/comprobante-inscripcion/pdf`, {
+    responseType: "blob",
+  });
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+  if (openInNewTab) {
+    window.open(url, "_blank");
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `comprobante-inscripcion-${aspiranteId}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+}
+
 export async function downloadApplicantEnrollmentSheet(aspiranteId: number, openInNewTab: boolean = false): Promise<void> {
   try {
     const response = await apiClient.get(`/Aspirante/${aspiranteId}/hoja-inscripcion/pdf`, {
@@ -234,6 +274,10 @@ export async function cancelApplicant(aspiranteId: number, request: CancelarAspi
 
 export async function hideApplicant(aspiranteId: number): Promise<void> {
   await apiClient.patch(`/Aspirante/${aspiranteId}/ocultar`);
+}
+
+export async function restoreApplicant(aspiranteId: number): Promise<void> {
+  await apiClient.patch(`/Aspirante/${aspiranteId}/mostrar`);
 }
 
 export async function generateApplicantReceipt(

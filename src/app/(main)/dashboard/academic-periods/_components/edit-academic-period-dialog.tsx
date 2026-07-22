@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { updateAcademicPeriod } from "@/services/academic-period-service";
 import { getPeriodicity } from "@/services/catalogs-service";
+import { getVentanas } from "@/services/ventana-captura-service";
 import { AcademicPeriod } from "@/types/academic-period";
 import { Periodicity } from "@/types/catalog";
 
@@ -45,11 +46,16 @@ export function EditAcademicPeriodDialog({ open, setOpen, period, onSuccess }: E
       idPeriodicidad: period.idPeriodicidad?.toString() ?? "",
       fechaInicio: formatDateForInput(period.fechaInicio),
       fechaFin: formatDateForInput(period.fechaFin),
+      fechaLimiteParcial1: "",
+      fechaLimiteParcial2: "",
+      fechaLimiteParcial3: "",
     },
   });
 
   const [periodicity, setPeriodicity] = useState<Periodicity[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const toDeadline = (v: string) => (v ? new Date(`${v}T23:59:59`).toISOString() : null);
 
   useEffect(() => {
     getPeriodicity().then((res) => setPeriodicity(res ?? []));
@@ -61,8 +67,27 @@ export function EditAcademicPeriodDialog({ open, setOpen, period, onSuccess }: E
       idPeriodicidad: period.idPeriodicidad?.toString() ?? "",
       fechaInicio: formatDateForInput(period.fechaInicio),
       fechaFin: formatDateForInput(period.fechaFin),
+      fechaLimiteParcial1: "",
+      fechaLimiteParcial2: "",
+      fechaLimiteParcial3: "",
     });
   }, [period, form]);
+
+  useEffect(() => {
+    if (!open || !period.idPeriodoAcademico) return;
+    getVentanas(period.idPeriodoAcademico)
+      .then((ventanas) => {
+        for (const v of ventanas) {
+          if (v.fechaLimite) {
+            form.setValue(
+              `fechaLimiteParcial${v.numeroParcial}` as "fechaLimiteParcial1",
+              formatDateForInput(v.fechaLimite),
+            );
+          }
+        }
+      })
+      .catch(() => {});
+  }, [open, period.idPeriodoAcademico, form]);
 
   const onSubmit = async (data: Record<string, string>) => {
     setLoading(true);
@@ -76,6 +101,9 @@ export function EditAcademicPeriodDialog({ open, setOpen, period, onSuccess }: E
         fechaInicio: data.fechaInicio,
         fechaFin: data.fechaFin,
         esPeriodoActual: period.esPeriodoActual,
+        fechaLimiteParcial1: toDeadline(data.fechaLimiteParcial1),
+        fechaLimiteParcial2: toDeadline(data.fechaLimiteParcial2),
+        fechaLimiteParcial3: toDeadline(data.fechaLimiteParcial3),
       };
       await updateAcademicPeriod(payload);
       setOpen(false);
@@ -184,6 +212,33 @@ export function EditAcademicPeriodDialog({ open, setOpen, period, onSuccess }: E
                     />
                   )}
                 />
+              </div>
+
+              <div className="border-t pt-3">
+                <p className="text-sm font-medium mb-1">Fechas límite de captura de calificaciones (opcional)</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Hasta cuándo los docentes pueden capturar cada parcial. Al vencer, se cierra solo.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Parcial 1</Label>
+                    <FormField name="fechaLimiteParcial1" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Parcial 2</Label>
+                    <FormField name="fechaLimiteParcial2" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Parcial 3</Label>
+                    <FormField name="fechaLimiteParcial3" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                </div>
               </div>
             </div>
             <DialogFooter>

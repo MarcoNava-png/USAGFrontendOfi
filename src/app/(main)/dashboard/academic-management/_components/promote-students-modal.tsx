@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
 import { promoteStudents } from "@/services/groups-service";
 import { AcademicPeriod } from "@/types/catalog";
@@ -152,7 +153,7 @@ export function PromoteStudentsModal({
                 <SelectContent>
                   {academicPeriods.map((period) => (
                     <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
-                      {period.nombre} ({period.clave})
+                      {formatPeriodoLabel(period)}
                     </SelectItem>
                   ))}
                 </SelectContent>

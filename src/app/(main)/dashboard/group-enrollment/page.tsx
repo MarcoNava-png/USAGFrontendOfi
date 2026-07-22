@@ -1,8 +1,9 @@
 "use client";
 
-import { Users, UserPlus } from "lucide-react";
+import { CalendarClock, Users, UserPlus } from "lucide-react";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AlreadyInGroupModal } from "./_components/already-in-group-modal";
 import { AvailableGroupsSection } from "./_components/available-groups-section";
@@ -10,9 +11,10 @@ import { EnrollmentResultModal } from "./_components/enrollment-result-modal";
 import { FiltersSection } from "./_components/filters-section";
 import { ForceEnrollDialog } from "./_components/force-enroll-dialog";
 import { LoadingState } from "./_components/loading-state";
+import { PendingPreinscripcionesList } from "./_components/pending-preinscripciones-list";
 import { SelectedStudentBanner } from "./_components/selected-student-banner";
 import { StudentsWithoutGroupList } from "./_components/students-without-group-list";
-import { useGroupEnrollment } from "./_components/use-group-enrollment";
+import { EnrollmentMode, useGroupEnrollment } from "./_components/use-group-enrollment";
 
 export default function GroupEnrollmentPage() {
   const {
@@ -51,7 +53,17 @@ export default function GroupEnrollmentPage() {
     showAlreadyInGroupModal,
     setShowAlreadyInGroupModal,
     alreadyInGroupInfo,
+    mode,
+    setMode,
+    preinscripciones,
+    selectedPreinscripcionId,
+    setSelectedPreinscripcionId,
+    cancelingPreinscripcionId,
+    handleAssignGroupPreinscripcion,
+    handleCancelPreinscripcion,
   } = useGroupEnrollment();
+
+  const isPendientes = mode === "pendientes";
 
   if (initialLoading) {
     return <LoadingState />;
@@ -68,16 +80,32 @@ export default function GroupEnrollmentPage() {
             Inscripción a Grupos
           </h1>
           <p className="text-muted-foreground mt-1">
-            Inscribe estudiantes nuevos a grupos completos (todas las materias del {periodoLabel.toLowerCase()})
+            {isPendientes
+              ? "Asigna a un grupo los alumnos apartados para un periodo futuro"
+              : `Inscribe estudiantes nuevos a grupos completos (todas las materias del ${periodoLabel.toLowerCase()})`}
           </p>
         </div>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as EnrollmentMode)}>
+          <TabsList>
+            <TabsTrigger value="actual" className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Inscripción actual
+            </TabsTrigger>
+            <TabsTrigger value="pendientes" className="gap-2">
+              <CalendarClock className="h-4 w-4" />
+              Pendientes (periodo futuro)
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-2">
-            <CardDescription className="text-blue-600 dark:text-blue-400">Estudiantes Pendientes</CardDescription>
+            <CardDescription className="text-blue-600 dark:text-blue-400">
+              {isPendientes ? "Alumnos Apartados" : "Estudiantes Pendientes"}
+            </CardDescription>
             <CardTitle className="text-4xl text-blue-700 dark:text-blue-300">
-              {students.length}
+              {isPendientes ? preinscripciones.length : students.length}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -133,27 +161,45 @@ export default function GroupEnrollmentPage() {
           />
         </div>
       </Card>
-      <SelectedStudentBanner selectedStudent={selectedStudent} onClearSelection={() => setSelectedStudentId(null)} />
+      {!isPendientes && (
+        <SelectedStudentBanner selectedStudent={selectedStudent} onClearSelection={() => setSelectedStudentId(null)} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <Card className="h-full">
             <CardHeader className="border-b bg-muted/40">
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Estudiantes sin Grupo
+                {isPendientes ? (
+                  <CalendarClock className="h-5 w-5 text-primary" />
+                ) : (
+                  <Users className="h-5 w-5 text-primary" />
+                )}
+                {isPendientes ? "Alumnos Apartados" : "Estudiantes sin Grupo"}
               </CardTitle>
               <CardDescription>
-                {students.length} estudiantes pendientes de inscripción
+                {isPendientes
+                  ? `${preinscripciones.length} inscripciones pendientes para periodo futuro`
+                  : `${students.length} estudiantes pendientes de inscripción`}
               </CardDescription>
             </CardHeader>
-            <div className="p-0">
-              <StudentsWithoutGroupList
-                students={students}
-                selectedStudentId={selectedStudentId}
-                onSelectStudent={setSelectedStudentId}
-                planName={selectedPlan?.nombrePlanEstudios}
-              />
+            <div className={isPendientes ? "p-4" : "p-0"}>
+              {isPendientes ? (
+                <PendingPreinscripcionesList
+                  preinscripciones={preinscripciones}
+                  selectedPreinscripcionId={selectedPreinscripcionId}
+                  onSelectPreinscripcion={setSelectedPreinscripcionId}
+                  onCancelPreinscripcion={handleCancelPreinscripcion}
+                  cancelingId={cancelingPreinscripcionId}
+                />
+              ) : (
+                <StudentsWithoutGroupList
+                  students={students}
+                  selectedStudentId={selectedStudentId}
+                  onSelectStudent={setSelectedStudentId}
+                  planName={selectedPlan?.nombrePlanEstudios}
+                />
+              )}
             </div>
           </Card>
         </div>
@@ -179,10 +225,12 @@ export default function GroupEnrollmentPage() {
                 selectedPeriodId={selectedPeriodId}
                 loading={loading}
                 cuatrimestreFilter={cuatrimestreFilter}
-                selectedStudentId={selectedStudentId}
+                selectedStudentId={isPendientes ? selectedPreinscripcionId : selectedStudentId}
                 enrolling={enrolling}
                 enrollingGroupId={enrollingGroupId}
-                onEnroll={handleEnrollStudent}
+                onEnroll={isPendientes ? handleAssignGroupPreinscripcion : handleEnrollStudent}
+                actionLabel={isPendientes ? "Asignar a este Grupo" : undefined}
+                enrollingLabel={isPendientes ? "Asignando..." : undefined}
               />
             </div>
           </Card>

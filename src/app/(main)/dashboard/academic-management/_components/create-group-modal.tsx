@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAcademicPeriods, getTurnos } from "@/services/catalogs-service";
 import { createGroupWithSubjects } from "@/services/groups-service";
 import { AcademicPeriod, Turno } from "@/types/catalog";
@@ -152,7 +153,7 @@ export function CreateGroupModal({ open, onOpenChange, idPlanEstudios, defaultPe
                 {academicPeriods.map((period) => (
                   <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
                     <span className="flex items-center gap-2">
-                      <span>{period.nombre} ({period.clave})</span>
+                      <span>{formatPeriodoLabel(period)}</span>
                       {period.esPeriodoActual && (
                         <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: '#14356F', color: 'white' }}>
                           Actual

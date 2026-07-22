@@ -68,12 +68,12 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
               href="/dashboard/super-admin"
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg p-2">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="bg-white rounded-lg p-1.5 shadow-sm border">
+                <img src="/CaasaG.png" alt="Agremiados" className="h-9 w-auto" />
               </div>
               <div>
-                <h1 className="font-bold text-lg">SACI Admin</h1>
-                <p className="text-xs text-muted-foreground">Panel Multi-Tenant</p>
+                <h1 className="font-bold text-lg">Agremiados</h1>
+                <p className="text-xs text-muted-foreground">Panel de Instituciones</p>
               </div>
             </Link>
 

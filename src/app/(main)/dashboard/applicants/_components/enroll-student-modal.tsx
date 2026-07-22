@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer, BookOpen, Mail, IdCard, Users, Download, Copy } from "lucide-react";
+import { GraduationCap, AlertCircle, CheckCircle, FileText, DollarSign, Clock, Printer, BookOpen, Mail, IdCard, Users, Download, Copy, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -401,6 +401,15 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
+                    <Building2 className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase">Campus</p>
+                      <p className="text-xs font-medium">
+                        {fichaAdmision.informacionAcademica.campus || "No especificado"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
                     <GraduationCap className="w-4 h-4 mt-0.5 text-blue-600 shrink-0" />
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase">Modalidad</p>
@@ -464,6 +473,19 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                     <Users className="w-3 h-3" />
                     Grupo (opcional - lo puedes asignar después)
                   </Label>
+                  {previa && (previa.nombrePlanEstudios || previa.campus) && (
+                    <div className="flex items-center gap-2 mb-1 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
+                      <BookOpen className="w-3 h-3 text-blue-600 shrink-0" />
+                      <span className="font-medium text-blue-900">{previa.nombrePlanEstudios ?? "Plan no asignado"}</span>
+                      {previa.campus && (
+                        <>
+                          <span className="text-blue-400">·</span>
+                          <Building2 className="w-3 h-3 text-blue-600 shrink-0" />
+                          <span className="font-medium text-blue-900">{previa.campus}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <Select value={idGrupo} onValueChange={setIdGrupo}>
                     <SelectTrigger className="text-xs">
                       <SelectValue placeholder={previa && previa.gruposDisponibles.length === 0 ? "No hay grupos disponibles" : "Seleccione un grupo"} />
@@ -511,11 +533,10 @@ export function EnrollStudentModal({ open, applicant, onClose, onEnrollmentSucce
                     />
                     <div className="space-y-1">
                       <Label htmlFor="forzar" className="text-xs font-semibold cursor-pointer">
-                        Forzar inscripción (Omitir validaciones)
+                        Forzar inscripción (Omitir validación de documentos)
                       </Label>
                       <p className="text-[10px] text-orange-700">
-                        Active esta opción solo si está seguro de inscribir al aspirante sin cumplir todos los
-                        requisitos. Esta acción quedará registrada en el sistema.
+                        Solo omite la validación de documentos. <strong>El pago de los recibos es obligatorio y NO se puede forzar.</strong>
                       </p>
                     </div>
                   </div>

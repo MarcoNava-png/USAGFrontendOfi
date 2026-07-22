@@ -135,7 +135,7 @@ export function DetalleTicketModal({
   }
 
   const formatFecha = (fecha: string) => {
-    const d = fecha.endsWith("Z") ? new Date(fecha) : new Date(fecha + "Z")
+    const d = (fecha.endsWith("Z") || fecha.includes("+")) ? new Date(fecha) : new Date(fecha + "Z")
     return d.toLocaleDateString("es-MX", {
       day: "2-digit",
       month: "short",

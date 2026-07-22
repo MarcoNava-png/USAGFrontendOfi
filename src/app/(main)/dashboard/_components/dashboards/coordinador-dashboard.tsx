@@ -29,6 +29,7 @@ import {
 import { CoordinadorDashboard as CoordinadorDashboardType } from "@/types/dashboard";
 
 import { AlertCard } from "../shared/alert-card";
+import { CapturaCalificacionesCard } from "../shared/captura-calificaciones-card";
 import { QuickActions } from "../shared/quick-actions";
 import { StatCard, StatGrid } from "../shared/stat-card";
 
@@ -54,6 +55,8 @@ export function CoordinadorDashboard({ data }: CoordinadorDashboardProps) {
         </div>
         <Separator />
       </div>
+
+      <CapturaCalificacionesCard />
 
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

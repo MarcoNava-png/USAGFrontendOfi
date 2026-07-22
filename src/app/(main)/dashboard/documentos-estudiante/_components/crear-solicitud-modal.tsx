@@ -58,11 +58,14 @@ function BuscarEstudianteStep({
 
     try {
       setSearching(true)
-      const response = await getStudentsList()
+      const normalizar = (s: string) =>
+        s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+      const termino = normalizar(searchTerm)
+      const response = await getStudentsList(1, 100000)
       const filtered = response.items?.filter(
         (s: Student) =>
-          s.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.nombreCompleto?.toLowerCase().includes(searchTerm.toLowerCase())
+          normalizar(s.matricula ?? '').includes(termino) ||
+          normalizar(s.nombreCompleto ?? '').includes(termino)
       )
       setStudents(filtered ?? [])
     } catch (error) {
@@ -92,26 +95,35 @@ function BuscarEstudianteStep({
       </div>
 
       {students.length > 0 && (
-        <div className="max-h-[300px] space-y-2 overflow-y-auto rounded-lg border p-2">
-          {students.map((student) => (
-            <div
-              key={student.idEstudiante}
-              className="flex cursor-pointer items-center justify-between rounded-lg border p-3 hover:bg-muted"
-              onClick={() => onSelectStudent(student)}
-            >
-              <div>
-                <p className="font-medium">{student.nombreCompleto}</p>
-                <p className="text-sm text-muted-foreground">
-                  Matricula: {student.matricula}
-                </p>
-                <p className="text-sm text-muted-foreground">{student.planEstudios}</p>
+        <>
+          <p className="text-xs text-muted-foreground">{students.length} resultado(s)</p>
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto rounded-lg border p-2">
+            {students.map((student) => (
+              <div
+                key={student.idEstudiante}
+                className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-3 hover:bg-muted"
+                onClick={() => onSelectStudent(student)}
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold">{student.nombreCompleto}</p>
+                  <div className="flex flex-wrap items-center gap-x-2 text-sm">
+                    <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                      {student.matricula}
+                    </span>
+                    <span className="text-muted-foreground">{student.planEstudios}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                    {student.email ? <span>✉ {student.email}</span> : null}
+                    {student.telefono ? <span>📞 {student.telefono}</span> : null}
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" className="flex-shrink-0">
+                  <UserCheck className="h-4 w-4" />
+                </Button>
               </div>
-              <Button size="sm" variant="ghost">
-                <UserCheck className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
       {students.length === 0 && searchTerm && !searching && (
@@ -287,7 +299,7 @@ export function CrearSolicitudModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {step === 'buscar' ? 'Buscar Estudiante' : 'Crear Solicitud de Documento'}

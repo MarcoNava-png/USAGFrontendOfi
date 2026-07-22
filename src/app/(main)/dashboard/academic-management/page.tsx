@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getStudyPlans } from "@/services/catalogs-service";
 import { getAcademicManagement } from "@/services/groups-service";
@@ -241,7 +242,7 @@ export default function AcademicManagementPage() {
                   className="!text-gray-900 !bg-white hover:!bg-[#14356F]/10 data-[highlighted]:!bg-[#14356F]/10 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <span className="text-gray-900">{period.nombre}</span>
+                    <span className="text-gray-900">{formatPeriodoLabel(period)}</span>
                     {period.esPeriodoActual && (
                       <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: '#14356F', color: 'white' }}>
                         Actual

@@ -59,6 +59,7 @@ import {
   getProfesores,
   getEstudiantes,
 } from "@/services/reportes-academicos-service";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAllTeachers } from "@/services/teacher-service";
 import { buscarEstudiantes } from "@/services/estudiante-panel-service";
 import { getCampusList } from "@/services/campus-service";
@@ -70,6 +71,7 @@ import type { EstudianteListaDto } from "@/types/estudiante-panel";
 interface PeriodoAcademico {
   idPeriodoAcademico: number;
   nombre: string;
+  clave?: string;
   esPeriodoActual: boolean;
 }
 
@@ -511,7 +513,7 @@ export default function ReportesAcademicosPage() {
                 <SelectContent>
                   {periodos.map((p) => (
                     <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
-                      {p.nombre} {p.esPeriodoActual && "(Actual)"}
+                      {formatPeriodoLabel(p)} {p.esPeriodoActual && "(Actual)"}
                     </SelectItem>
                   ))}
                 </SelectContent>

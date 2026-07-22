@@ -11,7 +11,9 @@ import {
   Updater,
   PaginationState,
 } from "@tanstack/react-table";
-import { Users, DollarSign, MoreHorizontal, FileText, CreditCard, ClipboardList, EyeOff, Pencil, GraduationCap, Printer, CheckCircle } from "lucide-react";
+import { Users, DollarSign, MoreHorizontal, FileText, CreditCard, ClipboardList, EyeOff, Eye, Pencil, GraduationCap, Printer, CheckCircle, Filter as FilterIcon, HeartHandshake } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -39,7 +41,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getApplicantsList, getApplicantCounters, getApplicantAsesores, hideApplicant, downloadApplicantEnrollmentSheet } from "@/services/applicants-service";
+import { getApplicantsList, getApplicantCounters, getApplicantAsesores, hideApplicant, restoreApplicant, downloadApplicantEnrollmentSheet, downloadApplicantEnrollmentReceipt } from "@/services/applicants-service";
 import documentacionAspirantesService from "@/services/documentacion-aspirantes-service";
 import type { DocumentacionAspiranteResumenDto } from "@/types/documentacion-aspirantes";
 import { getCampusList } from "@/services/campus-service";
@@ -52,6 +54,7 @@ import {
   getModalidades,
   getSchedules,
 } from "@/services/catalogs-service";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getStates } from "@/services/location-service";
 import { getStudyPlansList } from "@/services/study-plans-service";
 import { Applicant, ApplicantsResponse } from "@/types/applicant";
@@ -63,6 +66,7 @@ import { StudyPlan } from "@/types/study-plan";
 import { ApplicantLogsModal } from "./_components/applicant-logs-modal";
 import { CreateApplicantModal } from "./_components/create-applicant-modal";
 import { DocumentsManagementModal } from "./_components/documents-management-modal";
+import { EstudioSocioeconomicoModal } from "./_components/estudio-socioeconomico-modal";
 import { EditApplicantModal } from "./_components/edit-applicant-modal";
 import { EnrollStudentModal } from "./_components/enroll-student-modal";
 import { ReceiptsManagementModal } from "./_components/receipts-management-modal";
@@ -122,6 +126,8 @@ function Page() {
   const [applicantForBitacoras, setApplicantForBitacoras] = useState<Applicant | null>(null);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
   const [applicantForDocuments, setApplicantForDocuments] = useState<Applicant | null>(null);
+  const [estudioModalOpen, setEstudioModalOpen] = useState(false);
+  const [applicantForEstudio, setApplicantForEstudio] = useState<Applicant | null>(null);
   const [receiptsModalOpen, setReceiptsModalOpen] = useState(false);
   const [applicantForReceipts, setApplicantForReceipts] = useState<Applicant | null>(null);
   const [genres, setGenres] = useState<Genres[]>([]);
@@ -139,8 +145,14 @@ function Page() {
   const [hideDialogOpen, setHideDialogOpen] = useState(false);
   const [applicantToHide, setApplicantToHide] = useState<Applicant | null>(null);
   const [hiding, setHiding] = useState(false);
-  const { isAdmin, primaryRole } = usePermissions();
+  const { isAdmin, isSuperAdmin, primaryRole, permissions } = usePermissions();
   const canHideApplicants = isAdmin || primaryRole === "DIRECTOR";
+  const ROLES_COMISIONES = ["admin", "superadmin", "director", "finanzas", "admisiones"];
+  const canVerComisiones =
+    isAdmin ||
+    isSuperAdmin ||
+    (permissions?.roles ?? []).some((r) => ROLES_COMISIONES.includes(r.toLowerCase())) ||
+    (primaryRole ? ROLES_COMISIONES.includes(primaryRole.toLowerCase()) : false);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -151,6 +163,15 @@ function Page() {
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const [asesores, setAsesores] = useState<{ id: string; nombre: string }[]>([]);
   const [filtroAsesor, setFiltroAsesor] = useState<string>("");
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>("all");
+  const [verOcultos, setVerOcultos] = useState(false);
+  const [colEstatus, setColEstatus] = useState<string[]>([]);
+  const [colFechaDesde, setColFechaDesde] = useState<string>("");
+  const [colFechaHasta, setColFechaHasta] = useState<string>("");
+  const [colPagos, setColPagos] = useState<string[]>([]);
+  const [colDocs, setColDocs] = useState<string[]>([]);
+  const [colPlanes, setColPlanes] = useState<number[]>([]);
+  const [colAccion, setColAccion] = useState<string>("");
   const [resumenDocs, setResumenDocs] = useState<Record<number, {
     totalDocumentos: number;
     documentosCompletos: number;
@@ -170,7 +191,22 @@ function Page() {
     const filterToSend: string | undefined = debouncedFilter.trim() === "" ? undefined : debouncedFilter;
     setLoading(true);
     Promise.all([
-      getApplicantsList({ page: pageIndex + 1, pageSize, filter: filterToSend, createdBy: filtroAsesor || undefined }),
+      getApplicantsList({
+        page: pageIndex + 1,
+        pageSize,
+        filter: filterToSend,
+        createdBy: filtroAsesor || undefined,
+        soloOcultos: verOcultos || undefined,
+        soloSinPeriodo: filtroPeriodo === "sin",
+        idPeriodoAcademico: filtroPeriodo !== "all" && filtroPeriodo !== "sin" ? parseInt(filtroPeriodo) : undefined,
+        estatus: colEstatus.length > 0 ? colEstatus : undefined,
+        fechaRegistroDesde: colFechaDesde || undefined,
+        fechaRegistroHasta: colFechaHasta || undefined,
+        estatusPago: colPagos.length > 0 ? colPagos : undefined,
+        estatusDocumentos: colDocs.length > 0 ? colDocs : undefined,
+        idPlan: colPlanes.length > 0 ? colPlanes : undefined,
+        accionTipo: colAccion || undefined,
+      }),
       getApplicantCounters(),
       documentacionAspirantesService.getResumenDocumentacion().catch(() => [] as DocumentacionAspiranteResumenDto[]),
     ])
@@ -210,12 +246,23 @@ function Page() {
     }
   };
 
+  const handleRestoreApplicant = async (applicant: Applicant) => {
+    try {
+      await restoreApplicant(applicant.idAspirante);
+      toast.success(`Aspirante "${applicant.nombreCompleto}" restaurado exitosamente`);
+      loadApplicants();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { Error?: string } }; message?: string };
+      toast.error(err?.response?.data?.Error ?? err?.message ?? "Error al restaurar aspirante");
+    }
+  };
+
   useEffect(() => {
     const handler: NodeJS.Timeout = setTimeout(() => {
       loadApplicants();
     }, 500);
     return () => clearTimeout(handler);
-  }, [pageIndex, pageSize, debouncedFilter, filtroAsesor]);
+  }, [pageIndex, pageSize, debouncedFilter, filtroAsesor, filtroPeriodo, verOcultos, colEstatus, colFechaDesde, colFechaHasta, colPagos, colDocs, colPlanes, colAccion]);
 
   useEffect(() => {
     getApplicantAsesores().then(setAsesores).catch(() => {});
@@ -299,7 +346,7 @@ function Page() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-          {canHideApplicants && (
+          {canVerComisiones && (
             <Button variant="outline" asChild className="gap-1">
               <Link href="/dashboard/applicants/commissions">
                 <DollarSign className="h-4 w-4" />
@@ -335,15 +382,47 @@ function Page() {
               ))}
             </SelectContent>
           </Select>
-          {(filter || filtroAsesor) && (
-            <Button variant="ghost" size="sm" onClick={() => { setFilter(""); setFiltroAsesor(""); setPageIndex(0); }} className="text-muted-foreground hover:text-foreground">
+          <Select value={filtroPeriodo} onValueChange={(v) => { setFiltroPeriodo(v); setPageIndex(0); }}>
+            <SelectTrigger className="w-[260px]">
+              <SelectValue placeholder="Periodo de ingreso..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los periodos</SelectItem>
+              <SelectItem value="sin">Sin periodo asignado</SelectItem>
+              {academicPeriods.map((p) => (
+                <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
+                  {formatPeriodoLabel(p)}{p.esPeriodoActual ? " — Actual" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canHideApplicants && (
+            <Button
+              variant={verOcultos ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setVerOcultos((v) => !v); setPageIndex(0); }}
+              className="gap-2"
+              style={verOcultos ? { backgroundColor: "#14356F" } : undefined}
+            >
+              {verOcultos ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              {verOcultos ? "Viendo ocultos" : "Ver ocultos"}
+            </Button>
+          )}
+          {(filter || filtroAsesor || filtroPeriodo !== "all" || colEstatus.length > 0 || colFechaDesde || colFechaHasta || colPagos.length > 0 || colDocs.length > 0 || colPlanes.length > 0 || colAccion) && (
+            <Button variant="ghost" size="sm" onClick={() => {
+              setFilter(""); setFiltroAsesor(""); setFiltroPeriodo("all");
+              setColEstatus([]); setColFechaDesde(""); setColFechaHasta("");
+              setColPagos([]); setColDocs([]);
+              setColPlanes([]); setColAccion("");
+              setPageIndex(0);
+            }} className="text-muted-foreground hover:text-foreground">
               Limpiar
             </Button>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card
           className="border-2"
           style={{ borderColor: 'rgba(20, 53, 111, 0.2)', background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.05), rgba(30, 74, 143, 0.1))' }}
@@ -360,14 +439,6 @@ function Page() {
             <CardDescription className="text-green-600 dark:text-green-400">Inscritos</CardDescription>
             <CardTitle className="text-4xl text-green-700 dark:text-green-300">
               {counters.inscritos}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-blue-600 dark:text-blue-400">Aceptados</CardDescription>
-            <CardTitle className="text-4xl text-blue-700 dark:text-blue-300">
-              {counters.aceptados}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -431,14 +502,228 @@ function Page() {
               <tr>
                 <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[50px]">ID</th>
                 <th className="px-2 py-3 text-left text-xs font-semibold text-white min-w-[180px]">Nombre</th>
-                <th className="px-2 py-3 text-left text-xs font-semibold text-white min-w-[150px]">Plan de Estudios</th>
+                <th className="px-2 py-3 text-left text-xs font-semibold text-white min-w-[150px]">
+                  <div className="flex items-center gap-1">
+                    <span>Plan de Estudios</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por plan de estudios">
+                          <FilterIcon className={`h-3 w-3 ${colPlanes.length > 0 ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-3" align="start">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por plan</p>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {studyPlans.map((p) => (
+                            <label key={p.idPlanEstudios} className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                              <Checkbox
+                                checked={colPlanes.includes(p.idPlanEstudios)}
+                                onCheckedChange={(checked) => {
+                                  setColPlanes((prev) => checked ? [...prev, p.idPlanEstudios] : prev.filter((x) => x !== p.idPlanEstudios));
+                                  setPageIndex(0);
+                                }}
+                              />
+                              <span className="text-xs">{p.nombrePlanEstudios}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {colPlanes.length > 0 && (
+                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setColPlanes([]); setPageIndex(0); }}>Limpiar</Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
                 <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[95px]">Teléfono</th>
-                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[100px]">Estatus</th>
-                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[120px]">Registrado Por</th>
-                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[85px]">Registro</th>
-                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[90px]">Pagos</th>
-                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[95px]">Documentos</th>
-                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[180px]">Acciones</th>
+                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[100px]">
+                  <div className="flex items-center gap-1">
+                    <span>Estatus</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por estatus">
+                          <FilterIcon className={`h-3 w-3 ${colEstatus.length > 0 ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-3" align="start">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por estatus</p>
+                        <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                          {applicantStatus.map((s) => (
+                            <label key={s.idAspiranteEstatus} className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                              <Checkbox
+                                checked={colEstatus.includes(s.descEstatus)}
+                                onCheckedChange={(checked) => {
+                                  setColEstatus((prev) => checked ? [...prev, s.descEstatus] : prev.filter((x) => x !== s.descEstatus));
+                                  setPageIndex(0);
+                                }}
+                              />
+                              <span>{s.descEstatus}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {colEstatus.length > 0 && (
+                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setColEstatus([]); setPageIndex(0); }}>Limpiar</Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[120px]">
+                  <div className="flex items-center gap-1">
+                    <span>Registrado Por</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por asesor">
+                          <FilterIcon className={`h-3 w-3 ${filtroAsesor ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por asesor</p>
+                        <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                          <label className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                            <input type="radio" name="asesor-pop" checked={!filtroAsesor} onChange={() => { setFiltroAsesor(""); setPageIndex(0); }} />
+                            <span>Todos los asesores</span>
+                          </label>
+                          {asesores.map((a) => (
+                            <label key={a.id} className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                              <input type="radio" name="asesor-pop" checked={filtroAsesor === a.id} onChange={() => { setFiltroAsesor(a.id); setPageIndex(0); }} />
+                              <span>{a.nombre}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[85px]">
+                  <div className="flex items-center gap-1">
+                    <span>Registro</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por fecha de registro">
+                          <FilterIcon className={`h-3 w-3 ${(colFechaDesde || colFechaHasta) ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-3" align="start">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por fecha</p>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs text-gray-700">Desde</label>
+                            <input type="date" value={colFechaDesde} onChange={(e) => { setColFechaDesde(e.target.value); setPageIndex(0); }} className="border rounded px-2 py-1 text-sm w-full text-gray-900" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-700">Hasta</label>
+                            <input type="date" value={colFechaHasta} onChange={(e) => { setColFechaHasta(e.target.value); setPageIndex(0); }} className="border rounded px-2 py-1 text-sm w-full text-gray-900" />
+                          </div>
+                        </div>
+                        {(colFechaDesde || colFechaHasta) && (
+                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setColFechaDesde(""); setColFechaHasta(""); setPageIndex(0); }}>Limpiar</Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[90px]">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Pagos</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por pagos">
+                          <FilterIcon className={`h-3 w-3 ${colPagos.length > 0 ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-52 p-3" align="end">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por pagos</p>
+                        <div className="space-y-2">
+                          {[
+                            { key: "PAGADO", label: "Pagado" },
+                            { key: "PARCIAL", label: "Parcial" },
+                            { key: "PENDIENTE", label: "Pendiente" },
+                            { key: "SIN_RECIBO", label: "Sin recibo" },
+                          ].map((opt) => (
+                            <label key={opt.key} className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                              <Checkbox
+                                checked={colPagos.includes(opt.key)}
+                                onCheckedChange={(checked) => {
+                                  setColPagos((prev) => checked ? [...prev, opt.key] : prev.filter((x) => x !== opt.key));
+                                  setPageIndex(0);
+                                }}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {colPagos.length > 0 && (
+                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setColPagos([]); setPageIndex(0); }}>Limpiar</Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[95px]">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Documentos</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por documentos">
+                          <FilterIcon className={`h-3 w-3 ${colDocs.length > 0 ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-52 p-3" align="end">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por documentos</p>
+                        <div className="space-y-2">
+                          {[
+                            { key: "VALIDADO", label: "Validado" },
+                            { key: "COMPLETO", label: "Completo" },
+                            { key: "INCOMPLETO", label: "Incompleto" },
+                          ].map((opt) => (
+                            <label key={opt.key} className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                              <Checkbox
+                                checked={colDocs.includes(opt.key)}
+                                onCheckedChange={(checked) => {
+                                  setColDocs((prev) => checked ? [...prev, opt.key] : prev.filter((x) => x !== opt.key));
+                                  setPageIndex(0);
+                                }}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {colDocs.length > 0 && (
+                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => { setColDocs([]); setPageIndex(0); }}>Limpiar</Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-semibold text-white w-[180px]">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Acciones</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="hover:bg-white/20 rounded p-0.5" aria-label="Filtrar por acción pendiente">
+                          <FilterIcon className={`h-3 w-3 ${colAccion ? "text-yellow-300" : "text-white/70"}`} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-52 p-3" align="end">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Filtrar por acción</p>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                            <input type="radio" name="col-accion" checked={!colAccion} onChange={() => { setColAccion(""); setPageIndex(0); }} />
+                            <span>Todos</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                            <input type="radio" name="col-accion" checked={colAccion === "pendientes"} onChange={() => { setColAccion("pendientes"); setPageIndex(0); }} />
+                            <span>Por inscribir</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-900 cursor-pointer">
+                            <input type="radio" name="col-accion" checked={colAccion === "inscritos"} onChange={() => { setColAccion("inscritos"); setPageIndex(0); }} />
+                            <span>Ya inscritos</span>
+                          </label>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -520,7 +805,23 @@ function Page() {
                 <td className="px-2 py-2">
                   <div className="flex items-center justify-center gap-1">
                     {applicant.aspiranteEstatus === "Inscrito" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-medium"><CheckCircle className="h-3 w-3" /> Inscrito</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await downloadApplicantEnrollmentReceipt(applicant.idAspirante, true);
+                          } catch {
+                            toast.error("Error al generar el comprobante de inscripción");
+                          }
+                        }}
+                        title="Imprimir comprobante de inscripción"
+                        className="group inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-800 hover:bg-green-200 text-[10px] font-medium cursor-pointer transition-colors"
+                      >
+                        <CheckCircle className="h-3 w-3 group-hover:hidden" />
+                        <Printer className="h-3 w-3 hidden group-hover:inline" />
+                        <span className="group-hover:hidden">Inscrito</span>
+                        <span className="hidden group-hover:inline">Comprobante</span>
+                      </button>
                     ) : (
                       <>
                         <Button
@@ -582,6 +883,13 @@ function Page() {
                           <ClipboardList className="mr-2 h-4 w-4" />
                           Seguimiento
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setApplicantForEstudio(applicant);
+                          setEstudioModalOpen(true);
+                        }}>
+                          <HeartHandshake className="mr-2 h-4 w-4" />
+                          Estudio Socioeconómico
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={async () => {
                           try {
                             await downloadApplicantEnrollmentSheet(applicant.idAspirante, true);
@@ -595,16 +903,26 @@ function Page() {
                         {canHideApplicants && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setApplicantToHide(applicant);
-                                setHideDialogOpen(true);
-                              }}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <EyeOff className="mr-2 h-4 w-4" />
-                              Ocultar
-                            </DropdownMenuItem>
+                            {verOcultos ? (
+                              <DropdownMenuItem
+                                onClick={() => handleRestoreApplicant(applicant)}
+                                className="text-green-700 focus:text-green-700"
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Restaurar
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setApplicantToHide(applicant);
+                                  setHideDialogOpen(true);
+                                }}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <EyeOff className="mr-2 h-4 w-4" />
+                                Ocultar
+                              </DropdownMenuItem>
+                            )}
                           </>
                         )}
                       </DropdownMenuContent>
@@ -635,6 +953,15 @@ function Page() {
         onClose={() => {
           setBitacorasModalOpen(false);
           setApplicantForBitacoras(null);
+        }}
+      />
+
+      <EstudioSocioeconomicoModal
+        open={estudioModalOpen}
+        applicant={applicantForEstudio}
+        onClose={() => {
+          setEstudioModalOpen(false);
+          setApplicantForEstudio(null);
         }}
       />
 

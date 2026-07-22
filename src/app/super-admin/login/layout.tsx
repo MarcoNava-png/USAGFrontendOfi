@@ -1,7 +1,5 @@
 import { ReactNode } from "react"
 
-import { Shield } from "lucide-react"
-
 export default function SuperAdminLoginLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <main>
@@ -27,18 +25,18 @@ export default function SuperAdminLoginLayout({ children }: Readonly<{ children:
           <div className="relative z-10 flex flex-col justify-between w-full p-10">
             {/* Header */}
             <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="relative bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 shadow-2xl mb-8">
-                <Shield className="w-24 h-24 text-white" />
+              <div className="relative bg-white rounded-3xl p-8 shadow-2xl mb-8">
+                <img src="/CaasaG.png" alt="Agremiados" className="w-40 h-auto" />
               </div>
               <div className="text-center text-white space-y-3">
                 <h1 className="text-3xl xl:text-4xl font-bold leading-tight">
-                  Panel de SuperAdmin
+                  Panel de Agremiados
                 </h1>
                 <h2 className="text-2xl xl:text-3xl font-semibold text-indigo-300">
-                  SACI Multi-Tenant
+                  Instituciones Agremiadas
                 </h2>
                 <p className="text-sm font-medium mt-4 text-indigo-400">
-                  Administracion Centralizada de Escuelas
+                  Administración Centralizada de Instituciones
                 </p>
               </div>
             </div>

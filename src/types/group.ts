@@ -5,7 +5,11 @@ export interface Group {
   nombreGrupo: string;
   idPlanEstudios: number;
   planEstudios: string;
+  idCampus?: number;
+  campus?: string;
   periodoAcademico: string;
+  periodoInicio?: string | null;
+  periodoFin?: string | null;
   consecutivoPeriodicidad: number;
   numeroGrupo: number;
   turno: string;
@@ -105,6 +109,9 @@ export interface StudentInGroup {
   materiasInscritas: number;
   fechaInscripcion: string;
   estado?: string;
+  activo?: boolean;
+  estatusAcademico?: number;
+  estatusAcademicoTexto?: string;
 }
 
 export interface GestionAcademicaResponse {
@@ -218,4 +225,72 @@ export interface EstudiantePromocionDetalle {
   fuePromovido: boolean;
   motivo: string;
   promedioGeneral: number;
+}
+
+export interface CuatrimestrePrevio {
+  numeroCuatrimestre: number;
+  totalMateriasEnPlan: number;
+  idGrupoExistente?: number | null;
+  grupoExistenteInfo?: string | null;
+  alumnosCohorteInscritos?: number | null;
+  idPeriodoSugerido?: number | null;
+  periodoSugerido?: string | null;
+}
+
+export interface CuatrimestresAnterioresPreview {
+  idGrupoOrigen: number;
+  nombreGrupo: string;
+  codigoGrupo: string;
+  idPlanEstudios: number;
+  planEstudios: string;
+  numeroCuatrimestreActual: number;
+  numeroGrupo: number;
+  idTurno: number;
+  turno: string;
+  idPeriodoActual: number;
+  periodoActual: string;
+  totalEstudiantes: number;
+  cuatrimestresPrevios: CuatrimestrePrevio[];
+}
+
+export interface NuevoPeriodoInput {
+  nombre: string;
+  clave?: string;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+export interface CuatrimestreAGenerar {
+  numeroCuatrimestre: number;
+  idPeriodoAcademico?: number | null;
+  nuevoPeriodo?: NuevoPeriodoInput | null;
+}
+
+export interface GenerarCuatrimestresAnterioresRequest {
+  idGrupoOrigen: number;
+  copiarEstudiantes: boolean;
+  cuatrimestres: CuatrimestreAGenerar[];
+}
+
+export interface CuatrimestreGenerado {
+  numeroCuatrimestre: number;
+  idGrupo: number;
+  nombreGrupo: string;
+  codigoGrupo: string;
+  idPeriodoAcademico: number;
+  periodoAcademico: string;
+  grupoYaExistia: boolean;
+  periodoCreado: boolean;
+  totalMaterias: number;
+  estudiantesInscritos: number;
+  estudiantesConAdvertencia: number;
+  advertencias: string[];
+}
+
+export interface GenerarCuatrimestresAnterioresResultado {
+  idGrupoOrigen: number;
+  totalGruposCreados: number;
+  totalGruposReutilizados: number;
+  totalPeriodosCreados: number;
+  cuatrimestres: CuatrimestreGenerado[];
 }

@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import { getStudyPlans } from "@/services/catalogs-service";
 import { getGroups } from "@/services/groups-service";
@@ -951,7 +951,7 @@ export default function ReportsPage() {
                       <SelectItem value="all">Todos los periodos</SelectItem>
                       {periodos.map((periodo) => (
                         <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                          {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
+                          {formatPeriodoLabel(periodo)} {periodo.esPeriodoActual && "(Actual)"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1268,7 +1268,7 @@ export default function ReportsPage() {
                       <SelectItem value="all">Todos los periodos</SelectItem>
                       {periodos.map((periodo) => (
                         <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                          {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
+                          {formatPeriodoLabel(periodo)} {periodo.esPeriodoActual && "(Actual)"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1577,7 +1577,7 @@ export default function ReportsPage() {
                       <SelectItem value="all">Todos los periodos</SelectItem>
                       {periodos.map((periodo) => (
                         <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                          {periodo.nombre} {periodo.esPeriodoActual && "(Actual)"}
+                          {formatPeriodoLabel(periodo)} {periodo.esPeriodoActual && "(Actual)"}
                         </SelectItem>
                       ))}
                     </SelectContent>

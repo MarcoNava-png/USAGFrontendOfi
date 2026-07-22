@@ -21,17 +21,26 @@ import {
   getParciales,
   upsertDetalle,
 } from "@/services/docente-portal-service"
+import {
+  getEstadoCaptura,
+  solicitarProrroga,
+  type EstadoCaptura,
+} from "@/services/ventana-captura-service"
 import type {
   CalificacionDetalleItem,
   GrupoMateriaDocente,
   ParcialStatus,
 } from "@/types/docente-portal"
+import { CalendarClock, Lock, LockOpen } from "lucide-react"
 import { toast } from "sonner"
 
 import { SelectGrupoParcial } from "./_components/select-grupo-parcial"
 import { EvaluacionFormDialog, type EvaluacionFormValues } from "./_components/evaluacion-form"
 
 const tipoLabels: Record<number, string> = { 0: "Tarea", 1: "Examen", 2: "Proyecto" }
+
+const fmtFecha = (d?: string | null) =>
+  d ? new Date(d).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" }) : ""
 
 export default function CalificacionesDocentePage() {
   const [grupos, setGrupos] = useState<GrupoMateriaDocente[]>([])
@@ -43,6 +52,7 @@ export default function CalificacionesDocentePage() {
   const [loadingParciales, setLoadingParciales] = useState(false)
   const [loadingDetalles, setLoadingDetalles] = useState(false)
   const [abriendo, setAbriendo] = useState(false)
+  const [estadoCaptura, setEstadoCaptura] = useState<EstadoCaptura | null>(null)
 
   // Cargar grupos
   useEffect(() => {
@@ -92,6 +102,33 @@ export default function CalificacionesDocentePage() {
   const currentParcial = parciales.find((p) => String(p.parcialId) === selectedParcial)
   const isOpen = currentParcial?.status === "Abierto"
   const isSinAbrir = currentParcial?.status === "Sin abrir"
+
+  const loadEstadoCaptura = useCallback(() => {
+    if (!selectedGrupo || !selectedParcial) {
+      setEstadoCaptura(null)
+      return
+    }
+    getEstadoCaptura(Number(selectedGrupo), Number(selectedParcial))
+      .then(setEstadoCaptura)
+      .catch(() => setEstadoCaptura(null))
+  }, [selectedGrupo, selectedParcial])
+
+  useEffect(() => {
+    loadEstadoCaptura()
+  }, [loadEstadoCaptura])
+
+  const handleSolicitarProrroga = async () => {
+    if (!selectedGrupo || !selectedParcial) return
+    const motivo = window.prompt("Motivo de la solicitud de prórroga (opcional):") ?? undefined
+    try {
+      await solicitarProrroga(Number(selectedGrupo), Number(selectedParcial), motivo)
+      toast.success("Solicitud de prórroga enviada")
+      loadEstadoCaptura()
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } }
+      toast.error(err?.response?.data?.message ?? "No se pudo enviar la solicitud")
+    }
+  }
 
   const handleAbrirParcial = async () => {
     if (!selectedGrupo || !selectedParcial) return
@@ -212,6 +249,43 @@ export default function CalificacionesDocentePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Ventana de captura (central) */}
+      {selectedGrupo && selectedParcial && estadoCaptura && (
+        <Card className={`border-2 ${estadoCaptura.puedeCapturar ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}`}>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-3">
+              {estadoCaptura.puedeCapturar ? (
+                <LockOpen className="h-5 w-5 text-green-600" />
+              ) : (
+                <Lock className="h-5 w-5 text-red-600" />
+              )}
+              <div>
+                <p className={`font-semibold ${estadoCaptura.puedeCapturar ? "text-green-800" : "text-red-800"}`}>
+                  {estadoCaptura.puedeCapturar ? "Captura abierta" : "Captura cerrada"}
+                </p>
+                <p className="text-sm text-muted-foreground">{estadoCaptura.mensaje}</p>
+                {estadoCaptura.tieneProrrogaAprobada && estadoCaptura.fechaLimiteProrroga && (
+                  <p className="text-sm text-green-700 flex items-center gap-1 mt-0.5">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    Prórroga aprobada hasta {fmtFecha(estadoCaptura.fechaLimiteProrroga)}
+                  </p>
+                )}
+              </div>
+            </div>
+            {!estadoCaptura.puedeCapturar && (
+              estadoCaptura.prorrogaPendiente ? (
+                <Badge variant="outline" className="text-amber-600 border-amber-300">Prórroga pendiente de autorización</Badge>
+              ) : (
+                <Button variant="outline" onClick={handleSolicitarProrroga} className="border-[#14356F] text-[#14356F]">
+                  <CalendarClock className="h-4 w-4 mr-1" />
+                  Solicitar prórroga
+                </Button>
+              )
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Estado del parcial y acciones */}
       {selectedParcial && currentParcial && (

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
 import {
   enrollStudentInGrupoMateria,
@@ -212,7 +213,7 @@ export function EnrollGrupoMateriaModal({
                     <SelectContent>
                       {academicPeriods.map((period) => (
                         <SelectItem key={period.idPeriodoAcademico} value={period.idPeriodoAcademico.toString()}>
-                          {period.nombre} ({period.clave})
+                          {formatPeriodoLabel(period)}
                         </SelectItem>
                       ))}
                     </SelectContent>

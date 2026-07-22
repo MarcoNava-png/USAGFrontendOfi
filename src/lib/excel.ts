@@ -49,10 +49,21 @@ export async function readExcelAsObjects(
   const rows = await readExcelAsArrays(file);
   if (rows.length < 2) return [];
 
-  const headers = rows[0].map((h) => String(h ?? ""));
+  const norm = (v: unknown): string =>
+    String(v ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+  // La plantilla trae logo/titulo/instrucciones antes de las columnas: detectar la fila de encabezados real.
+  let headerIdx = rows.findIndex(
+    (r) =>
+      r.some((c) => norm(c) === "nombre") &&
+      r.some((c) => norm(c).includes("paterno") || norm(c).includes("apellido")),
+  );
+  if (headerIdx === -1) headerIdx = 0;
+
+  const headers = rows[headerIdx].map((h) => String(h ?? ""));
   const data: Record<string, unknown>[] = [];
 
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.every((cell) => !cell)) continue;
 

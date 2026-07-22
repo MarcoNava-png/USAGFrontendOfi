@@ -16,6 +16,8 @@ interface AvailableGroupsSectionProps {
   enrolling: boolean;
   enrollingGroupId: number | null;
   onEnroll: (idGrupo: number, codigoGrupo: string) => void;
+  actionLabel?: string;
+  enrollingLabel?: string;
 }
 
 export function AvailableGroupsSection({
@@ -28,6 +30,8 @@ export function AvailableGroupsSection({
   enrolling,
   enrollingGroupId,
   onEnroll,
+  actionLabel,
+  enrollingLabel,
 }: AvailableGroupsSectionProps) {
   if (!selectedPlanId || !selectedPeriodId) {
     return (
@@ -69,6 +73,8 @@ export function AvailableGroupsSection({
           onEnroll={onEnroll}
           disabled={!selectedStudentId || enrolling}
           enrolling={enrollingGroupId === group.idGrupo}
+          actionLabel={actionLabel}
+          enrollingLabel={enrollingLabel}
         />
       ))}
     </div>

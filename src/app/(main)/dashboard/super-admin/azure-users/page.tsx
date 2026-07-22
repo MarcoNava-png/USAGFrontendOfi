@@ -173,7 +173,7 @@ export default function AzureUsersPage() {
     setError(null)
     try {
       const [usersData, domainsData, saciData] = await Promise.all([
-        microsoftGraphService.getUsers(200),
+        microsoftGraphService.getUsers(5000),
         microsoftGraphService.getDomains().catch(() => [] as string[]),
         getAllUsers().catch(() => [] as SaciUser[]),
       ])

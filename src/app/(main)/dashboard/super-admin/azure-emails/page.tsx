@@ -85,7 +85,7 @@ export default function AzureEmailsPage() {
     const loadUsers = async () => {
       try {
         const usersData = await microsoftGraphService.getUsers(200)
-        setUsers(usersData.filter((u) => u.accountEnabled))
+        setUsers(usersData.filter((u) => u.accountEnabled !== false))
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Error al cargar usuarios"
         setError(message)

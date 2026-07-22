@@ -38,8 +38,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { APP_CONFIG } from "@/config/app-config";
+import { getCampusList } from "@/services/campus-service";
 import { createUser } from "@/services/users-service";
 import microsoftGraphService from "@/services/microsoft-graph-service";
+import type { Campus } from "@/types/campus";
 import type { CreateUserRequest } from "@/types/user";
 
 const ROLES = [
@@ -63,6 +65,7 @@ const formSchema = z.object({
   roles: z.array(z.string()).min(1, "Debes seleccionar al menos un rol"),
   telefono: z.string().optional(),
   biografia: z.string().optional(),
+  idCampusAsignado: z.string().optional(),
   crearCorreoAzure: z.boolean().default(true),
 });
 
@@ -109,6 +112,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [domains, setDomains] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState(DEFAULT_DOMAIN);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -120,6 +124,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
       roles: [],
       telefono: "",
       biografia: "",
+      idCampusAsignado: "",
       crearCorreoAzure: true,
     },
   });
@@ -127,6 +132,9 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
   const nombres = form.watch("nombres");
   const apellidos = form.watch("apellidos");
   const crearCorreoAzure = form.watch("crearCorreoAzure");
+  const rolesSeleccionados = form.watch("roles");
+  const mostrarCampus =
+    rolesSeleccionados?.includes("director") || rolesSeleccionados?.includes("coordinador");
 
   useEffect(() => {
     if (open) {
@@ -136,6 +144,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
           setSelectedDomain(d[0]);
         }
       }).catch(() => {});
+      getCampusList().then((res) => setCampuses(res.items ?? [])).catch(() => setCampuses([]));
     }
   }, [open]);
 
@@ -164,6 +173,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
         telefono: values.telefono || undefined,
         biografia: values.biografia || undefined,
         roles: values.roles,
+        idCampusAsignado: mostrarCampus && values.idCampusAsignado ? parseInt(values.idCampusAsignado) : null,
         crearCorreoAzure: values.crearCorreoAzure,
       };
 
@@ -443,6 +453,38 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
                   </FormItem>
                 )}
               />
+
+              {mostrarCampus && (
+                <FormField
+                  control={form.control}
+                  name="idCampusAsignado"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Campus asignado</FormLabel>
+                      <Select value={field.value || "all"} onValueChange={(v) => field.onChange(v === "all" ? "" : v)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Todos los campus" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Todos los campus (sin restricción)</SelectItem>
+                          {campuses.map((c) => (
+                            <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                              {c.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Director/Coordinador: si eliges un campus, solo verá los grupos, alumnos y
+                        calificaciones de ese campus.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <DialogFooter>

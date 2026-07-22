@@ -33,7 +33,7 @@ const TIPO_COLOR: Record<string, string> = {
 
 function timeAgo(dateStr: string): string {
   const now = new Date()
-  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z')
+  const date = new Date((dateStr.endsWith('Z') || dateStr.includes('+')) ? dateStr : dateStr + 'Z')
   const diffMs = now.getTime() - date.getTime()
   const diffMin = Math.floor(diffMs / 60000)
 

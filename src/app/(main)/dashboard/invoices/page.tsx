@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAcademicPeriods } from "@/services/catalogs-service";
 import {
   buscarRecibosAvanzado,
@@ -261,7 +262,7 @@ export default function InvoicesPage() {
                     {periodos.map((p) => (
                       <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
                         <span className="truncate">
-                          {p.clave} - {p.nombre} {p.esPeriodoActual && "(Actual)"}
+                          {formatPeriodoLabel(p)} {p.esPeriodoActual && "(Actual)"}
                         </span>
                       </SelectItem>
                     ))}

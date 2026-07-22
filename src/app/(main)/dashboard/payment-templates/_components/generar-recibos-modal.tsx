@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/payment-utils";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
 import { generarRecibosMasivo } from "@/services/plantillas-service";
 import { AcademicPeriod } from "@/types/academic-period";
 import {
@@ -59,6 +59,7 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
   const [periodosAcademicos, setPeriodosAcademicos] = useState<AcademicPeriod[]>([]);
 
   const [idPeriodoAcademico, setIdPeriodoAcademico] = useState<string>("");
+  const [actualizarExistentes, setActualizarExistentes] = useState(false);
 
   const [previewResult, setPreviewResult] = useState<GenerarRecibosMasivosResult | null>(null);
   const [finalResult, setFinalResult] = useState<GenerarRecibosMasivosResult | null>(null);
@@ -82,6 +83,10 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
     try {
       const periodosData = await getAcademicPeriodsList();
       setPeriodosAcademicos(periodosData.items);
+      const periodoActual = periodosData.items.find((p) => p.esPeriodoActual);
+      if (periodoActual) {
+        setIdPeriodoAcademico(periodoActual.idPeriodoAcademico.toString());
+      }
     } catch (error) {
       console.error("Error al cargar datos iniciales:", error);
       toast.error("Error al cargar periodos académicos");
@@ -102,6 +107,7 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
         idPlantillaCobro: plantilla.idPlantillaCobro,
         idPeriodoAcademico: parseInt(idPeriodoAcademico),
         soloSimular: true,
+        actualizarExistentes: actualizarExistentes,
       });
 
       setPreviewResult(result);
@@ -130,6 +136,7 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
         idPlantillaCobro: plantilla.idPlantillaCobro,
         idPeriodoAcademico: parseInt(idPeriodoAcademico),
         soloSimular: false,
+        actualizarExistentes: actualizarExistentes,
       });
 
       setFinalResult(result);
@@ -235,7 +242,7 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
                         key={periodo.idPeriodoAcademico}
                         value={periodo.idPeriodoAcademico.toString()}
                       >
-                        {periodo.nombre}
+                        {formatPeriodoLabel(periodo)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -245,6 +252,20 @@ export function GenerarRecibosModal({ open, onClose, plantilla, periodicidadLabe
                   {plantilla.numeroCuatrimestre}° {periodicidadLabel.toLowerCase()} del plan de estudios.
                 </p>
               </div>
+
+              <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={actualizarExistentes}
+                  onChange={(e) => setActualizarExistentes(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-amber-600"
+                />
+                <span className="text-xs sm:text-sm text-amber-900">
+                  <strong>Actualizar recibos existentes</strong> — si los estudiantes ya tienen recibos de este periodo
+                  (por ejemplo porque aplicaste la plantilla antes), se <strong>reemplazan por los nuevos</strong> con los
+                  datos corregidos. Solo aplica a recibos <strong>NO pagados</strong>; los que tengan pagos se omiten.
+                </span>
+              </label>
 
               <Alert className="border-blue-200 bg-blue-50">
                 <FileText className="h-4 w-4 text-blue-600" />

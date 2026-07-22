@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import { crearPlantilla, actualizarPlantilla, obtenerConceptosPago, obtenerCuatrimestresPorPlan, generarPreviewRecibos, ReciboPreview } from "@/services/plantillas-service";
 import { getStudyPlansList } from "@/services/study-plans-service";
@@ -652,7 +652,7 @@ export function CreatePlantillaModal({ open, onClose, plantillaToEdit }: Props) 
                           key={periodo.idPeriodoAcademico}
                           value={periodo.idPeriodoAcademico.toString()}
                         >
-                          {periodo.nombre}
+                          {formatPeriodoLabel(periodo)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -749,6 +749,10 @@ export function CreatePlantillaModal({ open, onClose, plantillaToEdit }: Props) 
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
+                  <div className="text-xs bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-amber-900">
+                    💡 En la <strong>descripción</strong> puedes usar <code>{"{Mes}"}</code>, <code>{"{MesAño}"}</code>, <code>{"{Año}"}</code> o <code>{"{NumeroMes}"}</code> para que cada recibo muestre su mes.
+                    Ej. <code>Colegiatura {"{MesAño}"}</code> → &quot;Colegiatura Mayo 2026&quot;. El mes se toma de la fecha de vencimiento de cada recibo.
+                  </div>
                   {detalles.map((detalle, index) => (
                     <div
                       key={index}
@@ -786,6 +790,16 @@ export function CreatePlantillaModal({ open, onClose, plantillaToEdit }: Props) 
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Descripción en el recibo</Label>
+                        <Input
+                          value={detalle.descripcion}
+                          onChange={(e) => actualizarDetalle(index, "descripcion", e.target.value)}
+                          className="text-sm"
+                          placeholder="Ej. Colegiatura {MesAño}"
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">

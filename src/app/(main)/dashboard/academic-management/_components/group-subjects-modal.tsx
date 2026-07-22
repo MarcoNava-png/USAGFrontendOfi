@@ -57,6 +57,11 @@ export function GroupSubjectsModal({
   const [showAssignTeacherModal, setShowAssignTeacherModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<GrupoMateria | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{
+    idGrupoMateria: number;
+    nombreMateria: string;
+    inscritos: number;
+  } | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
   const [showAutoLoadDialog, setShowAutoLoadDialog] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
@@ -102,39 +107,43 @@ export function GroupSubjectsModal({
     }
   };
 
-  const handleRemoveSubject = async (idGrupoMateria: number, nombreMateria: string) => {
-    if (!confirm(`¿Eliminar la materia "${nombreMateria}" del grupo?`)) {
+  const requestRemoveSubject = (subject: GrupoMateria) => {
+    const inscritos = subject.inscritos ?? subject.estudiantesInscritos ?? 0;
+    if (inscritos > 0) {
+      setRemoveTarget({
+        idGrupoMateria: subject.idGrupoMateria,
+        nombreMateria: subject.nombreMateria,
+        inscritos,
+      });
       return;
     }
+    if (!confirm(`¿Eliminar la materia "${subject.nombreMateria}" del grupo?`)) {
+      return;
+    }
+    doRemoveSubject(subject.idGrupoMateria, {});
+  };
 
+  const doRemoveSubject = async (
+    idGrupoMateria: number,
+    opts: { forzar?: boolean; conservarHistorial?: boolean },
+  ) => {
     setDeletingId(idGrupoMateria);
     try {
-      await removeSubjectFromGroup(idGrupoMateria);
-      toast.success("Materia eliminada del grupo");
+      await removeSubjectFromGroup(idGrupoMateria, opts);
+      toast.success(
+        opts.conservarHistorial
+          ? "Materia quitada del grupo (calificaciones conservadas)"
+          : opts.forzar
+            ? "Materia eliminada del grupo (inscripciones canceladas)"
+            : "Materia eliminada del grupo",
+      );
+      setRemoveTarget(null);
       loadSubjects();
     } catch (error: unknown) {
       console.error("Error removing subject:", error);
       const err = error as { response?: { data?: { Error?: string; mensaje?: string } }; message?: string };
       const errorMessage = err?.response?.data?.Error ?? err?.response?.data?.mensaje ?? err?.message ?? "Error al eliminar la materia";
-
-      if (errorMessage.includes("estudiante") || errorMessage.includes("inscrito")) {
-        const forzar = confirm(
-          `${errorMessage}\n\n¿Forzar eliminación?\n\nSi confirmas, se cancelarán las inscripciones y calificaciones de los alumnos en esta materia. La materia NO se elimina del plan de estudios oficial.`
-        );
-        if (forzar) {
-          try {
-            await removeSubjectFromGroup(idGrupoMateria, true);
-            toast.success("Materia eliminada del grupo (inscripciones canceladas)");
-            loadSubjects();
-            return;
-          } catch (forceError: unknown) {
-            const forceErr = forceError as { response?: { data?: { Error?: string; mensaje?: string } }; message?: string };
-            toast.error(forceErr?.response?.data?.Error ?? forceErr?.message ?? "Error al forzar la eliminación");
-          }
-        }
-      } else {
-        toast.error(errorMessage);
-      }
+      toast.error(errorMessage);
     } finally {
       setDeletingId(null);
     }
@@ -394,7 +403,7 @@ export function GroupSubjectsModal({
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleRemoveSubject(subject.idGrupoMateria, subject.nombreMateria)}
+                              onClick={() => requestRemoveSubject(subject)}
                               disabled={deletingId === subject.idGrupoMateria}
                               className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                               title="Eliminar materia"
@@ -464,6 +473,51 @@ export function GroupSubjectsModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={removeTarget !== null} onOpenChange={(o) => !o && setRemoveTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quitar “{removeTarget?.nombreMateria}” del grupo</DialogTitle>
+            <DialogDescription>
+              Esta materia tiene {removeTarget?.inscritos} alumno(s) inscrito(s). Elige cómo quitarla:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <button
+              type="button"
+              disabled={deletingId !== null}
+              onClick={() => removeTarget && doRemoveSubject(removeTarget.idGrupoMateria, { conservarHistorial: true })}
+              className="w-full text-left rounded-lg border border-green-200 bg-green-50 p-3 hover:bg-green-100 transition-colors disabled:opacity-50"
+            >
+              <p className="font-semibold text-green-800">Conservar calificaciones (recomendado)</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                La materia sale del grupo, pero los alumnos conservan sus inscripciones y calificaciones.
+                Ideal para materias <strong>ya cursadas</strong> (queda en su kardex).
+              </p>
+            </button>
+
+            <button
+              type="button"
+              disabled={deletingId !== null}
+              onClick={() => removeTarget && doRemoveSubject(removeTarget.idGrupoMateria, { forzar: true })}
+              className="w-full text-left rounded-lg border border-red-200 bg-red-50 p-3 hover:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              <p className="font-semibold text-red-800">Cancelar inscripciones y calificaciones</p>
+              <p className="text-xs text-red-700 mt-0.5">
+                Borra las inscripciones y calificaciones de los alumnos en esta materia.
+                Solo para materias <strong>agregadas por error</strong>.
+              </p>
+            </button>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setRemoveTarget(null)} disabled={deletingId !== null}>
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

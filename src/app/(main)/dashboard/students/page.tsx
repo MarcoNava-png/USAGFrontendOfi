@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getGrupos, getStudyPlans } from "@/services/catalogs-service";
 import { buscarEstudiantes } from "@/services/estudiante-panel-service";
@@ -32,6 +33,9 @@ interface StudentDisplay {
   fechaInscripcion?: string;
   materiasInscritas?: number;
   fuente: 'directo' | 'materias';
+  activo?: boolean;
+  estatusAcademico?: number;
+  estatusAcademicoTexto?: string;
 }
 
 export default function StudentsPage() {
@@ -189,6 +193,9 @@ export default function StudentsPage() {
               estado: est.estado,
               fechaInscripcion: est.fechaInscripcion,
               fuente: 'directo',
+              activo: est.activo,
+              estatusAcademico: est.estatusAcademico,
+              estatusAcademicoTexto: est.estatusAcademicoTexto,
             });
           }
         }
@@ -209,6 +216,9 @@ export default function StudentsPage() {
               fechaInscripcion: est.fechaInscripcion,
               materiasInscritas: est.materiasInscritas,
               fuente: 'materias',
+              activo: est.activo,
+              estatusAcademico: est.estatusAcademico,
+              estatusAcademicoTexto: est.estatusAcademicoTexto,
             });
           }
         }
@@ -407,11 +417,25 @@ export default function StudentsPage() {
                           >
                             {student.matricula}
                           </Badge>
-                          {student.activo ? (
-                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Activo</Badge>
-                          ) : (
-                            <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactivo</Badge>
-                          )}
+                          {(() => {
+                            const estatus = student.estatusAcademicoTexto;
+                            if (student.activo === false) {
+                              return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Baja</Badge>;
+                            }
+                            const cls =
+                              estatus === "Egresado" ? "bg-blue-100 text-blue-800 hover:bg-blue-100" :
+                              estatus === "Titulado" ? "bg-purple-100 text-purple-800 hover:bg-purple-100" :
+                              estatus === "EnProcesoTitulacion" ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" :
+                              estatus === "BajaTemporal" || estatus === "BajaDefinitiva" ? "bg-red-100 text-red-800 hover:bg-red-100" :
+                              estatus === "Cursando" || estatus === "Inscrito" ? "bg-green-100 text-green-800 hover:bg-green-100" :
+                              "bg-gray-100 text-gray-800 hover:bg-gray-100";
+                            const label = ({
+                              "Inscrito": "Inscrito", "Cursando": "Cursando", "Egresado": "Egresado",
+                              "EnProcesoTitulacion": "En Proceso de Titulación", "Titulado": "Titulado",
+                              "BajaTemporal": "Baja Temporal", "BajaDefinitiva": "Baja Definitiva",
+                            } as Record<string, string>)[estatus ?? ""] ?? (student.activo ? "Activo" : "Inactivo");
+                            return <Badge className={cls}>{label}</Badge>;
+                          })()}
                         </div>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-1">
                           {student.email && (
@@ -540,7 +564,7 @@ export default function StudentsPage() {
                   className="!text-gray-900 !bg-white hover:!bg-[#14356F]/10 cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <span className="text-gray-900">{period.nombre}</span>
+                    <span className="text-gray-900">{formatPeriodoLabel(period)}</span>
                     {period.esPeriodoActual && (
                       <span
                         className="text-xs px-1.5 py-0.5 rounded font-medium"

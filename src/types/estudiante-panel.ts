@@ -19,6 +19,8 @@ export interface EstudiantePanelDto {
   activo: boolean;
   estatusAcademico: number;
   estatusAcademicoTexto: string | null;
+  tienePreinscripcionPendiente?: boolean;
+  periodoPreinscripcion?: string | null;
   tipoBaja: number | null;
   estadoBaja: number | null;
   motivoBaja: string | null;
@@ -209,6 +211,8 @@ export interface EstudianteListaDto {
   tieneBeca: boolean;
   activo: boolean;
   fotografia: string | null;
+  estatusAcademico?: number;
+  estatusAcademicoTexto?: string;
 }
 
 export interface EstadisticasEstudiantesDto {

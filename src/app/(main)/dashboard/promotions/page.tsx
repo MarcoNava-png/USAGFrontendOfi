@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   AlertCircle,
   ArrowRight,
+  Building2,
   CheckCircle2,
   ChevronRight,
   DollarSign,
@@ -23,6 +24,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MassPromotionTab from "./_components/mass-promotion-tab";
 import {
   Table,
   TableBody,
@@ -31,6 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
+import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getGrupos, getStudyPlans } from "@/services/catalogs-service";
 import {
   executePromocion,
@@ -40,12 +45,15 @@ import {
   PreviewPromocionResult,
 } from "@/services/groups-service";
 import { AcademicPeriod, Grupo, StudyPlan } from "@/types/catalog";
+import { Campus } from "@/types/campus";
 
 export default function PromotionsPage() {
   const [studyPlans, setStudyPlans] = useState<StudyPlan[]>([]);
   const [academicPeriods, setAcademicPeriods] = useState<AcademicPeriod[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [campusList, setCampusList] = useState<Campus[]>([]);
 
+  const [selectedCampusId, setSelectedCampusId] = useState<string>("all");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
@@ -60,9 +68,18 @@ export default function PromotionsPage() {
 
   const [validarPagos, setValidarPagos] = useState(true);
 
+  const filteredPlans = useMemo(() => {
+    if (selectedCampusId === "all") return studyPlans;
+    return studyPlans.filter((plan) => plan.idCampus?.toString() === selectedCampusId);
+  }, [studyPlans, selectedCampusId]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    setSelectedPlanId("");
+  }, [selectedCampusId]);
 
   useEffect(() => {
     if (selectedPlanId) {
@@ -81,12 +98,14 @@ export default function PromotionsPage() {
   const loadInitialData = async () => {
     setInitialLoading(true);
     try {
-      const [plansData, periodsData] = await Promise.all([
+      const [plansData, periodsData, campusData] = await Promise.all([
         getStudyPlans(),
         getAcademicPeriods(),
+        getCampusList(),
       ]);
       setStudyPlans(plansData);
       setAcademicPeriods(periodsData);
+      setCampusList(campusData.items || []);
     } catch (error) {
       console.error("Error loading initial data:", error);
       toast.error("Error al cargar los datos iniciales");
@@ -241,6 +260,14 @@ export default function PromotionsPage() {
           </p>
         </div>
       </div>
+
+      <Tabs defaultValue="individual" className="w-full">
+        <TabsList>
+          <TabsTrigger value="individual">Individual (por grupo)</TabsTrigger>
+          <TabsTrigger value="masiva">Masiva (por periodo)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="individual" className="space-y-6 mt-6">
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -252,7 +279,27 @@ export default function PromotionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Campus */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="w-4 h-4" style={{ color: "#14356F" }} />
+                Campus
+              </Label>
+              <Select value={selectedCampusId} onValueChange={setSelectedCampusId}>
+                <SelectTrigger className="w-full border-2 border-gray-300">
+                  <SelectValue placeholder="Todos los campus" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los campus</SelectItem>
+                  {campusList.map((campus) => (
+                    <SelectItem key={campus.idCampus} value={campus.idCampus.toString()}>
+                      {campus.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {/* Study Plan */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Licenciatura</Label>
@@ -261,7 +308,7 @@ export default function PromotionsPage() {
                   <SelectValue placeholder="Selecciona una licenciatura" />
                 </SelectTrigger>
                 <SelectContent>
-                  {studyPlans.map((plan) => (
+                  {filteredPlans.map((plan) => (
                     <SelectItem key={plan.idPlanEstudios} value={plan.idPlanEstudios.toString()}>
                       {plan.nombrePlanEstudios}
                     </SelectItem>
@@ -305,7 +352,7 @@ export default function PromotionsPage() {
                       key={period.idPeriodoAcademico}
                       value={period.idPeriodoAcademico.toString()}
                     >
-                      {period.nombre}
+                      {formatPeriodoLabel(period)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -546,6 +593,12 @@ export default function PromotionsPage() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="masiva" className="mt-6">
+          <MassPromotionTab academicPeriods={academicPeriods} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

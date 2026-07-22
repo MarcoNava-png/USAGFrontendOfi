@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { DirectorDashboard as DirectorDashboardType } from "@/types/dashboard";
 
 import { AlertCard } from "../shared/alert-card";
+import { CapturaCalificacionesCard } from "../shared/captura-calificaciones-card";
+import { CarteraVencidaSection } from "../shared/cartera-vencida-section";
 import { StatCard, StatGrid } from "../shared/stat-card";
 
 interface DirectorDashboardProps {
@@ -43,6 +45,9 @@ export function DirectorDashboard({ data }: DirectorDashboardProps) {
         </div>
         <Separator />
       </div>
+
+      <CapturaCalificacionesCard />
+
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <GraduationCap className="h-5 w-5 text-blue-600" />
@@ -103,6 +108,9 @@ export function DirectorDashboard({ data }: DirectorDashboardProps) {
           />
         </StatGrid>
       </div>
+
+      {data.carteraVencida && <CarteraVencidaSection data={data.carteraVencida} />}
+
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-violet-600" />

@@ -9,6 +9,9 @@ export interface AcademicPeriod {
   fechaInicio: string;
   fechaFin: string;
   esPeriodoActual: boolean;
+  fechaLimiteParcial1?: string | null;
+  fechaLimiteParcial2?: string | null;
+  fechaLimiteParcial3?: string | null;
 }
 
 export interface PayloadCreateAcademicPeriod {
@@ -17,6 +20,9 @@ export interface PayloadCreateAcademicPeriod {
   idPeriodicidad: number;
   fechaInicio: string;
   fechaFin: string;
+  fechaLimiteParcial1?: string | null;
+  fechaLimiteParcial2?: string | null;
+  fechaLimiteParcial3?: string | null;
 }
 
 export interface PayloadUpdateAcademicPeriod extends PayloadCreateAcademicPeriod {

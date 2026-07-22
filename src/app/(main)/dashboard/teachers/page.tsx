@@ -3,10 +3,21 @@
 import { useEffect, useState } from "react";
 
 import { GraduationCap, Upload } from "lucide-react";
+import { toast } from "sonner";
 
 import { CreateTeacherDialog } from "@/app/(main)/dashboard/teachers/_components/create-teacher-dialog";
 import { ImportTeachersModal } from "@/app/(main)/dashboard/teachers/_components/import-teachers-modal";
 import { UpdateTeacherDialog } from "@/app/(main)/dashboard/teachers/_components/update-teacher-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { Button } from "@/components/ui/button";
@@ -15,7 +26,7 @@ import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { getCampusList } from "@/services/campus-service";
 import { getCivilStatus, getGenresList } from "@/services/catalogs-service";
 import { getStates } from "@/services/location-service";
-import { getAllTeachers } from "@/services/teacher-service";
+import { getAllTeachers, deleteTeacher } from "@/services/teacher-service";
 import { Campus } from "@/types/campus";
 import { CivilStatus, Genres } from "@/types/catalog";
 import { State } from "@/types/location";
@@ -36,6 +47,8 @@ export default function TeachersPage() {
   const [openUpdateDialog, setOpenUpdateDialog] = useState(false);
   const [openImportModal, setOpenImportModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadTeachers = () => {
     setLoading(true);
@@ -70,9 +83,33 @@ export default function TeachersPage() {
     setOpenUpdateDialog(true);
   };
 
+  const handleDelete = (teacher: Teacher) => {
+    setTeacherToDelete(teacher);
+  };
+
+  const confirmDelete = async () => {
+    if (!teacherToDelete) return;
+    try {
+      setDeleting(true);
+      await deleteTeacher(teacherToDelete.idProfesor);
+      toast.success("Docente eliminado", {
+        description: `${teacherToDelete.nombreCompleto} fue dado de baja`,
+      });
+      setTeacherToDelete(null);
+      loadTeachers();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error("No se pudo eliminar", {
+        description: e?.response?.data?.message ?? "Intenta nuevamente",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const table = useDataTableInstance({
     data: teachers,
-    columns: teachersColumns(handleEdit),
+    columns: teachersColumns(handleEdit, handleDelete),
     getRowId: (row: Teacher) => row.idProfesor.toString(),
   });
 
@@ -150,7 +187,7 @@ export default function TeachersPage() {
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border">
-            <DataTable table={table} columns={teachersColumns(handleEdit)} />
+            <DataTable table={table} columns={teachersColumns(handleEdit, handleDelete)} />
           </div>
           <DataTablePagination table={table} />
         </>
@@ -187,6 +224,30 @@ export default function TeachersPage() {
         onOpenChange={setOpenImportModal}
         onImportSuccess={loadTeachers}
       />
+      <AlertDialog open={teacherToDelete !== null} onOpenChange={(o) => !o && setTeacherToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar docente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se dará de baja a <strong>{teacherToDelete?.nombreCompleto}</strong>. Dejará de aparecer
+              en la lista, pero su información y su historial se conservan (baja reversible).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

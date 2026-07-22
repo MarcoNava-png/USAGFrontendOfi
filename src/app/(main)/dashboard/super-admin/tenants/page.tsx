@@ -14,7 +14,8 @@ import {
   Power,
   ExternalLink,
   RefreshCw,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Database
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -76,6 +77,7 @@ export default function TenantsListPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [migrando, setMigrando] = useState(false)
 
   useEffect(() => {
     loadTenants()
@@ -128,6 +130,26 @@ export default function TenantsListPage() {
     }
   }
 
+  const handleMigrarTodos = async () => {
+    if (!window.confirm("¿Aplicar las migraciones pendientes a TODAS las escuelas? Recomendado tras cada despliegue con cambios en la base de datos.")) {
+      return
+    }
+    setMigrando(true)
+    try {
+      const res = await tenantAdminService.migrarTodos()
+      if (res.conError > 0) {
+        const fallidas = res.detalle.filter((d) => !d.exito).map((d) => d.codigo).join(", ")
+        toast.warning(`${res.exitosos}/${res.totalTenants} escuelas OK · ${res.totalMigracionesAplicadas} migraciones aplicadas · con error: ${fallidas}`)
+      } else {
+        toast.success(`${res.totalTenants} escuelas al día · ${res.totalMigracionesAplicadas} migración(es) aplicada(s)`)
+      }
+    } catch {
+      toast.error("Error al migrar las escuelas")
+    } finally {
+      setMigrando(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,6 +164,10 @@ export default function TenantsListPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleMigrarTodos} disabled={migrando}>
+            <Database className={`h-4 w-4 mr-2 ${migrando ? "animate-pulse" : ""}`} />
+            {migrando ? "Migrando…" : "Migrar escuelas"}
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/dashboard/super-admin/tenants/import">
               <FileSpreadsheet className="h-4 w-4 mr-2" />

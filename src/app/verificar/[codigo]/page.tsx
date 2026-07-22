@@ -2,23 +2,61 @@
 
 import { useEffect, useState } from 'react'
 
+import Image from 'next/image'
 import { useParams } from 'next/navigation'
 
 import {
-  AlertTriangle,
   Calendar,
   CheckCircle2,
   FileText,
   GraduationCap,
   Loader2,
-  School,
   User,
   XCircle,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { VerificacionDocumento } from '@/types/documentos-estudiante'
+
+const NAVY = '#14356F'
+
+function Header() {
+  return (
+    <header
+      className="px-6 py-8 text-center text-white"
+      style={{ background: `linear-gradient(135deg, ${NAVY} 0%, #1e4a8f 100%)` }}
+    >
+      <div className="mb-4 flex justify-center">
+        <Image src="/Logousag.png" alt="Universidad San Andrés de Guanajuato" width={200} height={103} priority />
+      </div>
+      <h1 className="text-xl font-bold tracking-tight md:text-2xl">Verificación de Documentos</h1>
+      <p className="mt-1 text-sm opacity-90 md:text-base">Universidad San Andrés de Guanajuato</p>
+    </header>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="px-4 py-6 text-center text-xs text-gray-500">
+      <p>Universidad San Andrés de Guanajuato (USAG)</p>
+      <p className="mt-1">© 2026 · Sistema de Verificación de Documentos</p>
+    </footer>
+  )
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-6">
+      <div className="mx-auto max-w-2xl">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <Header />
+          <div className="p-6 md:p-8">{children}</div>
+        </div>
+        <Footer />
+      </div>
+    </div>
+  )
+}
 
 export default function VerificarDocumentoPage() {
   const params = useParams()
@@ -40,7 +78,7 @@ export default function VerificarDocumentoPage() {
       setError(null)
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/documentoestudiante/verificar/${codigo}`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api'}/documentoestudiante/verificar/${codigo}`
       )
 
       if (!response.ok) {
@@ -59,30 +97,26 @@ export default function VerificarDocumentoPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg text-muted-foreground">Verificando documento...</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Shell>
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="mb-4 h-12 w-12 animate-spin" style={{ color: NAVY }} />
+          <p className="text-lg text-muted-foreground">Verificando documento...</p>
+        </div>
+      </Shell>
     )
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-orange-100 p-4">
-        <Card className="w-full max-w-md border-red-200">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-              <XCircle className="h-10 w-10 text-red-600" />
-            </div>
-            <CardTitle className="text-red-600">Error de Verificacion</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <Shell>
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <XCircle className="h-10 w-10 text-red-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-red-600">Error de verificación</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        </div>
+      </Shell>
     )
   }
 
@@ -91,160 +125,92 @@ export default function VerificarDocumentoPage() {
   }
 
   const isValid = verificacion.esValido
-  const isVigente = verificacion.estaVigente
 
   return (
-    <div
-      className={`flex min-h-screen items-center justify-center p-4 ${
-        isValid && isVigente
-          ? 'bg-gradient-to-br from-green-50 to-emerald-100'
-          : isValid && !isVigente
-            ? 'bg-gradient-to-br from-yellow-50 to-amber-100'
-            : 'bg-gradient-to-br from-red-50 to-orange-100'
-      }`}
-    >
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          {/* Logo o nombre de la institucion */}
-          <div className="mb-4 flex items-center justify-center gap-2">
-            <School className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold text-primary">USAG</span>
-          </div>
+    <Shell>
+      <div className="flex flex-col items-center text-center">
+        <div
+          className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${
+            isValid ? 'bg-green-100' : 'bg-red-100'
+          }`}
+        >
+          {isValid ? (
+            <CheckCircle2 className="h-12 w-12 text-green-600" />
+          ) : (
+            <XCircle className="h-12 w-12 text-red-600" />
+          )}
+        </div>
 
-          {/* Estado del documento */}
-          <div
-            className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${
-              isValid && isVigente
-                ? 'bg-green-100'
-                : isValid && !isVigente
-                  ? 'bg-yellow-100'
-                  : 'bg-red-100'
-            }`}
-          >
-            {isValid && isVigente ? (
-              <CheckCircle2 className="h-12 w-12 text-green-600" />
-            ) : isValid && !isVigente ? (
-              <AlertTriangle className="h-12 w-12 text-yellow-600" />
-            ) : (
-              <XCircle className="h-12 w-12 text-red-600" />
-            )}
-          </div>
+        <h2 className={`text-2xl font-bold ${isValid ? 'text-green-600' : 'text-red-600'}`}>
+          {isValid ? 'Documento Válido' : 'Documento No Válido'}
+        </h2>
 
-          <CardTitle
-            className={
-              isValid && isVigente
-                ? 'text-green-600'
-                : isValid && !isVigente
-                  ? 'text-yellow-600'
-                  : 'text-red-600'
-            }
-          >
-            {isValid && isVigente
-              ? 'Documento Valido'
-              : isValid && !isVigente
-                ? 'Documento Expirado'
-                : 'Documento No Valido'}
-          </CardTitle>
+        <p className="mt-1 text-base text-muted-foreground">
+          {isValid
+            ? 'Documento auténtico emitido por la Universidad San Andrés de Guanajuato.'
+            : verificacion.mensaje}
+        </p>
+      </div>
 
-          <CardDescription className="text-base">{verificacion.mensaje}</CardDescription>
-        </CardHeader>
-
-        {isValid && (
-          <CardContent className="space-y-4">
-            {/* Tipo de documento */}
-            {verificacion.tipoDocumento && (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                <FileText className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Tipo de Documento</p>
-                  <p className="font-medium">{verificacion.tipoDocumento}</p>
-                </div>
+      {isValid && (
+        <div className="mt-6 space-y-4">
+          {verificacion.tipoDocumento && (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <FileText className="h-5 w-5" style={{ color: NAVY }} />
+              <div>
+                <p className="text-sm text-muted-foreground">Tipo de Documento</p>
+                <p className="font-medium">{verificacion.tipoDocumento}</p>
               </div>
-            )}
-
-            {/* Estudiante */}
-            {verificacion.nombreEstudiante && (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                <User className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Estudiante</p>
-                  <p className="font-medium">{verificacion.nombreEstudiante}</p>
-                  {verificacion.matricula && (
-                    <p className="font-mono text-sm text-muted-foreground">
-                      Matricula: {verificacion.matricula}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Carrera */}
-            {verificacion.carrera && (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                <GraduationCap className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Carrera</p>
-                  <p className="font-medium">{verificacion.carrera}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Fechas */}
-            <div className="grid grid-cols-2 gap-3">
-              {verificacion.fechaEmision && (
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Emision</p>
-                    <p className="font-medium">
-                      {new Date(verificacion.fechaEmision).toLocaleDateString('es-MX')}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {verificacion.fechaVencimiento && (
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Vencimiento</p>
-                    <p className="font-medium">
-                      {new Date(verificacion.fechaVencimiento).toLocaleDateString('es-MX')}
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
+          )}
 
-            {/* Folio */}
-            {verificacion.folioDocumento && (
-              <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
-                <span className="text-sm text-muted-foreground">Folio</span>
-                <Badge variant="outline" className="font-mono">
-                  {verificacion.folioDocumento}
-                </Badge>
+          {verificacion.nombreEstudiante && (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <User className="h-5 w-5" style={{ color: NAVY }} />
+              <div>
+                <p className="text-sm text-muted-foreground">Estudiante</p>
+                <p className="font-medium">{verificacion.nombreEstudiante}</p>
+                {verificacion.matricula && (
+                  <p className="font-mono text-sm text-muted-foreground">Matrícula: {verificacion.matricula}</p>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Estado de vigencia */}
-            <div className="mt-4 flex items-center justify-center">
-              <Badge
-                variant={isVigente ? 'default' : 'secondary'}
-                className={`px-4 py-2 text-sm ${
-                  isVigente ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-500'
-                }`}
-              >
-                {isVigente ? 'Vigente' : 'Vencido'}
+          {verificacion.carrera && (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <GraduationCap className="h-5 w-5" style={{ color: NAVY }} />
+              <div>
+                <p className="text-sm text-muted-foreground">Carrera</p>
+                <p className="font-medium">{verificacion.carrera}</p>
+              </div>
+            </div>
+          )}
+
+          {verificacion.fechaEmision && (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <Calendar className="h-5 w-5" style={{ color: NAVY }} />
+              <div>
+                <p className="text-sm text-muted-foreground">Fecha de Emisión</p>
+                <p className="font-medium">{new Date(verificacion.fechaEmision).toLocaleDateString('es-MX')}</p>
+              </div>
+            </div>
+          )}
+
+          {verificacion.folioDocumento && (
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
+              <span className="text-sm text-muted-foreground">Folio</span>
+              <Badge variant="outline" className="font-mono">
+                {verificacion.folioDocumento}
               </Badge>
             </div>
-          </CardContent>
-        )}
+          )}
 
-        {/* Footer */}
-        <div className="border-t p-4 text-center text-xs text-muted-foreground">
-          <p>Universidad de San Antonio de Guatemala</p>
-          <p>Sistema de Verificacion de Documentos</p>
+          <div className="mt-4 flex items-center justify-center">
+            <Badge className="bg-green-600 px-4 py-2 text-sm hover:bg-green-700">Vigente</Badge>
+          </div>
         </div>
-      </Card>
-    </div>
+      )}
+    </Shell>
   )
 }

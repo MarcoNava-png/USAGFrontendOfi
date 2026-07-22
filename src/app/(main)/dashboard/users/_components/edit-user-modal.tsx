@@ -29,8 +29,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { getCampusList } from "@/services/campus-service";
 import { updateUser } from "@/services/users-service";
+import type { Campus } from "@/types/campus";
 import type { User, UpdateUserRequest } from "@/types/user";
 
 const ROLES = [
@@ -53,6 +62,7 @@ const formSchema = z.object({
   roles: z.array(z.string()).min(1, "Debes seleccionar al menos un rol"),
   telefono: z.string().optional(),
   biografia: z.string().optional(),
+  idCampusAsignado: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -66,6 +76,7 @@ interface EditUserModalProps {
 
 export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -76,8 +87,17 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
       roles: user.roles || [],
       telefono: user.telefono || "",
       biografia: user.biografia || "",
+      idCampusAsignado: user.idCampusAsignado != null ? String(user.idCampusAsignado) : "",
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      getCampusList()
+        .then((res) => setCampuses(res.items ?? []))
+        .catch(() => setCampuses([]));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (user) {
@@ -88,9 +108,14 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
         roles: user.roles || [],
         telefono: user.telefono || "",
         biografia: user.biografia || "",
+        idCampusAsignado: user.idCampusAsignado != null ? String(user.idCampusAsignado) : "",
       });
     }
   }, [user, form]);
+
+  const rolesSeleccionados = form.watch("roles");
+  const mostrarCampus =
+    rolesSeleccionados?.includes("director") || rolesSeleccionados?.includes("coordinador");
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -103,6 +128,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
         telefono: values.telefono || undefined,
         biografia: values.biografia || undefined,
         roles: values.roles,
+        idCampusAsignado: mostrarCampus && values.idCampusAsignado ? parseInt(values.idCampusAsignado) : null,
       };
 
       await updateUser(user.id, userData);
@@ -213,6 +239,38 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
                   </FormItem>
                 )}
               />
+
+              {mostrarCampus && (
+                <FormField
+                  control={form.control}
+                  name="idCampusAsignado"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Campus asignado</FormLabel>
+                      <Select value={field.value || "all"} onValueChange={(v) => field.onChange(v === "all" ? "" : v)}>
+                        <FormControl>
+                          <SelectTrigger className="focus:ring-[#14356F]">
+                            <SelectValue placeholder="Todos los campus" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Todos los campus (sin restricción)</SelectItem>
+                          {campuses.map((c) => (
+                            <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                              {c.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Director/Coordinador: si eliges un campus, solo verá los grupos, alumnos y
+                        calificaciones de ese campus.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <div className="space-y-4">

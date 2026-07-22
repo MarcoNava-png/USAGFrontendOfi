@@ -12,9 +12,31 @@ import {
   PromocionResponse,
   StudentInGroup,
   StudentsInGroup,
+  CuatrimestresAnterioresPreview,
+  GenerarCuatrimestresAnterioresRequest,
+  GenerarCuatrimestresAnterioresResultado,
 } from "@/types/group";
 
 import apiClient from "./api-client";
+
+export async function getCuatrimestresAnterioresPreview(
+  idGrupo: number,
+): Promise<CuatrimestresAnterioresPreview> {
+  const { data } = await apiClient.get<CuatrimestresAnterioresPreview>(
+    `/grupos/${idGrupo}/cuatrimestres-anteriores/preview`,
+  );
+  return data;
+}
+
+export async function generarCuatrimestresAnteriores(
+  request: GenerarCuatrimestresAnterioresRequest,
+): Promise<GenerarCuatrimestresAnterioresResultado> {
+  const { data } = await apiClient.post<GenerarCuatrimestresAnterioresResultado>(
+    `/grupos/cuatrimestres-anteriores/generar`,
+    request,
+  );
+  return data;
+}
 
 export async function getGroups(
   page = 1,
@@ -42,12 +64,14 @@ export async function searchGroups(filters: {
   idTurno?: number;
   numeroGrupo?: number;
   idPlanEstudios?: number;
+  idPeriodoAcademico?: number;
 }): Promise<Group[]> {
   const params = new URLSearchParams();
   if (filters.numeroCuatrimestre) params.append("numeroCuatrimestre", filters.numeroCuatrimestre.toString());
   if (filters.idTurno) params.append("idTurno", filters.idTurno.toString());
   if (filters.numeroGrupo) params.append("numeroGrupo", filters.numeroGrupo.toString());
   if (filters.idPlanEstudios) params.append("idPlanEstudios", filters.idPlanEstudios.toString());
+  if (filters.idPeriodoAcademico) params.append("idPeriodoAcademico", filters.idPeriodoAcademico.toString());
 
   const { data } = await apiClient.get<Group[]>(`/grupos/buscar?${params.toString()}`);
   return data;
@@ -111,9 +135,15 @@ export async function getGrupoMateriaById(idGrupoMateria: number): Promise<Grupo
   return data;
 }
 
-export async function removeSubjectFromGroup(idGrupoMateria: number, forzar = false): Promise<void> {
-  const params = forzar ? "?forzar=true" : "";
-  await apiClient.delete(`/grupos/materias/${idGrupoMateria}${params}`);
+export async function removeSubjectFromGroup(
+  idGrupoMateria: number,
+  opts: { forzar?: boolean; conservarHistorial?: boolean } = {},
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (opts.forzar) params.set("forzar", "true");
+  if (opts.conservarHistorial) params.set("conservarHistorial", "true");
+  const qs = params.toString();
+  await apiClient.delete(`/grupos/materias/${idGrupoMateria}${qs ? `?${qs}` : ""}`);
 }
 
 export interface SincronizacionInscripcionesResult {
@@ -221,6 +251,99 @@ export async function executePromocion(request: ExecutePromocionRequest): Promis
   return data;
 }
 
+export interface PeriodoConEstudiantes {
+  idPeriodoAcademico: number;
+  nombre: string;
+  clave: string;
+  periodicidad: string;
+  anio: number;
+  esPeriodoActual: boolean;
+  totalEstudiantes: number;
+}
+
+export async function getPeriodosConEstudiantes(): Promise<PeriodoConEstudiantes[]> {
+  const { data } = await apiClient.get<PeriodoConEstudiantes[]>("/grupos/periodos-con-estudiantes");
+  return data;
+}
+
+export interface PromocionMasivaRequest {
+  idPeriodoOrigen: number;
+  idPeriodoDestino: number;
+  gruposExcluidos?: number[];
+  estudiantesExcluidos?: number[];
+}
+
+export interface PromocionMasivaGrupo {
+  idGrupo: number;
+  campus: string;
+  planEstudios: string;
+  codigoGrupo: string;
+  nombreGrupo: string;
+  turno: string;
+  cuatrimestreOrigen: number;
+  cuatrimestreDestino?: number | null;
+  esUltimoCuatrimestre: boolean;
+  totalEstudiantes: number;
+  aPromover: number;
+  aEgresar: number;
+  excluidosNuevoIngreso: number;
+  conAdeudo: number;
+  saldoPendiente: number;
+  conError: number;
+}
+
+export interface PromocionMasivaPreview {
+  idPeriodoOrigen: number;
+  periodoOrigen: string;
+  idPeriodoDestino: number;
+  periodoDestino: string;
+  totalGrupos: number;
+  totalEstudiantes: number;
+  totalAPromover: number;
+  totalAEgresar: number;
+  totalExcluidosNuevoIngreso: number;
+  totalConAdeudo: number;
+  totalSaldoPendiente: number;
+  totalConError: number;
+  grupos: PromocionMasivaGrupo[];
+}
+
+export interface PromocionMasivaItem {
+  idEstudiante: number;
+  matricula: string;
+  nombreCompleto: string;
+  campus: string;
+  planEstudios: string;
+  grupo: string;
+  cuatrimestre: number;
+  periodo: string;
+  accion: string;
+  detalle?: string;
+  tieneAdeudo: boolean;
+  saldoPendiente: number;
+}
+
+export interface PromocionMasivaResultado {
+  totalPromovidos: number;
+  totalEgresados: number;
+  totalErrores: number;
+  gruposCreados: number;
+  mensaje: string;
+  promovidos: PromocionMasivaItem[];
+  egresados: PromocionMasivaItem[];
+  errores: PromocionMasivaItem[];
+}
+
+export async function previewPromocionMasiva(request: PromocionMasivaRequest): Promise<PromocionMasivaPreview> {
+  const { data } = await apiClient.post<PromocionMasivaPreview>("/grupos/promocion-masiva/preview", request);
+  return data;
+}
+
+export async function executePromocionMasiva(request: PromocionMasivaRequest): Promise<PromocionMasivaResultado> {
+  const { data } = await apiClient.post<PromocionMasivaResultado>("/grupos/promocion-masiva", request);
+  return data;
+}
+
 export async function deleteGroup(idGrupo: number): Promise<void> {
   await apiClient.delete(`/grupos/${idGrupo}`);
 }
@@ -272,6 +395,11 @@ export interface EstudianteEnGrupo {
   fechaInscripcion: string;
   estado: string;
   planEstudios?: string;
+  activo?: boolean;
+  estatusAcademico?: number;
+  estatusAcademicoTexto?: string;
+  promovido?: boolean;
+  promovidoA?: string;
 }
 
 export interface EstudiantesDelGrupoResponse {
@@ -329,6 +457,7 @@ export async function eliminarEstudianteDeGrupo(
 export interface CambioGrupoRequest {
   idEstudianteGrupo: number;
   idGrupoDestino: number;
+  avanzado?: boolean;
 }
 
 export interface CambioGrupoResult {
@@ -338,6 +467,10 @@ export interface CambioGrupoResult {
   grupoDestino: string;
   nombreEstudiante: string;
   matricula: string;
+  cuatrimestreOrigen?: number;
+  cuatrimestreDestino?: number;
+  planCambiado?: boolean;
+  materiasReinscritas?: number;
 }
 
 export async function cambiarEstudianteDeGrupo(
@@ -397,6 +530,47 @@ export async function importarEstudiantesCompleto(
   const { data } = await apiClient.post<ImportarEstudiantesGrupoResponse>(
     `/grupos/${idGrupo}/importar-estudiantes`,
     { idGrupo, estudiantes, observaciones }
+  );
+  return data;
+}
+
+export interface AgregarEstudianteIrregularRequest {
+  datos: EstudianteImportar;
+  observaciones?: string;
+  crearAcceso?: boolean;
+  crearCorreoM365?: boolean;
+  emailInstitucional?: string;
+  usuarioCorreo?: string;
+  dominio?: string;
+  passwordPersonalizada?: string;
+}
+
+export async function getEmailDomains(): Promise<string[]> {
+  const { data } = await apiClient.get<string[]>("/email/domains");
+  return data;
+}
+
+export interface AgregarEstudianteIrregularResponse {
+  exitoso: boolean;
+  mensaje: string;
+  idEstudiante?: number;
+  matricula?: string;
+  idEstudianteGrupo?: number;
+  materiasInscritas: number;
+  accesoCreado: boolean;
+  emailAcceso?: string;
+  passwordTemporal?: string;
+  correoM365Creado: boolean;
+  mensajeM365?: string;
+}
+
+export async function agregarEstudianteIrregular(
+  idGrupo: number,
+  payload: AgregarEstudianteIrregularRequest,
+): Promise<AgregarEstudianteIrregularResponse> {
+  const { data } = await apiClient.post<AgregarEstudianteIrregularResponse>(
+    `/grupos/${idGrupo}/estudiante-irregular`,
+    { idGrupo, ...payload },
   );
   return data;
 }

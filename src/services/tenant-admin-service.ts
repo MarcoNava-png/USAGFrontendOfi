@@ -125,6 +125,22 @@ export interface UpdateTenantRequest {
   fechaVencimiento?: string
 }
 
+export interface MigracionTenantDetalle {
+  idTenant: number
+  codigo: string
+  exito: boolean
+  migracionesAplicadas: number
+  error?: string | null
+}
+
+export interface MigrarTodosResultado {
+  totalTenants: number
+  exitosos: number
+  conError: number
+  totalMigracionesAplicadas: number
+  detalle: MigracionTenantDetalle[]
+}
+
 const BASE_URL = '/admin/tenants'
 
 export const tenantAdminService = {
@@ -154,6 +170,11 @@ export const tenantAdminService = {
 
   changeStatus: async (id: number, status: number, motivo?: string): Promise<void> => {
     await superAdminAxios.patch(`${BASE_URL}/${id}/status`, { nuevoStatus: status, motivo })
+  },
+
+  migrarTodos: async (): Promise<MigrarTodosResultado> => {
+    const response = await superAdminAxios.post(`${BASE_URL}/migrar-todos`)
+    return response.data
   },
 
   getStats: async (id: number): Promise<TenantStats> => {

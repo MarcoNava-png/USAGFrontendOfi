@@ -47,6 +47,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatPeriodoLabel } from '@/services/academic-period-service'
 import { getCampusList } from '@/services/campus-service'
 import {
   getStudyPlans,
@@ -62,6 +63,7 @@ import {
 } from '@/services/groups-service'
 import type { Campus } from '@/types/campus'
 import type { StudyPlan, AcademicPeriod } from '@/types/catalog'
+import { AgregarEstudianteIrregularModal } from './_components/agregar-estudiante-irregular-modal'
 
 interface EstudianteParaInscribir extends EstudianteImportar {
   seleccionado: boolean
@@ -109,6 +111,8 @@ export default function InscribirEstudiantesGrupoPage() {
   const [searchTerm, setSearchTerm] = useState('')
 
   const [resultado, setResultado] = useState<ImportarEstudiantesGrupoResponse | null>(null)
+  const [irregularOpen, setIrregularOpen] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const planesFiltrados = selectedCampus === 'all'
     ? planes
@@ -198,7 +202,7 @@ export default function InscribirEstudiantesGrupoPage() {
       }
     }
     loadGrupoInfo()
-  }, [selectedGrupo, grupos, planes, periodos, selectedPlan, selectedPeriodo])
+  }, [selectedGrupo, grupos, planes, periodos, selectedPlan, selectedPeriodo, refreshTick])
 
   const handleDownloadTemplate = async () => {
     const workbook = new ExcelJS.Workbook()
@@ -379,9 +383,12 @@ export default function InscribirEstudiantesGrupoPage() {
       for (const row of jsonData) {
         const keys = Object.keys(row)
 
+        const normHeader = (s: string): string =>
+          s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+
         const getValue = (possibleNames: string[]): string => {
           for (const name of possibleNames) {
-            const key = keys.find(k => k.toLowerCase().replace(/[_\s]/g, '') === name.toLowerCase().replace(/[_\s]/g, ''))
+            const key = keys.find(k => normHeader(k) === normHeader(name))
             if (key && row[key] !== undefined && row[key] !== null) {
               return String(row[key]).trim()
             }
@@ -615,7 +622,7 @@ export default function InscribirEstudiantesGrupoPage() {
                   <SelectContent>
                     {periodos.map((periodo) => (
                       <SelectItem key={periodo.idPeriodoAcademico} value={periodo.idPeriodoAcademico.toString()}>
-                        {periodo.nombre}
+                        {formatPeriodoLabel(periodo)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -666,7 +673,16 @@ export default function InscribirEstudiantesGrupoPage() {
               </div>
             )}
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIrregularOpen(true)}
+                disabled={!selectedGrupo}
+                className="border-[#14356F] text-[#14356F] hover:bg-[#14356F]/5"
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Agregar estudiante irregular
+              </Button>
               <Button
                 onClick={() => setStep('load-students')}
                 disabled={!selectedGrupo}
@@ -678,6 +694,17 @@ export default function InscribirEstudiantesGrupoPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {grupoInfo && (
+        <AgregarEstudianteIrregularModal
+          open={irregularOpen}
+          onOpenChange={setIrregularOpen}
+          idGrupo={parseInt(selectedGrupo)}
+          nombreGrupo={grupoInfo.nombreGrupo}
+          planEstudios={grupoInfo.planEstudios}
+          onSuccess={() => setRefreshTick((t) => t + 1)}
+        />
       )}
       {step === 'load-students' && (
         <Card className="border-0 shadow-lg overflow-hidden">

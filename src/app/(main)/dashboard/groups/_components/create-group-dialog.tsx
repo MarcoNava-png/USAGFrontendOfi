@@ -15,6 +15,7 @@ import {
 import { Form, FormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { createGroup } from "@/services/group-service";
 import { AcademicPeriod } from "@/types/academic-period";
 import { StudyPlan } from "@/types/study-plan";
@@ -89,7 +90,7 @@ export function CreateGroupDialog({ open, setOpen, studyPlans, academicPeriods }
                     <SelectContent className="w-full">
                       {academicPeriods.map((period) => (
                         <SelectItem key={period.idPeriodoAcademico} value={String(period.idPeriodoAcademico)}>
-                          {period.nombre}
+                          {formatPeriodoLabel(period)}
                         </SelectItem>
                       ))}
                     </SelectContent>

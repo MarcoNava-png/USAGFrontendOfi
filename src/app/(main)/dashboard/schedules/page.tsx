@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getStudyPlans, getAcademicPeriods } from "@/services/catalogs-service";
 import { getAcademicManagement } from "@/services/groups-service";
 import { getCampusList } from "@/services/campus-service";
@@ -226,7 +227,7 @@ export default function SchedulesPage() {
                       value={period.idPeriodoAcademico.toString()}
                       className="!text-gray-900 !bg-white hover:!bg-blue-50 data-[highlighted]:!bg-blue-50 data-[highlighted]:!text-gray-900 data-[state=checked]:!text-gray-900 cursor-pointer"
                     >
-                      {period.nombre} {period.esPeriodoActual && "(Actual)"}
+                      {formatPeriodoLabel(period)} {period.esPeriodoActual && "(Actual)"}
                     </SelectItem>
                   ))}
                 </SelectContent>

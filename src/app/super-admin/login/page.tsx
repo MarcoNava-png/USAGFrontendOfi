@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Shield, Globe } from "lucide-react"
+import { Globe } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -76,16 +76,14 @@ export default function SuperAdminLoginPage() {
     <>
       <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[400px] px-4">
         <div className="space-y-3 text-center">
-          <div className="flex justify-center mb-4 lg:hidden">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4">
-              <Shield className="w-12 h-12 text-white" />
-            </div>
+          <div className="flex justify-center mb-4">
+            <img src="/CaasaG.png" alt="Agremiados" className="h-24 w-auto" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-            SuperAdmin
+            Agremiados
           </h1>
           <p className="text-muted-foreground text-base">
-            Acceso al panel de administracion multi-escuela
+            Acceso al panel de instituciones agremiadas
           </p>
         </div>
         <div className="space-y-6">

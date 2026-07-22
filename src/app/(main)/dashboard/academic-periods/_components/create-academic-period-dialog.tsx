@@ -34,8 +34,13 @@ export function CreateAcademicPeriodDialog({ open, setOpen, onSuccess }: CreateA
       idPeriodicidad: "",
       fechaInicio: "",
       fechaFin: "",
+      fechaLimiteParcial1: "",
+      fechaLimiteParcial2: "",
+      fechaLimiteParcial3: "",
     },
   });
+
+  const toDeadline = (v: string) => (v ? new Date(`${v}T23:59:59`).toISOString() : null);
   const [periodicity, setPeriodicity] = useState<Periodicity[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -47,10 +52,14 @@ export function CreateAcademicPeriodDialog({ open, setOpen, onSuccess }: CreateA
     setLoading(true);
     try {
       await createAcademicPeriod({
-        ...data,
+        clave: data.clave,
+        nombre: data.nombre,
         idPeriodicidad: Number(data.idPeriodicidad),
         fechaInicio: data.fechaInicio,
         fechaFin: data.fechaFin,
+        fechaLimiteParcial1: toDeadline(data.fechaLimiteParcial1),
+        fechaLimiteParcial2: toDeadline(data.fechaLimiteParcial2),
+        fechaLimiteParcial3: toDeadline(data.fechaLimiteParcial3),
       });
       setOpen(false);
       form.reset();
@@ -112,6 +121,33 @@ export function CreateAcademicPeriodDialog({ open, setOpen, onSuccess }: CreateA
                   <Input {...field} value={field.value ?? ""} type="date" placeholder="Fecha de fin" required className="w-full" />
                 )}
               />
+
+              <div className="border-t pt-3">
+                <p className="text-sm font-medium mb-1">Fechas límite de captura de calificaciones (opcional)</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Define hasta cuándo los docentes pueden capturar cada parcial. Al vencer, se cierra solo.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Parcial 1</label>
+                    <FormField name="fechaLimiteParcial1" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Parcial 2</label>
+                    <FormField name="fechaLimiteParcial2" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Parcial 3</label>
+                    <FormField name="fechaLimiteParcial3" render={({ field }) => (
+                      <Input {...field} value={field.value ?? ""} type="date" className="w-full" />
+                    )} />
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>

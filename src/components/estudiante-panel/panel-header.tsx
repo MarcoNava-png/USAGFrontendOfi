@@ -84,35 +84,47 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
                 {iniciales}
               </AvatarFallback>
             </Avatar>
-            <Badge
-              variant={panel.activo ? "default" : "secondary"}
-              className={`${
-                panel.activo
-                  ? "bg-green-100 text-green-800 hover:bg-green-100"
-                  : "bg-red-100 text-red-800 hover:bg-red-100"
-              }`}
-            >
-              {panel.activo ? "● Activo" : "○ Inactivo"}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={
-                panel.estatusAcademico === 3 ? "bg-blue-100 text-blue-800 border-blue-300" :
-                panel.estatusAcademico === 4 ? "bg-yellow-100 text-yellow-800 border-yellow-300" :
-                panel.estatusAcademico === 5 ? "bg-purple-100 text-purple-800 border-purple-300" :
-                "bg-gray-100 text-gray-700 border-gray-300"
-              }
-            >
-              {({
-                "Inscrito": "Inscrito",
-                "Cursando": "Cursando",
-                "Egresado": "Egresado",
-                "EnProcesoTitulacion": "En Proceso de Titulación",
-                "Titulado": "Titulado",
-                "BajaTemporal": "Baja Temporal",
-                "BajaDefinitiva": "Baja Definitiva",
-              } as Record<string, string>)[panel.estatusAcademicoTexto ?? ""] ?? panel.estatusAcademicoTexto}
-            </Badge>
+            {panel.tienePreinscripcionPendiente ? (
+              <Badge
+                variant="outline"
+                className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100"
+              >
+                ● Pendiente inscripci&oacute;n
+                {panel.periodoPreinscripcion ? ` · ${panel.periodoPreinscripcion}` : ""}
+              </Badge>
+            ) : (
+              <>
+                <Badge
+                  variant={panel.activo ? "default" : "secondary"}
+                  className={`${
+                    panel.activo
+                      ? "bg-green-100 text-green-800 hover:bg-green-100"
+                      : "bg-red-100 text-red-800 hover:bg-red-100"
+                  }`}
+                >
+                  {panel.activo ? "● Activo" : "○ Inactivo"}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    panel.estatusAcademico === 3 ? "bg-blue-100 text-blue-800 border-blue-300" :
+                    panel.estatusAcademico === 4 ? "bg-yellow-100 text-yellow-800 border-yellow-300" :
+                    panel.estatusAcademico === 5 ? "bg-purple-100 text-purple-800 border-purple-300" :
+                    "bg-gray-100 text-gray-700 border-gray-300"
+                  }
+                >
+                  {({
+                    "Inscrito": "Inscrito",
+                    "Cursando": "Cursando",
+                    "Egresado": "Egresado",
+                    "EnProcesoTitulacion": "En Proceso de Titulación",
+                    "Titulado": "Titulado",
+                    "BajaTemporal": "Baja Temporal",
+                    "BajaDefinitiva": "Baja Definitiva",
+                  } as Record<string, string>)[panel.estatusAcademicoTexto ?? ""] ?? panel.estatusAcademicoTexto}
+                </Badge>
+              </>
+            )}
           </div>
 
           <div className="flex-1 space-y-4">

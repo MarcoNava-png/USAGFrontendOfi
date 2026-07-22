@@ -131,6 +131,10 @@ export function usePermissions() {
     return permissions?.roles.includes(SYSTEM_ROLES.ADMIN) ?? false
   }, [permissions])
 
+  const isSuperAdmin = useMemo(() => {
+    return permissions?.roles.includes(SYSTEM_ROLES.SUPER_ADMIN) ?? false
+  }, [permissions])
+
   const primaryRole = useMemo(() => {
     const user = getStoredUser()
     return user?.role || null
@@ -143,6 +147,7 @@ export function usePermissions() {
     hasModuleAccess,
     accessibleModules,
     isAdmin,
+    isSuperAdmin,
     primaryRole,
     refreshPermissions,
   }

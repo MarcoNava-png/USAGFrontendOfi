@@ -161,6 +161,7 @@ export interface AspiranteDocumentoDto {
   clave: string;
   descripcion: string;
   estatus: EstatusDocumentoEnum;
+  entregado?: boolean;
   urlArchivo?: string | null;
   notas?: string | null;
   fechaProrroga?: string | null;
@@ -458,6 +459,7 @@ export interface InscripcionPreviaAspiranteDto {
   idPlanEstudios?: number | null;
   nombrePlanEstudios?: string | null;
   clavePlanEstudios?: string | null;
+  campus?: string | null;
   idPeriodoAcademico?: number | null;
   nombrePeriodoAcademico?: string | null;
   turnoAspirante?: string | null;

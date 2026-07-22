@@ -36,8 +36,8 @@ export const documentacionAspirantesService = {
     )
   },
 
-  async toggleRecibido(idAspiranteDocumento: number): Promise<{ estatus: string; recibido: boolean }> {
-    const response = await axiosInstance.put<{ estatus: string; recibido: boolean }>(
+  async toggleRecibido(idAspiranteDocumento: number): Promise<{ entregado: boolean; recibido: boolean }> {
+    const response = await axiosInstance.put<{ entregado: boolean; recibido: boolean }>(
       `${API_URL}/documentos/${idAspiranteDocumento}/toggle-recibido`
     )
     return response.data

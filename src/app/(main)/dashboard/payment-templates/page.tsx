@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAcademicPeriodsList } from "@/services/academic-period-service";
+import { getAcademicPeriodsList, formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import {
   listarPlantillas,
@@ -289,7 +289,7 @@ export default function PaymentTemplatesPage() {
                   <SelectItem value="TODOS">Todos los periodos</SelectItem>
                   {periodos.map((p) => (
                     <SelectItem key={p.idPeriodoAcademico} value={p.idPeriodoAcademico.toString()}>
-                      {p.nombre}
+                      {formatPeriodoLabel(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>

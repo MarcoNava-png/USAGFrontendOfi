@@ -8,7 +8,7 @@ export const APP_CONFIG = {
   domain: process.env.NEXT_PUBLIC_DOMAIN ?? "saciusag.com.mx",
   emailDomain: process.env.NEXT_PUBLIC_EMAIL_DOMAIN ?? "usaguanajuato.edu.mx",
   meta: {
-    title: "USAG - Sistema Académico",
-    description: "Sistema de Gestión Académica - Universidad San Andrés de Guanajuato",
+    title: "SACI - Sistema Escolar",
+    description: "Sistema de Administración de Colegios Integrado",
   },
 };

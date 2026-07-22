@@ -2,6 +2,14 @@ import { AcademicPeriod, AcademicPeriodsResponse, PayloadCreateAcademicPeriod } 
 
 import apiClient from "./api-client";
 
+export function formatPeriodoLabel(
+  p: { nombre?: string | null; clave?: string | null } | null | undefined,
+): string {
+  if (!p) return "";
+  const nombre = (p.nombre ?? "").trim();
+  return p.clave ? `${nombre} — ${p.clave}` : nombre;
+}
+
 export async function getAcademicPeriodsList(): Promise<AcademicPeriodsResponse> {
   const { data } = await apiClient.get<AcademicPeriodsResponse>(`/PeriodoAcademico`);
   return data;
