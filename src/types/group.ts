@@ -135,6 +135,8 @@ export interface GrupoResumen {
   totalEstudiantes: number;
   capacidadMaxima: number;
   totalMaterias: number;
+  materiasConHorario?: number;
+  porcentajeHorarios?: number;
   idPlanEstudios?: number;
   idPeriodoAcademico?: number;
 }

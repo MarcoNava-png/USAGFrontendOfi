@@ -27,7 +27,7 @@ export default function LoginV2() {
           <h1
             className="text-4xl font-bold tracking-tight bg-clip-text text-transparent"
             style={{
-              backgroundImage: 'linear-gradient(to right, #14356F, #1e4a8f)',
+              backgroundImage: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))',
             }}
           >
             Accede a tu cuenta

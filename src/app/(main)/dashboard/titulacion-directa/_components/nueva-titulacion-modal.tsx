@@ -343,7 +343,7 @@ export function NuevaTitulacionModal({ open, onOpenChange, onSuccess }: Props) {
                   if (!form.fechaNacimiento) { toast.error("Captura la fecha de nacimiento"); return; }
                   setTab("academico");
                 }}
-                style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+                style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
               >
                 Siguiente: Datos Académicos →
               </Button>
@@ -439,7 +439,7 @@ export function NuevaTitulacionModal({ open, onOpenChange, onSuccess }: Props) {
                   if (!form.numeroRvoe) { toast.error("Captura el número de RVOE"); return; }
                   setTab("asignaturas");
                 }}
-                style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+                style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
               >
                 Siguiente: Asignaturas →
               </Button>
@@ -545,7 +545,7 @@ export function NuevaTitulacionModal({ open, onOpenChange, onSuccess }: Props) {
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving} style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}>
+          <Button onClick={handleSubmit} disabled={saving} style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Registrar Titulación
           </Button>

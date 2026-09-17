@@ -26,7 +26,7 @@ export function CuatrimestreSection({ cuatrimestre, idPlanEstudios, onUpdate, pe
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <div
         className="text-white p-4 cursor-pointer"
-        style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+        style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">

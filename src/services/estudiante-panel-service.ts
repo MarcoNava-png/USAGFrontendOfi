@@ -260,6 +260,19 @@ export async function actualizarDatosEstudiante(
   return response.data;
 }
 
+export async function actualizarEstatusAcademico(
+  idEstudiante: number,
+  estatusAcademico: number,
+  motivo?: string
+): Promise<AccionPanelResponse> {
+  const params = new URLSearchParams({ estatusAcademico: String(estatusAcademico) });
+  if (motivo) params.set("motivo", motivo);
+  const response = await apiClient.patch<AccionPanelResponse>(
+    `${BASE_URL}/${idEstudiante}/estatus-academico?${params.toString()}`
+  );
+  return response.data;
+}
+
 export async function cambiarMatricula(
   idEstudiante: number,
   nuevaMatricula: string

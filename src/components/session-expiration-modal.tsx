@@ -195,7 +195,7 @@ export function SessionExpirationModal() {
             onClick={handleRefresh}
             disabled={refreshing}
             className="w-full sm:w-auto text-white"
-            style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+            style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
           >
             {refreshing ? "Renovando..." : "Continuar trabajando"}
           </AlertDialogAction>

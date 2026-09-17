@@ -12,12 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { obtenerMiPerfil, actualizarMiPerfil, obtenerMisDocumentosPendientes, obtenerMiExpediente, type AspiranteDocumentoLecturaDto } from "@/services/portal-alumno-service";
+import { SeguroCard } from "@/components/seguro/seguro-card";
+import { obtenerMiSeguro, type SeguroEstudianteDto } from "@/services/seguro-service";
 import type { MiPerfil, MisDocumentosPendientes } from "@/types/portal-alumno";
 
 export default function MiPerfilPage() {
   const [perfil, setPerfil] = useState<MiPerfil | null>(null);
   const [docsPendientes, setDocsPendientes] = useState<MisDocumentosPendientes | null>(null);
   const [expediente, setExpediente] = useState<AspiranteDocumentoLecturaDto[]>([]);
+  const [seguro, setSeguro] = useState<SeguroEstudianteDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -34,14 +37,16 @@ export default function MiPerfilPage() {
   async function cargar() {
     setLoading(true);
     try {
-      const [data, docs, exp] = await Promise.all([
+      const [data, docs, exp, seg] = await Promise.all([
         obtenerMiPerfil(),
         obtenerMisDocumentosPendientes().catch(() => null),
         obtenerMiExpediente().catch(() => [] as AspiranteDocumentoLecturaDto[]),
+        obtenerMiSeguro().catch(() => null),
       ]);
       setPerfil(data);
       setDocsPendientes(docs);
       setExpediente(exp);
+      setSeguro(seg);
       setTelefono(data.telefono ?? "");
       setCelular(data.celular ?? "");
       setContactoNombre(data.contactoEmergencia?.nombre ?? "");
@@ -173,6 +178,8 @@ export default function MiPerfilPage() {
           </CardContent>
         </Card>
       )}
+
+      <SeguroCard seguro={seguro} />
 
       {expediente.length > 0 && (
         <Card>

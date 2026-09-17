@@ -69,7 +69,7 @@ const NavItemExpanded = ({
               disabled={item.comingSoon}
               isActive={isActive(item.url, item.subItems)}
               tooltip={item.title}
-              className="group/item relative text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#5a8fd4] data-[active=true]:to-[#2a5faa] data-[active=true]:text-white data-[active=true]:shadow-md transition-all duration-200"
+              className="group/item relative text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-(--sidebar-active-from) data-[active=true]:to-(--sidebar-active-to) data-[active=true]:text-(--sidebar-active-ink) data-[active=true]:shadow-md transition-all duration-200"
             >
               {item.icon && (
                 <item.icon className="group-data-[active=true]/item:drop-shadow-sm transition-transform group-hover/item:scale-110" />
@@ -84,7 +84,7 @@ const NavItemExpanded = ({
               aria-disabled={item.comingSoon}
               isActive={isActive(item.url)}
               tooltip={item.title}
-              className="group/item relative text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#5a8fd4] data-[active=true]:to-[#2a5faa] data-[active=true]:text-white data-[active=true]:shadow-md transition-all duration-200"
+              className="group/item relative text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-(--sidebar-active-from) data-[active=true]:to-(--sidebar-active-to) data-[active=true]:text-(--sidebar-active-ink) data-[active=true]:shadow-md transition-all duration-200"
             >
               <Link href={item.url} target={item.newTab ? "_blank" : undefined}>
                 {item.icon && (
@@ -147,7 +147,7 @@ const NavItemCollapsed = ({
             disabled={item.comingSoon}
             tooltip={item.title}
             isActive={isActive(item.url, item.subItems)}
-            className="group/item text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#5a8fd4] data-[active=true]:to-[#2a5faa] data-[active=true]:text-white data-[active=true]:shadow-md transition-all duration-200"
+            className="group/item text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-(--sidebar-active-from) data-[active=true]:to-(--sidebar-active-to) data-[active=true]:text-(--sidebar-active-ink) data-[active=true]:shadow-md transition-all duration-200"
           >
             {item.icon && (
               <item.icon className="group-data-[active=true]/item:drop-shadow-sm transition-transform group-hover/item:scale-110" />
@@ -208,7 +208,7 @@ export function NavMain({ items }: NavMainProps) {
         <SidebarGroup key={group.id} className="mb-2">
           {group.label && (
             <SidebarGroupLabel className="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
-              <div className="h-1 w-1 rounded-full bg-[#5a8fd4]"></div>
+              <div className="h-1 w-1 rounded-full bg-white/70"></div>
               {group.label}
               <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent"></div>
             </SidebarGroupLabel>
@@ -227,7 +227,7 @@ export function NavMain({ items }: NavMainProps) {
                           aria-disabled={item.comingSoon}
                           tooltip={item.title}
                           isActive={isItemActive(item.url)}
-                          className="group/item text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#5a8fd4] data-[active=true]:to-[#2a5faa] data-[active=true]:text-white data-[active=true]:shadow-md transition-all duration-200 relative"
+                          className="group/item text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-gradient-to-r data-[active=true]:from-(--sidebar-active-from) data-[active=true]:to-(--sidebar-active-to) data-[active=true]:text-(--sidebar-active-ink) data-[active=true]:shadow-md transition-all duration-200 relative"
                         >
                           <Link href={item.url} target={item.newTab ? "_blank" : undefined}>
                             {item.icon && (

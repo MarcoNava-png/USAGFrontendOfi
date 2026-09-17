@@ -92,6 +92,12 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
                 Escuelas
               </Link>
               <Link
+                href="/dashboard/super-admin/tickets"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Tickets
+              </Link>
+              <Link
                 href="/dashboard/super-admin/reports"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -148,6 +154,9 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/super-admin/tenants">Escuelas</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/super-admin/tickets">Tickets</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/super-admin/reports">Reportes</Link>

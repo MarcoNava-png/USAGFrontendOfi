@@ -672,7 +672,7 @@ export function DatosPersonalesTab({ panel, onUpdate }: DatosPersonalesTabProps)
                   <Button
                     type="submit"
                     disabled={saving}
-                    style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+                    style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
                   >
                     <Save className="w-4 h-4 mr-2" />
                     {saving ? "Guardando..." : "Guardar Cambios"}

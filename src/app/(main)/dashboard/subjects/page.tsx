@@ -196,6 +196,14 @@ export default function SubjectsPage() {
     return planes.find(p => p.idPlanEstudios.toString() === selectedPlanId)?.nombrePlanEstudios;
   }, [selectedPlanId, planes]);
 
+  const { periodoLabel, periodoLabelPlural } = useMemo(() => {
+    const plan = planes.find(p => p.idPlanEstudios.toString() === selectedPlanId);
+    const esSemestre = (plan?.periodicidad ?? "").toLowerCase().includes("semest");
+    return esSemestre
+      ? { periodoLabel: "Semestre", periodoLabelPlural: "semestres" }
+      : { periodoLabel: "Cuatrimestre", periodoLabelPlural: "cuatrimestres" };
+  }, [selectedPlanId, planes]);
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -333,7 +341,7 @@ export default function SubjectsPage() {
           <div>
             <h2 className="text-xl font-semibold">{selectedPlanName}</h2>
             <p className="text-muted-foreground text-sm">
-              {filteredSubjects.length} materias en {subjectsByCuatrimestre.length} cuatrimestres
+              {filteredSubjects.length} materias en {subjectsByCuatrimestre.length} {periodoLabelPlural}
             </p>
           </div>
           <div className="flex gap-2">
@@ -375,13 +383,13 @@ export default function SubjectsPage() {
                       <div className="flex items-center gap-3">
                         <div
                           className="p-2 rounded-lg"
-                          style={{ background: 'linear-gradient(to bottom right, #14356F, #1e4a8f)' }}
+                          style={{ background: 'linear-gradient(to bottom right, var(--brand-surface), var(--brand-surface-2))' }}
                         >
                           <span className="text-white font-bold text-lg">{cuatrimestre}</span>
                         </div>
                         <div className="text-left">
                           <CardTitle className="text-lg">
-                            {cuatrimestre === 0 ? "Sin cuatrimestre asignado" : `${cuatrimestre}° Cuatrimestre`}
+                            {cuatrimestre === 0 ? `Sin ${periodoLabel.toLowerCase()} asignado` : `${cuatrimestre}° ${periodoLabel}`}
                           </CardTitle>
                           <CardDescription>
                             {materias.length} materia{materias.length !== 1 ? "s" : ""}
@@ -403,7 +411,7 @@ export default function SubjectsPage() {
                       <TableHeader>
                         <TableRow
                           className="hover:bg-transparent"
-                          style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                          style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                         >
                           <TableHead className="font-semibold text-white">Clave</TableHead>
                           <TableHead className="font-semibold text-white">Nombre</TableHead>

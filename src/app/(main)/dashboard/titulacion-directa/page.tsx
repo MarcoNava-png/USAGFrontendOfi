@@ -144,7 +144,7 @@ export default function TitulacionDirectaPage() {
             Registro y gestión de titulaciones por experiencia profesional
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)} style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }} className="gap-2">
+        <Button onClick={() => setModalOpen(true)} style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }} className="gap-2">
           <Plus className="h-4 w-4" />
           Nueva Titulación
         </Button>

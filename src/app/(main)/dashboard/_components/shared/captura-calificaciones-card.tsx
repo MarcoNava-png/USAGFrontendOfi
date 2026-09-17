@@ -21,7 +21,7 @@ export function CapturaCalificacionesCard() {
       </CardHeader>
       <CardContent>
         <Link href="/dashboard/captura-calificaciones">
-          <Button className="text-white" style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}>
+          <Button className="text-white" style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}>
             Ver avance de captura
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>

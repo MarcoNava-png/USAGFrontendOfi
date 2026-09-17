@@ -269,7 +269,7 @@ export function CreateGroupModal({ open, onOpenChange, idPlanEstudios, defaultPe
               type="submit"
               disabled={loading}
               className="text-white"
-              style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               {loading ? "Creando..." : "Crear Grupo"}
             </Button>

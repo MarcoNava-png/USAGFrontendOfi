@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { AlertTriangle, CheckCircle, Clock, UserCheck, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle, ChevronsUpDown, Clock, UserCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -16,13 +24,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { assignTeacherToSubject } from "@/services/groups-service";
 import { getAllTeachers, validateTeacherSchedule } from "@/services/teacher-service";
 import { GrupoMateria } from "@/types/group";
@@ -41,6 +44,13 @@ export function AssignTeacherModal({ open, onClose, grupoMateria, onSuccess }: A
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [conflict, setConflict] = useState<TeacherScheduleConflict | null>(null);
+  const [openCombo, setOpenCombo] = useState(false);
+
+  const teachersOrdenados = useMemo(
+    () => [...teachers].sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto, "es", { sensitivity: "base" })),
+    [teachers],
+  );
+  const selectedTeacher = teachers.find((t) => t.idProfesor.toString() === selectedTeacherId);
 
   useEffect(() => {
     if (open) {
@@ -201,23 +211,67 @@ export function AssignTeacherModal({ open, onClose, grupoMateria, onSuccess }: A
 
           <div className="space-y-2">
             <Label htmlFor="teacher">Profesor</Label>
-            <Select
-              value={selectedTeacherId}
-              onValueChange={setSelectedTeacherId}
-              disabled={loading || validating}
-            >
-              <SelectTrigger id="teacher">
-                <SelectValue placeholder="Selecciona un profesor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">Sin asignar</SelectItem>
-                {teachers.map((teacher) => (
-                  <SelectItem key={teacher.idProfesor} value={teacher.idProfesor.toString()}>
-                    {teacher.nombreCompleto} - {teacher.noEmpleado}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={openCombo} onOpenChange={setOpenCombo}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="teacher"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openCombo}
+                  disabled={loading || validating}
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="truncate">
+                    {selectedTeacherId === "0" || selectedTeacherId === ""
+                      ? "Sin asignar"
+                      : selectedTeacher
+                        ? `${selectedTeacher.nombreCompleto} — ${selectedTeacher.noEmpleado}`
+                        : "Selecciona un profesor"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar profesor por nombre…" />
+                  <CommandList>
+                    <CommandEmpty>No se encontró ningún profesor.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="Sin asignar"
+                        onSelect={() => {
+                          setSelectedTeacherId("0");
+                          setOpenCombo(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", selectedTeacherId === "0" ? "opacity-100" : "opacity-0")} />
+                        Sin asignar
+                      </CommandItem>
+                      {teachersOrdenados.map((teacher) => (
+                        <CommandItem
+                          key={teacher.idProfesor}
+                          value={`${teacher.nombreCompleto} ${teacher.noEmpleado}`}
+                          onSelect={() => {
+                            setSelectedTeacherId(teacher.idProfesor.toString());
+                            setOpenCombo(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedTeacherId === teacher.idProfesor.toString() ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <span className="truncate">
+                            {teacher.nombreCompleto} — {teacher.noEmpleado}
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {validating && (

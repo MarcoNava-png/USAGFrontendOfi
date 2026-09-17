@@ -397,7 +397,7 @@ export default function ProfilePage() {
                       type="submit"
                       disabled={savingPassword}
                       className="text-white w-full"
-                      style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                      style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                     >
                       {savingPassword ? (
                         <>
@@ -465,7 +465,7 @@ export default function ProfilePage() {
                 />
                 <AvatarFallback
                   className="rounded-xl text-white text-2xl font-bold"
-                  style={{ background: 'linear-gradient(to bottom right, #14356F, #1e4a8f)' }}
+                  style={{ background: 'linear-gradient(to bottom right, var(--brand-surface), var(--brand-surface-2))' }}
                 >
                   {getInitials(`${user.nombres || ""} ${user.apellidos || ""}`)}
                 </AvatarFallback>
@@ -650,7 +650,7 @@ export default function ProfilePage() {
                     type="submit"
                     disabled={saving}
                     className="text-white"
-                    style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                    style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                   >
                     {saving ? (
                       <>
@@ -799,7 +799,7 @@ export default function ProfilePage() {
                   type="submit"
                   disabled={savingPassword}
                   className="text-white"
-                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                  style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                 >
                   {savingPassword ? (
                     <>

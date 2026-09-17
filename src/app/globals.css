@@ -90,6 +90,14 @@ These serve as the fallback; there is no separate default.css file. */
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: rgba(255, 255, 255, 0.15);
   --sidebar-ring: #5a8fd4;
+  --sidebar-surface-from: #14356F;
+  --sidebar-surface-to: #0f2850;
+  --sidebar-active-from: #5a8fd4;
+  --sidebar-active-to: #2a5faa;
+  --sidebar-active-ink: #ffffff;
+  --brand-surface: #14356F;
+  --brand-surface-2: #1e4a8f;
+  --brand-surface-ink: #ffffff;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
 }
@@ -126,6 +134,14 @@ These serve as the fallback; there is no separate default.css file. */
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: rgba(90, 143, 212, 0.2);
   --sidebar-ring: #5a8fd4;
+  --sidebar-surface-from: #0f2850;
+  --sidebar-surface-to: #0a1c38;
+  --sidebar-active-from: #5a8fd4;
+  --sidebar-active-to: #2a5faa;
+  --sidebar-active-ink: #ffffff;
+  --brand-surface: #0f2850;
+  --brand-surface-2: #1e4a8f;
+  --brand-surface-ink: #ffffff;
 }
 
 @layer utilities {

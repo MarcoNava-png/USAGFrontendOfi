@@ -45,6 +45,7 @@ import {
 import { cn } from "@/lib/utils";
 import { APP_CONFIG } from "@/config/app-config";
 import { getMunicipalities, getTownships } from "@/services/location-service";
+import { Campus } from "@/types/campus";
 import microsoftGraphService from "@/services/microsoft-graph-service";
 import { createTeacher } from "@/services/teacher-service";
 import { CivilStatus, Genres } from "@/types/catalog";
@@ -87,6 +88,7 @@ type CreateTeacherFormData = z.infer<typeof createTeacherSchema>;
 export interface CreateTeacherDialogProps {
   open: boolean;
   campusId?: number | null;
+  campuses?: Campus[];
   genres: Genres[];
   states: State[];
   civilStatus: CivilStatus[];
@@ -97,6 +99,7 @@ export interface CreateTeacherDialogProps {
 export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
   open,
   campusId,
+  campuses,
   genres,
   states,
   civilStatus,
@@ -104,6 +107,13 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
   onCreate,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [selectedCampusId, setSelectedCampusId] = useState<number | null>(campusId ?? null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (campusId) setSelectedCampusId(campusId);
+    else if (campuses && campuses.length === 1) setSelectedCampusId(campuses[0].idCampus);
+  }, [open, campusId, campuses]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [townships, setTownships] = useState<Township[]>([]);
   const [openColoniaPopover, setOpenColoniaPopover] = useState(false);
@@ -211,8 +221,8 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
   }, [townships, watchedCodigoPostalId]);
 
   const onSubmit = async (data: CreateTeacherFormData) => {
-    if (!campusId) {
-      toast.error("No se ha seleccionado un campus");
+    if (campuses && campuses.length > 1 && !selectedCampusId) {
+      toast.error("Selecciona un campus");
       return;
     }
 
@@ -220,7 +230,7 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
     try {
       const payload = {
         ...data,
-        campusId: campusId,
+        campusId: selectedCampusId ?? campusId ?? null,
         crearCorreoAzure: data.crearCorreoAzure,
       };
 
@@ -253,6 +263,26 @@ export const CreateTeacherDialog: React.FC<CreateTeacherDialogProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {campuses && campuses.length > 0 && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                <Label className="text-sm font-medium">Campus{campuses.length > 1 ? " *" : ""}</Label>
+                <Select
+                  value={selectedCampusId ? String(selectedCampusId) : ""}
+                  onValueChange={(v) => setSelectedCampusId(Number(v))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecciona campus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {campuses.map((c) => (
+                      <SelectItem key={c.idCampus} value={String(c.idCampus)}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {/* Sección: Datos Personales */}
             <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
               <div className="mb-4 flex items-center gap-2">

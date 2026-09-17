@@ -17,8 +17,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CambioGrupoModal } from "@/app/(main)/dashboard/academic-management/_components/cambio-grupo-modal";
-import { cambiarMatricula } from "@/services/estudiante-panel-service";
+import { cambiarMatricula, actualizarEstatusAcademico } from "@/services/estudiante-panel-service";
 import type { EstudiantePanelDto } from "@/types/estudiante-panel";
 // eslint-disable-next-line no-duplicate-imports
 import { formatDate } from "@/types/estudiante-panel";
@@ -33,6 +40,39 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
   const [nuevaMatricula, setNuevaMatricula] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [cambioGrupoOpen, setCambioGrupoOpen] = useState(false);
+  const [estatusModalOpen, setEstatusModalOpen] = useState(false);
+  const [nuevoEstatus, setNuevoEstatus] = useState<string>("");
+  const [guardandoEstatus, setGuardandoEstatus] = useState(false);
+
+  const ESTATUS_ACADEMICO: { valor: number; label: string }[] = [
+    { valor: 1, label: "Inscrito" },
+    { valor: 2, label: "Cursando" },
+    { valor: 3, label: "Egresado" },
+    { valor: 4, label: "En Proceso de Titulación" },
+    { valor: 5, label: "Titulado" },
+    { valor: 6, label: "Baja Temporal" },
+    { valor: 7, label: "Baja Definitiva" },
+  ];
+
+  const handleCambiarEstatusAcademico = async () => {
+    if (!nuevoEstatus) return;
+    setGuardandoEstatus(true);
+    try {
+      const res = await actualizarEstatusAcademico(panel.idEstudiante, Number(nuevoEstatus));
+      if (res.exitoso) {
+        toast.success(res.mensaje);
+        setEstatusModalOpen(false);
+        setNuevoEstatus("");
+        onUpdate?.();
+      } else {
+        toast.error(res.mensaje);
+      }
+    } catch {
+      toast.error("Error al cambiar el estatus académico");
+    } finally {
+      setGuardandoEstatus(false);
+    }
+  };
 
   const handleCambiarMatricula = async () => {
     const matriculaUpper = nuevaMatricula.trim().toUpperCase();
@@ -70,7 +110,7 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
     <Card className="overflow-hidden">
       <div
         className="h-2"
-        style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+        style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
       />
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row gap-6">
@@ -123,6 +163,18 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
                     "BajaDefinitiva": "Baja Definitiva",
                   } as Record<string, string>)[panel.estatusAcademicoTexto ?? ""] ?? panel.estatusAcademicoTexto}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  title="Cambiar estatus académico"
+                  onClick={() => {
+                    setNuevoEstatus(String(panel.estatusAcademico ?? ""));
+                    setEstatusModalOpen(true);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
               </>
             )}
           </div>
@@ -309,6 +361,46 @@ export function PanelHeader({ panel, onUpdate }: PanelHeaderProps) {
         }}
       />
     )}
+
+    <Dialog open={estatusModalOpen} onOpenChange={setEstatusModalOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cambiar estatus académico</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            {panel.nombreCompleto} · {panel.matricula}
+          </p>
+          <div className="space-y-1">
+            <Label>Nuevo estatus</Label>
+            <Select value={nuevoEstatus} onValueChange={setNuevoEstatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona…" />
+              </SelectTrigger>
+              <SelectContent>
+                {ESTATUS_ACADEMICO.map((e) => (
+                  <SelectItem key={e.valor} value={String(e.valor)}>
+                    {e.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Al pasar a &quot;Cursando&quot; o &quot;Inscrito&quot;, si el alumno estaba dado de baja, se reactiva.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEstatusModalOpen(false)} disabled={guardandoEstatus}>
+            Cancelar
+          </Button>
+          <Button onClick={handleCambiarEstatusAcademico} disabled={!nuevoEstatus || guardandoEstatus}>
+            {guardandoEstatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

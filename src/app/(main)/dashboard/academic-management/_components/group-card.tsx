@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 
+import { useRouter } from "next/navigation";
+
 import {
   BookOpen,
   Calendar,
+  Clock,
+  GraduationCap,
   History,
   MoreVertical,
+  RefreshCw,
   TrendingUp,
   Trash2,
   Users,
@@ -23,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePermissions } from "@/hooks/use-permissions";
-import { deleteGroup } from "@/services/groups-service";
+import { deleteGroup, sincronizarMateriasPlan } from "@/services/groups-service";
 import { GrupoResumen } from "@/types/group";
 
 import { GenerarCuatrimestresAnterioresModal } from "./generar-cuatrimestres-anteriores-modal";
@@ -45,8 +50,12 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
   const [showGenerarAnteriores, setShowGenerarAnteriores] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
+  const router = useRouter();
   const { permissions } = usePermissions();
+  const puedeCapturarHistorial =
+    permissions?.roles?.some((r) => ["superadmin", "admin", "controlescolar", "director", "coordinador"].includes(r)) ?? false;
   const puedeGenerarAnteriores =
     (numeroCuatrimestre ?? 0) > 1 &&
     (permissions?.roles?.some((r) => ["superadmin", "admin", "controlescolar"].includes(r)) ?? false);
@@ -54,6 +63,26 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
   const ocupacion = grupo.capacidadMaxima > 0
     ? Math.round((grupo.totalEstudiantes / grupo.capacidadMaxima) * 100)
     : 0;
+
+  const handleSincronizarMaterias = async () => {
+    setSyncing(true);
+    try {
+      const r = await sincronizarMateriasPlan(grupo.idGrupo);
+      if (r.yaEstabaCompleto || r.materiasAgregadas === 0) {
+        toast.success(`El grupo ya tiene todas las materias del plan (${r.totalMateriasActivas}).`);
+      } else {
+        toast.success(
+          `Se ligaron ${r.materiasAgregadas} materia(s) del plan (${r.inscripcionesCreadas} inscripción(es) creadas).`,
+        );
+      }
+      onUpdate();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { Error?: string } }; message?: string };
+      toast.error(err?.response?.data?.Error ?? err?.message ?? "No se pudieron sincronizar las materias");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -99,6 +128,18 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Promover Estudiantes
               </DropdownMenuItem>
+              {puedeCapturarHistorial && (
+                <DropdownMenuItem onClick={() => router.push(`/dashboard/academic-management/historial-grupo/${grupo.idGrupo}`)}>
+                  <GraduationCap className="w-4 h-4 mr-2" />
+                  Capturar calificaciones
+                </DropdownMenuItem>
+              )}
+              {puedeCapturarHistorial && (
+                <DropdownMenuItem onClick={handleSincronizarMaterias} disabled={syncing}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                  Sincronizar materias del plan
+                </DropdownMenuItem>
+              )}
               {puedeGenerarAnteriores && (
                 <DropdownMenuItem onClick={() => setShowGenerarAnteriores(true)}>
                   <History className="w-4 h-4 mr-2" />
@@ -160,6 +201,29 @@ export function GroupCard({ grupo, numeroCuatrimestre, onUpdate, periodicidadLab
                     : "bg-green-500"
               }`}
               style={{ width: `${ocupacion}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1 mt-2">
+          <div className="flex justify-between text-xs text-gray-600">
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Horarios cargados
+            </span>
+            <span className="font-medium">
+              {grupo.porcentajeHorarios ?? 0}% ({grupo.materiasConHorario ?? 0}/{grupo.totalMaterias})
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${
+                (grupo.porcentajeHorarios ?? 0) >= 100
+                  ? "bg-green-500"
+                  : (grupo.porcentajeHorarios ?? 0) >= 50
+                    ? "bg-yellow-500"
+                    : "bg-red-500"
+              }`}
+              style={{ width: `${grupo.porcentajeHorarios ?? 0}%` }}
             />
           </div>
         </div>

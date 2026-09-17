@@ -304,7 +304,7 @@ export default function ImportarEstudiantesPage() {
                     ? 'bg-muted text-muted-foreground'
                     : ''
               }`}
-              style={step === s ? { background: 'linear-gradient(to right, #14356F, #1e4a8f)', color: 'white' } : undefined}
+              style={step === s ? { background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))', color: 'white' } : undefined}
             >
               {['upload', 'preview', 'validate', 'import', 'results'].indexOf(step) > i ? (
                 <Check className="h-4 w-4" />

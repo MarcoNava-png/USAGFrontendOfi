@@ -241,7 +241,7 @@ export default function MassPromotionTab({ academicPeriods }: { academicPeriods:
               onClick={handlePreview}
               disabled={!origenId || !destinoId || loadingPreview}
               className="text-white"
-              style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+              style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
             >
               {loadingPreview ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

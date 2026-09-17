@@ -75,7 +75,7 @@ export function NavUser() {
                     <AvatarImage src={user.photoUrl ?? undefined} alt={user.nombres} />
                     <AvatarFallback
                       className="rounded-xl text-white font-bold"
-                      style={{ background: 'linear-gradient(to bottom right, #14356F, #1e4a8f)' }}
+                      style={{ background: 'linear-gradient(to bottom right, var(--brand-surface), var(--brand-surface-2))' }}
                     >
                       {getInitials(`${user.nombres ?? ""} ${user.apellidos ?? ""}`)}
                     </AvatarFallback>

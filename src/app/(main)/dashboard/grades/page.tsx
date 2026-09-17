@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 
-import { Award, BookOpen, GraduationCap, TrendingUp, CalendarDays } from "lucide-react";
+import Link from "next/link";
 
+import { Award, BookOpen, GraduationCap, TrendingUp, CalendarDays, History } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,6 +50,12 @@ export default function GradesPage() {
             Captura y gestión de calificaciones por materia y parcial
           </p>
         </div>
+        <Button asChild variant="outline" className="shrink-0">
+          <Link href="/dashboard/academic-management/captura-historial">
+            <History className="h-4 w-4 mr-2" />
+            Cargar calificaciones históricas
+          </Link>
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Card
@@ -133,7 +142,10 @@ export default function GradesPage() {
           <SelectPlanEstudios
             value={selectedPlanEstudios}
             onChange={(v) => setSelectedPlanEstudios(v)}
-            onPlanChange={(plan) => setMinimaAprobatoria(plan?.minimaAprobatoriaFinal ?? 7)}
+            onPlanChange={(plan) => {
+              const umbral = plan?.minimaAprobatoriaFinal ?? 7;
+              setMinimaAprobatoria(umbral > 10 ? umbral / 10 : umbral);
+            }}
           />
         </CardContent>
       </Card>

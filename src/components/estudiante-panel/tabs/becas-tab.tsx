@@ -117,7 +117,7 @@ export function BecasTab({ idEstudiante, becas, onUpdate }: BecasTabProps) {
           <Button
             size="sm"
             onClick={() => setShowAsignarModal(true)}
-            style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+            style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
           >
             <Plus className="w-4 h-4 mr-2" />
             Asignar Beca

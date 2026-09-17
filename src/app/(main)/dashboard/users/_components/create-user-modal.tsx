@@ -202,7 +202,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <div
               className="p-2 rounded-lg text-white"
-              style={{ background: 'linear-gradient(to bottom right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to bottom right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               <UserPlus className="h-5 w-5" />
             </div>
@@ -500,7 +500,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess, existingEmails 
                 type="submit"
                 disabled={isSubmitting}
                 className="text-white"
-                style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? "Creando..." : "Crear Usuario"}

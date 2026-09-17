@@ -311,7 +311,7 @@ export default function DocumentacionAspirantesPage() {
               <TableHeader>
                 <TableRow
                   className="hover:bg-transparent"
-                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                  style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                 >
                   <TableHead className="text-white font-semibold">Nombre</TableHead>
                   <TableHead className="text-white font-semibold">Matricula</TableHead>
@@ -581,7 +581,7 @@ export default function DocumentacionAspirantesPage() {
               <Button
                 onClick={handleAsignarProrroga}
                 disabled={savingProrroga || !fechaProrroga}
-                style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
               >
                 {savingProrroga && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Asignar Prorroga

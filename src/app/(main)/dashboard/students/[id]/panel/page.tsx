@@ -17,6 +17,7 @@ import { DocumentosPersonalesTab } from "@/components/estudiante-panel/tabs/docu
 import { DocumentosTab } from "@/components/estudiante-panel/tabs/documentos-tab";
 import { RecibosTab } from "@/components/estudiante-panel/tabs/recibos-tab";
 import { SeguimientoAcademicoTab } from "@/components/estudiante-panel/tabs/seguimiento-academico-tab";
+import { SeguroTab } from "@/components/estudiante-panel/tabs/seguro-tab";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -255,7 +256,7 @@ export default function PanelEstudiantePage() {
           <Button
             size="sm"
             onClick={handleDescargarExpediente}
-            style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+            style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
           >
             <Download className="w-4 h-4 mr-2" />
             Expediente Académico
@@ -396,11 +397,12 @@ export default function PanelEstudiantePage() {
       <PanelStatsCards panel={panel} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="datos">Datos Personales</TabsTrigger>
           <TabsTrigger value="academico">Seguimiento Académico</TabsTrigger>
           <TabsTrigger value="recibos">Pagos y Recibos</TabsTrigger>
           <TabsTrigger value="becas">Becas</TabsTrigger>
+          <TabsTrigger value="seguro">Seguro</TabsTrigger>
           <TabsTrigger value="expediente">Expediente</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
         </TabsList>
@@ -433,6 +435,10 @@ export default function PanelEstudiantePage() {
               becas={panel.becas}
               onUpdate={() => cargarPanel(true)}
             />
+          </TabsContent>
+
+          <TabsContent value="seguro" className="m-0">
+            <SeguroTab idEstudiante={panel.idEstudiante} />
           </TabsContent>
 
           <TabsContent value="expediente" className="m-0">

@@ -211,7 +211,7 @@ export default function CommissionsPage() {
               onClick={handleCalculate}
               disabled={loading}
               className="text-white"
-              style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+              style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
             >
               <TrendingUp className="mr-2 h-4 w-4" />
               {loading ? "Calculando..." : "Calcular comisiones"}

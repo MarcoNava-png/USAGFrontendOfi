@@ -1,8 +1,11 @@
 "use client";
 
-import { TrendingUp, BookOpen, DollarSign, Award, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { TrendingUp, BookOpen, DollarSign, Award, AlertTriangle, ShieldCheck } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { obtenerSeguroEstudiante, type SeguroEstudianteDto } from "@/services/seguro-service";
 import type { EstudiantePanelDto } from "@/types/estudiante-panel";
 // eslint-disable-next-line no-duplicate-imports
 import { formatCurrency } from "@/types/estudiante-panel";
@@ -14,12 +17,30 @@ interface PanelStatsCardsProps {
 export function PanelStatsCards({ panel }: PanelStatsCardsProps) {
   const { resumenKardex, resumenRecibos, becas } = panel;
 
+  const [seguro, setSeguro] = useState<SeguroEstudianteDto | null>(null);
+
+  useEffect(() => {
+    let activo = true;
+    obtenerSeguroEstudiante(panel.idEstudiante)
+      .then((data) => activo && setSeguro(data))
+      .catch(() => activo && setSeguro(null));
+    return () => {
+      activo = false;
+    };
+  }, [panel.idEstudiante]);
+
   const becaActiva = becas.find((b) => b.activo && b.estaVigente);
   const descuentoBeca = becaActiva
     ? becaActiva.tipo === "PORCENTAJE"
       ? `${becaActiva.valor}%`
       : formatCurrency(becaActiva.valor)
     : null;
+
+  const seguroColor = !seguro || seguro.estadoVigencia === "Sin póliza"
+    ? { color: "text-gray-400", bgColor: "bg-gray-50" }
+    : seguro.estadoVigencia === "Vencida"
+      ? { color: "text-red-600", bgColor: "bg-red-50" }
+      : { color: "text-green-600", bgColor: "bg-green-50" };
 
   const stats = [
     {
@@ -72,10 +93,20 @@ export function PanelStatsCards({ panel }: PanelStatsCardsProps) {
       color: becaActiva ? "text-purple-600" : "text-gray-400",
       bgColor: becaActiva ? "bg-purple-50" : "bg-gray-50",
     },
+    {
+      title: "Seguro",
+      value: seguro?.estadoVigencia ?? "Sin seguro",
+      subtitle: seguro
+        ? `${seguro.estadoPago}${seguro.numeroPoliza ? ` · ${seguro.numeroPoliza}` : ""}`
+        : "No registrado",
+      icon: ShieldCheck,
+      color: seguroColor.color,
+      bgColor: seguroColor.bgColor,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       {stats.map((stat, index) => (
         <Card key={index} className="hover:shadow-md transition-shadow">
           <CardContent className="p-4">

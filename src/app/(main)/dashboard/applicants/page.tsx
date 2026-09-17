@@ -357,7 +357,7 @@ function Page() {
           <Button
             onClick={() => setOpen(true)}
             className="text-white"
-            style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+            style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
           >
             Crear aspirante
           </Button>
@@ -497,7 +497,7 @@ function Page() {
           <table className="w-full text-xs">
             <thead
               className="border-b"
-              style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               <tr>
                 <th className="px-2 py-3 text-left text-xs font-semibold text-white w-[50px]">ID</th>
@@ -847,7 +847,7 @@ function Page() {
                           }}
                           title="Inscribir como estudiante"
                           className="h-6 px-1.5 text-[10px] text-white gap-1"
-                          style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                          style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                         >
                           <GraduationCap className="h-3 w-3" />
                           Inscribir

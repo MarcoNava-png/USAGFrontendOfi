@@ -41,7 +41,7 @@ export interface PayloadCreateTeacher {
   noEmpleado: string;
   rfc: string;
   emailInstitucional: string;
-  campusId: number;
+  campusId: number | null;
   crearCorreoAzure?: boolean;
 }
 

@@ -549,7 +549,7 @@ export default function CashierPage() {
               onClick={buscar}
               disabled={buscando}
               className="text-white"
-              style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               <Search className="w-4 h-4 mr-2" />
               {buscando ? "Buscando..." : "Buscar"}
@@ -583,7 +583,7 @@ export default function CashierPage() {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}>
+                <TableRow style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}>
                   <TableHead className="text-white font-semibold">Matrícula</TableHead>
                   <TableHead className="text-white font-semibold">Nombre Completo</TableHead>
                   <TableHead className="text-white font-semibold text-center">Acción</TableHead>
@@ -602,7 +602,7 @@ export default function CashierPage() {
                       <Button
                         size="sm"
                         className="text-white"
-                        style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                        style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                         onClick={(e) => {
                           e.stopPropagation();
                           seleccionarEstudiante(est.matricula);
@@ -670,7 +670,7 @@ export default function CashierPage() {
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}>
+                  <TableRow style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}>
                     <TableHead className="w-12">
                       <Checkbox
                         checked={recibosSeleccionados.size === resultado.recibos.length}
@@ -1051,7 +1051,7 @@ export default function CashierPage() {
                       disabled={procesando}
                       size="lg"
                       className="text-white"
-                      style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                      style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                     >
                       <Check className="w-4 h-4 mr-2" />
                       {procesando ? "Procesando..." : `Cobrar ${formatCurrency(montoTotalMetodos)}`}

@@ -199,7 +199,7 @@ export function ApartarPeriodoButton({
             <Button
               onClick={handleConfirmar}
               disabled={!periodoDestino || !cuatrimestreObjetivo || guardando}
-              style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+              style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
             >
               {guardando ? "Apartando..." : "Apartar"}
             </Button>

@@ -43,7 +43,7 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
   const [estudiantes, setEstudiantes] = useState<EstudianteConCalificaciones[]>([]);
   const [parciales, setParciales] = useState<Parcial[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
-  const [actasPorParcial, setActasPorParcial] = useState<{ [parcialId: number]: number }>({});
+  const [actasPorParcial, setActasPorParcial] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     loadData();
@@ -156,8 +156,8 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
   const handleSave = async (estudiante: EstudianteConCalificaciones, parcialId: number) => {
     const calificacion = parseFloat(estudiante.calificacionesTemp[parcialId] || "0");
 
-    if (calificacion < 0 || calificacion > 100) {
-      toast.error("La calificación debe estar entre 0 y 100");
+    if (calificacion < 0 || calificacion > 10) {
+      toast.error("La calificación debe estar entre 0 y 10");
       return;
     }
 
@@ -170,16 +170,18 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
     setSaving(saveKey);
 
     try {
-      let actaId = actasPorParcial[parcialId];
+      const actaKey = `${parcialId}-${estudiante.idInscripcion}`;
+      let actaId = actasPorParcial[actaKey];
       if (!actaId) {
         const nuevaActa = await abrirParcial({
           grupoMateriaId,
           parcialId,
-          profesorId: 1, //
+          inscripcionId: estudiante.idInscripcion,
+          profesorId: 0,
           fechaApertura: new Date().toISOString(),
         });
         actaId = nuevaActa.id;
-        setActasPorParcial((prev) => ({ ...prev, [parcialId]: actaId }));
+        setActasPorParcial((prev) => ({ ...prev, [actaKey]: actaId }));
       }
 
       await upsertCalificacion({
@@ -244,9 +246,14 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
 
   const getColorClass = (calificacion: number | undefined) => {
     if (calificacion === undefined) return "text-gray-400";
-    if (calificacion >= 70) return "text-green-600";
-    if (calificacion >= 60) return "text-yellow-600";
+    if (calificacion >= minimaAprobatoria) return "text-green-600";
+    if (calificacion >= minimaAprobatoria - 1) return "text-yellow-600";
     return "text-red-600";
+  };
+
+  const formatCalif = (n: number) => {
+    const r = Math.round(n * 100) / 100;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
   };
 
   const parcialesPrevios = parciales.filter(p => p.orden < 4);
@@ -333,7 +340,7 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
                             className={`font-semibold hover:underline ${getColorClass(estudiante.calificaciones[parcial.id])}`}
                           >
                             {estudiante.calificaciones[parcial.id] !== undefined
-                              ? estudiante.calificaciones[parcial.id]!.toFixed(1)
+                              ? formatCalif(estudiante.calificaciones[parcial.id]!)
                               : "-"}
                           </button>
                         )}
@@ -342,7 +349,7 @@ export function TablaCalificacionesMatricial({ grupoMateriaId, minimaAprobatoria
                     <TableCell className="text-center bg-blue-50">
                       <span className={`font-bold text-lg ${getColorClass(estudiante.calificacionFinal)}`}>
                         {estudiante.calificacionFinal !== undefined
-                          ? estudiante.calificacionFinal.toFixed(1)
+                          ? formatCalif(estudiante.calificacionFinal)
                           : "-"}
                       </span>
                     </TableCell>

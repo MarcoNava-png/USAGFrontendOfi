@@ -179,7 +179,7 @@ export default function DocumentosEstudiantePage() {
           <Button
             onClick={() => setCrearModalOpen(true)}
             className="text-white"
-            style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+            style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
           >
             <Plus className="mr-2 h-4 w-4" />
             Nueva Solicitud
@@ -340,7 +340,7 @@ export default function DocumentosEstudiantePage() {
               <TableHeader>
                 <TableRow
                   className="hover:bg-transparent"
-                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                  style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                 >
                   <TableHead className="text-white font-semibold">Folio</TableHead>
                   <TableHead className="text-white font-semibold">Estudiante</TableHead>

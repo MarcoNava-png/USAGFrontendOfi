@@ -4,6 +4,12 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "saciusag.com.mx", pathname: "/uploads/**" },
+      { protocol: "https", hostname: "**.saciusag.com.mx", pathname: "/uploads/**" },
+    ],
+  },
   async redirects() {
     return [
       {

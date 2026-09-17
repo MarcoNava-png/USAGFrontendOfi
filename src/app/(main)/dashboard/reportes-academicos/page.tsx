@@ -63,6 +63,7 @@ import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getAllTeachers } from "@/services/teacher-service";
 import { buscarEstudiantes } from "@/services/estudiante-panel-service";
 import { getCampusList } from "@/services/campus-service";
+import { TeacherCombobox } from "@/components/shared/teacher-combobox";
 import { getStudyPlansList } from "@/services/study-plans-service";
 import { getGroups, getGroupSubjects } from "@/services/groups-service";
 import type { Teacher } from "@/types/teacher";
@@ -95,8 +96,9 @@ interface GrupoItem {
 }
 
 function formatGrupoLabel(g: GrupoItem): string {
-  const codigo = g.codigoGrupo ?? g.nombreGrupo;
-  if (!g.planEstudios) return codigo;
+  const nombre = g.nombreGrupo ?? "";
+  const base = g.codigoGrupo ? `${g.codigoGrupo}${nombre ? ` · ${nombre}` : ""}` : nombre;
+  if (!g.planEstudios) return base;
   const planCorto = g.planEstudios
     .replace(/LICENCIATURA EN /i, "LIC. ")
     .replace(/LICENCIATURA DE /i, "LIC. ")
@@ -105,7 +107,7 @@ function formatGrupoLabel(g: GrupoItem): string {
     .replace(/AUXILIAR DE /i, "AUX. ")
     .replace(/TÉCNICO SUPERIOR UNIVERSITARIO /i, "TSU ")
     .substring(0, 35);
-  return `${codigo} - ${planCorto}`;
+  return `${base} — ${planCorto}`;
 }
 
 interface GrupoMateriaItem {
@@ -779,15 +781,34 @@ export default function ReportesAcademicosPage() {
               <CardDescription>Acta oficial de calificaciones por materia y parcial</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Carrera</Label>
+                  <Select
+                    value={selectedPlanEstudios}
+                    onValueChange={(v) => { setSelectedPlanEstudios(v); setSelectedGrupo(""); setSelectedGrupoMateria(""); }}
+                    disabled={!selectedPeriodo}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Carrera..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {planesList.map((p) => (
+                        <SelectItem key={p.idPlanEstudios} value={p.idPlanEstudios.toString()}>
+                          {p.nombrePlanEstudios}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Grupo</Label>
                   <Select value={selectedGrupo} onValueChange={setSelectedGrupo} disabled={!selectedPeriodo}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Grupo..." />
+                      <SelectValue placeholder={selectedPlanEstudios ? "Grupo..." : "Elige carrera primero"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {grupos.map((g) => (
+                      {gruposFiltrados.map((g) => (
                         <SelectItem key={g.idGrupo} value={g.idGrupo.toString()}>
                           {formatGrupoLabel(g)}
                         </SelectItem>
@@ -904,18 +925,17 @@ export default function ReportesAcademicosPage() {
                 <TabsContent value="docente" className="space-y-4 pt-4">
                   <div className="max-w-sm">
                     <Label>Docente</Label>
-                    <Select value={selectedProfesor} onValueChange={setSelectedProfesor}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar docente..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profesores.map((p) => (
-                          <SelectItem key={p.idProfesor} value={p.idProfesor.toString()}>
-                            {getNombreProfesor(p)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <TeacherCombobox
+                      teachers={profesores.map((p) => ({
+                        idProfesor: p.idProfesor,
+                        nombreCompleto: getNombreProfesor(p),
+                        noEmpleado: p.noEmpleado,
+                      }))}
+                      value={selectedProfesor}
+                      onChange={setSelectedProfesor}
+                      incluirSinAsignar={false}
+                      placeholder="Seleccionar docente..."
+                    />
                   </div>
 
                   <div className="flex gap-2">
@@ -1427,7 +1447,7 @@ export default function ReportesAcademicosPage() {
                       }
                     }}
                     disabled={loadingBajas}
-                    style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}
+                    style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}
                   >
                     {loadingBajas ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
                     Consultar
@@ -1535,7 +1555,7 @@ export default function ReportesAcademicosPage() {
                         <div className="border rounded-lg overflow-auto max-h-[500px]">
                           <Table>
                             <TableHeader>
-                              <TableRow className="bg-[#14356F]">
+                              <TableRow className="bg-[color:var(--brand-surface)]">
                                 <TableHead className="text-white font-bold">#</TableHead>
                                 <TableHead className="text-white font-bold">Matrícula</TableHead>
                                 <TableHead className="text-white font-bold">Nombre</TableHead>
@@ -1597,7 +1617,7 @@ export default function ReportesAcademicosPage() {
                         <div className="border rounded-lg overflow-auto max-h-[500px]">
                           <Table>
                             <TableHeader>
-                              <TableRow className="bg-[#14356F]">
+                              <TableRow className="bg-[color:var(--brand-surface)]">
                                 <TableHead className="text-white font-bold">#</TableHead>
                                 <TableHead className="text-white font-bold">Matrícula</TableHead>
                                 <TableHead className="text-white font-bold">Nombre</TableHead>

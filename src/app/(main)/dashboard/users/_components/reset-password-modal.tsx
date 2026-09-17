@@ -106,7 +106,7 @@ export function ResetPasswordModal({ open, onOpenChange, user, onSuccess }: Rese
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div
               className="p-2 rounded-lg text-white"
-              style={{ background: 'linear-gradient(to bottom right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to bottom right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               <KeyRound className="h-5 w-5" />
             </div>
@@ -210,7 +210,7 @@ export function ResetPasswordModal({ open, onOpenChange, user, onSuccess }: Rese
                 type="submit"
                 disabled={isSubmitting}
                 className="text-white"
-                style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? "Restableciendo..." : "Restablecer Contraseña"}

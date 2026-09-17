@@ -125,6 +125,33 @@ export interface UpdateTenantRequest {
   fechaVencimiento?: string
 }
 
+export interface CompletitudTenant {
+  idTenant: number
+  codigo: string
+  nombre: string
+  subdominio: string
+  items: Record<string, number>
+  porcentaje: number
+  migracionesPendientes: boolean
+  error?: string
+}
+
+export interface ResetPasswordAdminResponse {
+  exitoso: boolean
+  mensaje: string
+  email?: string
+  passwordTemporal?: string
+}
+
+export interface AccederTenantResponse {
+  exitoso: boolean
+  mensaje: string
+  token?: string
+  url?: string
+  subdominio?: string
+  email?: string
+}
+
 export interface MigracionTenantDetalle {
   idTenant: number
   codigo: string
@@ -174,6 +201,21 @@ export const tenantAdminService = {
 
   migrarTodos: async (): Promise<MigrarTodosResultado> => {
     const response = await superAdminAxios.post(`${BASE_URL}/migrar-todos`)
+    return response.data
+  },
+
+  acceder: async (id: number): Promise<AccederTenantResponse> => {
+    const response = await superAdminAxios.post(`${BASE_URL}/${id}/acceder`)
+    return response.data
+  },
+
+  resetAdminPassword: async (id: number): Promise<ResetPasswordAdminResponse> => {
+    const response = await superAdminAxios.post(`${BASE_URL}/${id}/reset-admin-password`)
+    return response.data
+  },
+
+  getCompletitud: async (refrescar = false): Promise<CompletitudTenant[]> => {
+    const response = await superAdminAxios.get(`${BASE_URL}/completitud`, { params: { refrescar } })
     return response.data
   },
 

@@ -138,7 +138,7 @@ export default function ImportTenantsPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', 'resultados_importacion.xlsx')
+      link.setAttribute('download', 'accesos_agremiados.xlsx')
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -327,9 +327,9 @@ export default function ImportTenantsPage() {
 
           {/* Acciones */}
           <div className="flex gap-4">
-            <Button onClick={exportResults} variant="outline">
+            <Button onClick={exportResults}>
               <FileDown className="h-4 w-4 mr-2" />
-              Exportar Resultados a Excel
+              Descargar accesos y contraseñas (Excel)
             </Button>
             <Button onClick={resetImport} variant="outline">
               Importar más escuelas

@@ -130,7 +130,7 @@ export function TablePagination({
                 className="h-8 w-8"
                 style={
                   currentPage === page
-                    ? { background: "linear-gradient(to right, #14356F, #1e4a8f)" }
+                    ? { background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }
                     : undefined
                 }
                 onClick={() => onPageChange(page)}

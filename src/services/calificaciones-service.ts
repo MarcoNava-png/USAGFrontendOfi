@@ -19,6 +19,143 @@ export async function getParciales(page = 1, pageSize = 100): Promise<PaginatedR
   return data;
 }
 
+export interface ConcentradoCelda {
+  idGrupoMateria: number
+  idInscripcion: number
+  calificacionFinal: number | null
+  estado: string | null
+}
+
+export interface ConcentradoMateria {
+  idGrupoMateria: number
+  clave: string
+  nombre: string
+  profesor: string | null
+}
+
+export interface ConcentradoAlumnoFinal {
+  idEstudiante: number
+  matricula: string
+  nombreCompleto: string
+  esBaja?: boolean
+  calificaciones: ConcentradoCelda[]
+}
+
+export interface ConcentradoFinalGrupo {
+  idGrupo: number
+  nombreGrupo: string
+  periodo: string
+  planEstudios: string
+  campus: string
+  numeroCuatrimestre: number | null
+  minimaAprobatoria: number
+  escalaMaxima: number
+  materias: ConcentradoMateria[]
+  alumnos: ConcentradoAlumnoFinal[]
+}
+
+export interface FinalDirectoItem {
+  inscripcionId: number
+  idEstudiante: number
+  calificacionFinal: number
+}
+
+export interface FinalDirectoRequest {
+  grupoMateriaId: number
+  items: FinalDirectoItem[]
+}
+
+export interface FinalDirectoResultado {
+  guardadas: number
+  omitidas: number
+  errores: string[]
+}
+
+export interface GrupoCapturaHistorial {
+  idGrupo: number
+  nombreGrupo: string
+  codigoGrupo: string | null
+  planEstudios: string
+  periodo: string
+  periodoClave: string
+  campus: string
+  numeroCuatrimestre: number | null
+  totalAlumnos: number
+  totalMaterias: number
+  celdasTotales: number
+  celdasCapturadas: number
+  porcentaje: number
+}
+
+export async function getGruposParaCaptura(filtros: {
+  idPeriodo?: number
+  idPlan?: number
+  idCampus?: number
+}): Promise<GrupoCapturaHistorial[]> {
+  const params = new URLSearchParams()
+  if (filtros.idPeriodo) params.set("idPeriodo", String(filtros.idPeriodo))
+  if (filtros.idPlan) params.set("idPlan", String(filtros.idPlan))
+  if (filtros.idCampus) params.set("idCampus", String(filtros.idCampus))
+  const { data } = await apiClient.get<GrupoCapturaHistorial[]>(`/Calificaciones/grupos-captura?${params.toString()}`)
+  return data
+}
+
+export interface GeneracionCaptura {
+  etiqueta: string
+  campus: string
+  planEstudios: string
+  avance: number
+  totalGrupos: number
+  cuatrimestresPendientes: number
+  grupos: GrupoCapturaHistorial[]
+}
+
+export async function getGeneracionesParaCaptura(filtros: {
+  idPlan?: number
+  idCampus?: number
+}): Promise<GeneracionCaptura[]> {
+  const params = new URLSearchParams()
+  if (filtros.idPlan) params.set("idPlan", String(filtros.idPlan))
+  if (filtros.idCampus) params.set("idCampus", String(filtros.idCampus))
+  const { data } = await apiClient.get<GeneracionCaptura[]>(`/Calificaciones/generaciones-captura?${params.toString()}`)
+  return data
+}
+
+export async function getConcentradoFinalGrupo(idGrupo: number): Promise<ConcentradoFinalGrupo> {
+  const { data } = await apiClient.get<ConcentradoFinalGrupo>(`/Calificaciones/concentrado-final/grupo/${idGrupo}`);
+  return data;
+}
+
+export interface CuatrimestreHistorial {
+  numeroCuatrimestre: number
+  idGrupo: number
+  nombreGrupo: string
+  periodo: string
+  periodoClave: string
+  materias: ConcentradoMateria[]
+  alumnos: ConcentradoAlumnoFinal[]
+}
+
+export interface HistorialCohorte {
+  idGrupoEntrada: number
+  nombreGrupo: string
+  planEstudios: string
+  campus: string
+  minimaAprobatoria: number
+  escalaMaxima: number
+  cuatrimestres: CuatrimestreHistorial[]
+}
+
+export async function getHistorialCohorte(idGrupo: number): Promise<HistorialCohorte> {
+  const { data } = await apiClient.get<HistorialCohorte>(`/Calificaciones/historial-cohorte/grupo/${idGrupo}`);
+  return data;
+}
+
+export async function guardarFinalDirecto(request: FinalDirectoRequest): Promise<FinalDirectoResultado> {
+  const { data } = await apiClient.post<FinalDirectoResultado>(`/Calificaciones/final-directo`, request);
+  return data;
+}
+
 export async function createParcial(request: ParcialesRequest): Promise<Parcial> {
   const { data } = await apiClient.post<Parcial>("/Parciales", request);
   return data;

@@ -169,7 +169,7 @@ export default function UsersPage() {
             <h1
               className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
               style={{
-                backgroundImage: 'linear-gradient(to right, #14356F, #1e4a8f)',
+                backgroundImage: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))',
               }}
             >
               Gestion de Usuarios
@@ -182,7 +182,7 @@ export default function UsersPage() {
             onClick={() => setIsCreateModalOpen(true)}
             className="text-white shadow-lg"
             style={{
-              background: 'linear-gradient(to right, #14356F, #1e4a8f)',
+              background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))',
             }}
           >
             <UserPlus className="h-4 w-4 mr-2" />
@@ -252,7 +252,7 @@ export default function UsersPage() {
                   <TableRow
                     className="border-b-0"
                     style={{
-                      background: 'linear-gradient(to bottom, #14356F, #0f2850)',
+                      background: 'linear-gradient(to bottom, var(--brand-surface), var(--brand-surface))',
                     }}
                   >
                     <TableHead className="font-semibold text-white">Nombre</TableHead>

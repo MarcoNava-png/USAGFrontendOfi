@@ -127,7 +127,7 @@ export function LoginForm() {
         <Button
           className="w-full h-11 text-white font-medium shadow-lg transition-all duration-200"
           style={{
-            background: 'linear-gradient(to right, #14356F, #1e4a8f)',
+            background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))',
             boxShadow: '0 10px 15px -3px rgba(20, 53, 111, 0.3)',
           }}
           type="submit"

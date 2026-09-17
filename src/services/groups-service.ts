@@ -38,6 +38,38 @@ export async function generarCuatrimestresAnteriores(
   return data;
 }
 
+export interface SincronizarMateriasPlanResultado {
+  idGrupo: number;
+  nombreGrupo?: string;
+  codigoGrupo?: string;
+  materiasEnPlan: number;
+  materiasAgregadas: number;
+  totalMateriasActivas: number;
+  inscripcionesCreadas: number;
+  yaEstabaCompleto: boolean;
+}
+
+export async function sincronizarMateriasPlan(idGrupo: number): Promise<SincronizarMateriasPlanResultado> {
+  const { data } = await apiClient.post<SincronizarMateriasPlanResultado>(
+    `/grupos/${idGrupo}/sincronizar-materias-plan`,
+  );
+  return data;
+}
+
+export interface RepararMateriasFaltantesResultado {
+  gruposRevisados: number;
+  gruposReparados: number;
+  materiasAgregadas: number;
+  detalle: SincronizarMateriasPlanResultado[];
+}
+
+export async function repararMateriasFaltantes(): Promise<RepararMateriasFaltantesResultado> {
+  const { data } = await apiClient.post<RepararMateriasFaltantesResultado>(
+    `/grupos/reparar-materias-faltantes`,
+  );
+  return data;
+}
+
 export async function getGroups(
   page = 1,
   pageSize = 20,

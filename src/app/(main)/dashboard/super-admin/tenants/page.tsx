@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 
+import Image from "next/image"
 import Link from "next/link"
 
 import {
@@ -15,13 +16,26 @@ import {
   ExternalLink,
   RefreshCw,
   FileSpreadsheet,
-  Database
+  Database,
+  LogIn,
+  ClipboardCheck,
+  KeyRound,
+  Copy,
+  Check
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +92,10 @@ export default function TenantsListPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [migrando, setMigrando] = useState(false)
+  const [resetTenant, setResetTenant] = useState<TenantListItem | null>(null)
+  const [resetting, setResetting] = useState(false)
+  const [resetResult, setResetResult] = useState<{ email?: string; password?: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     loadTenants()
@@ -117,6 +135,48 @@ export default function TenantsListPage() {
     }
 
     setFilteredTenants(filtered)
+  }
+
+  async function handleAcceder(tenant: TenantListItem) {
+    try {
+      toast.loading(`Preparando acceso a ${tenant.nombreCorto}…`, { id: 'acceder' })
+      const res = await tenantAdminService.acceder(tenant.idTenant)
+      toast.dismiss('acceder')
+      if (res.url) {
+        window.open(res.url, '_blank', 'noopener,noreferrer')
+      } else {
+        toast.error(res.mensaje || 'No se pudo acceder a la escuela')
+      }
+    } catch (err) {
+      toast.dismiss('acceder')
+      toast.error('No se pudo acceder a la escuela')
+      console.error(err)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!resetTenant) return
+    try {
+      setResetting(true)
+      const res = await tenantAdminService.resetAdminPassword(resetTenant.idTenant)
+      if (res.exitoso) {
+        setResetResult({ email: res.email, password: res.passwordTemporal })
+      } else {
+        toast.error(res.mensaje || "No se pudo restablecer la contraseña")
+        setResetTenant(null)
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Error al restablecer la contraseña")
+      setResetTenant(null)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  function closeReset() {
+    setResetTenant(null)
+    setResetResult(null)
+    setCopied(false)
   }
 
   async function handleStatusChange(tenant: TenantListItem, newStatus: number) {
@@ -164,6 +224,12 @@ export default function TenantsListPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/super-admin/completitud">
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Completitud
+            </Link>
+          </Button>
           <Button variant="outline" onClick={handleMigrarTodos} disabled={migrando}>
             <Database className={`h-4 w-4 mr-2 ${migrando ? "animate-pulse" : ""}`} />
             {migrando ? "Migrando…" : "Migrar escuelas"}
@@ -250,15 +316,29 @@ export default function TenantsListPage() {
                     <TableRow key={tenant.idTenant}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div
-                            className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
-                            style={{ backgroundColor: tenant.colorPrimario || '#14356F' }}
-                          >
-                            {tenant.nombreCorto.substring(0, 2).toUpperCase()}
-                          </div>
+                          {tenant.logoUrl ? (
+                            <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 border bg-white">
+                              <Image
+                                src={tenant.logoUrl}
+                                alt={tenant.nombreCorto}
+                                fill
+                                sizes="40px"
+                                className="object-contain p-0.5"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
+                              style={{ backgroundColor: tenant.colorPrimario || '#14356F' }}
+                            >
+                              {tenant.nombreCorto.substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
                           <div>
-                            <p className="font-medium">{tenant.nombreCorto}</p>
-                            <p className="text-xs text-muted-foreground">{tenant.codigo}</p>
+                            <p className="font-medium">{tenant.nombre}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {tenant.nombreCorto} · {tenant.codigo}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
@@ -288,6 +368,15 @@ export default function TenantsListPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleAcceder(tenant)}>
+                              <LogIn className="h-4 w-4 mr-2 text-primary" />
+                              Acceder a la escuela
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setResetResult(null); setCopied(false); setResetTenant(tenant) }}>
+                              <KeyRound className="h-4 w-4 mr-2 text-amber-600" />
+                              Restablecer contraseña del admin
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
                               <Link href={`/dashboard/super-admin/tenants/${tenant.idTenant}`}>
                                 <Eye className="h-4 w-4 mr-2" />
@@ -331,6 +420,78 @@ export default function TenantsListPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!resetTenant} onOpenChange={(o) => { if (!o) closeReset() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-amber-600" />
+              Restablecer contraseña del admin
+            </DialogTitle>
+            <DialogDescription>
+              {resetTenant?.nombre}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!resetResult ? (
+            <div className="space-y-3 text-sm">
+              <p>
+                Se generará una <strong>contraseña nueva</strong> para el administrador de esta escuela.
+                La contraseña anterior dejará de funcionar. Esta acción queda registrada en auditoría.
+              </p>
+              <p className="text-muted-foreground">
+                La nueva contraseña se muestra <strong>una sola vez</strong>; cópiala y entrégala de forma segura.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Correo (usuario)</p>
+                  <p className="font-mono text-sm">{resetResult.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Contraseña nueva</p>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-sm bg-background border rounded px-2 py-1 flex-1">
+                      {resetResult.password}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${resetResult.email}  ${resetResult.password}`)
+                        setCopied(true)
+                        toast.success("Credenciales copiadas")
+                      }}
+                    >
+                      {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Recomienda al administrador cambiarla en su primer ingreso.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            {!resetResult ? (
+              <>
+                <Button variant="outline" onClick={closeReset} disabled={resetting}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleResetPassword} disabled={resetting}>
+                  {resetting ? "Restableciendo…" : "Restablecer contraseña"}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={closeReset}>Listo</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

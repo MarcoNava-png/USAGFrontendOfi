@@ -31,6 +31,7 @@ export interface CalificacionParcial {
 export interface CalificacionParcialCreateRequest {
   grupoMateriaId: number;
   parcialId: number;
+  inscripcionId?: number;
   profesorId: number;
   fechaApertura?: string;
 }

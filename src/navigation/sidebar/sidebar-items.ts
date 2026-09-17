@@ -33,6 +33,7 @@ import {
   CalendarCheck,
   Key,
   SlidersHorizontal,
+  Hash,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ export interface NavSubItem {
   newTab?: boolean;
   isNew?: boolean;
   requiredModule?: string;
+  requiredPermission?: string;
   badgeKey?: string;
 }
 
@@ -56,6 +58,7 @@ export interface NavMainItem {
   newTab?: boolean;
   isNew?: boolean;
   requiredModule?: string;
+  requiredPermission?: string;
   badgeKey?: string;
 }
 
@@ -140,18 +143,21 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/applicants",
         icon: BriefcaseBusiness,
         requiredModule: "Admisiones",
+        requiredPermission: "menu.adm.aspirantes",
       },
       {
         title: "Comisiones",
         url: "/dashboard/applicants/commissions",
         icon: HandCoins,
         requiredModule: "Admisiones",
+        requiredPermission: "menu.adm.comisiones",
       },
       {
         title: "Promociones",
         url: "/dashboard/convenios",
         icon: HandCoins,
         requiredModule: "Admisiones",
+        requiredPermission: "menu.adm.promociones",
         isNew: true,
       },
       {
@@ -159,6 +165,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/documentacion-aspirantes",
         icon: ClipboardList,
         requiredModule: "Admisiones",
+        requiredPermission: "menu.adm.documentacion",
         isNew: true,
         badgeKey: "prorrogasVencidas",
       },
@@ -174,48 +181,56 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/campus",
         icon: Building2,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.campus",
       },
       {
         title: "Materias",
         url: "/dashboard/subjects",
         icon: BookOpen,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.materias",
       },
       {
         title: "Planes de Estudio",
         url: "/dashboard/study-plans",
         icon: FileText,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.planes",
       },
       {
         title: "Periodos Académicos",
         url: "/dashboard/academic-periods",
         icon: Calendar,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.periodos",
       },
       {
         title: "Periodicidades",
         url: "/dashboard/periodicities",
         icon: CalendarRange,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.periodicidades",
       },
       {
         title: "Días de Impartición",
         url: "/dashboard/dias-imparticion",
         icon: CalendarDays,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.dias",
       },
       {
         title: "Documentos Requisito",
         url: "/dashboard/documentos-requisito",
         icon: ClipboardList,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.documentos-requisito",
       },
       {
         title: "Empresas",
         url: "/dashboard/empresas",
         icon: Building,
         requiredModule: "Catalogos",
+        requiredPermission: "menu.cat.empresas",
         isNew: true,
       },
     ],
@@ -231,12 +246,12 @@ export const sidebarItems: NavGroup[] = [
         icon: Users,
         requiredModule: "Estudiantes",
         subItems: [
-          { title: "Estudiantes por Grupo", url: "/dashboard/students", newTab: false, requiredModule: "Estudiantes" },
-          { title: "Inscripción a Grupos", url: "/dashboard/group-enrollment", newTab: false, requiredModule: "Estudiantes" },
-          { title: "Diagnóstico de Inscripciones", url: "/dashboard/diagnostico-inscripcion", newTab: false, requiredModule: "Estudiantes", isNew: true },
-          { title: "Calificaciones", url: "/dashboard/grades", newTab: false, requiredModule: "Academico" },
-          { title: "Captura de Calificaciones", url: "/dashboard/captura-calificaciones", newTab: false, requiredModule: "Academico", isNew: true },
-          { title: "Asistencias", url: "/dashboard/attendances", newTab: false, requiredModule: "Academico" },
+          { title: "Estudiantes por Grupo", url: "/dashboard/students", newTab: false, requiredModule: "Estudiantes", requiredPermission: "menu.ce.estudiantes-grupo" },
+          { title: "Inscripción a Grupos", url: "/dashboard/group-enrollment", newTab: false, requiredModule: "Estudiantes", requiredPermission: "menu.ce.inscripcion-grupos" },
+          { title: "Diagnóstico de Inscripciones", url: "/dashboard/diagnostico-inscripcion", newTab: false, requiredModule: "Estudiantes", requiredPermission: "menu.ce.diagnostico", isNew: true },
+          { title: "Calificaciones", url: "/dashboard/grades", newTab: false, requiredModule: "Academico", requiredPermission: "menu.ce.calificaciones" },
+          { title: "Captura de Calificaciones", url: "/dashboard/captura-calificaciones", newTab: false, requiredModule: "Academico", requiredPermission: "menu.ce.captura-calificaciones", isNew: true },
+          { title: "Asistencias", url: "/dashboard/attendances", newTab: false, requiredModule: "Academico", requiredPermission: "menu.ce.asistencias" },
         ],
       },
       {
@@ -244,6 +259,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/documentos-estudiante",
         icon: Award,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.documentos",
         isNew: true,
       },
       {
@@ -251,6 +267,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/documentos-solicitudes",
         icon: ClipboardList,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.solicitudes",
         isNew: true,
         badgeKey: "solicitudesDocumentos",
       },
@@ -259,6 +276,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/importar-estudiantes",
         icon: FileSpreadsheet,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.importar",
         isNew: true,
       },
       {
@@ -266,6 +284,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/inscribir-estudiantes-grupo",
         icon: UserPlus,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.inscribir",
         isNew: true,
       },
       {
@@ -273,12 +292,14 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/reportes-academicos",
         icon: FileBarChart,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.reportes-academicos",
       },
       {
         title: "Constructor de Reportes",
         url: "/dashboard/reportes-builder",
         icon: FileBarChart,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.constructor-reportes",
         isNew: true,
       },
       {
@@ -286,6 +307,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/egresados",
         icon: GraduationCap,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.egresados",
         isNew: true,
       },
       {
@@ -293,6 +315,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/accesos-alumnos-docentes",
         icon: Key,
         requiredModule: "Estudiantes",
+        requiredPermission: "menu.ce.accesos",
         isNew: true,
       },
     ],
@@ -306,6 +329,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/titulacion-directa",
         icon: Medal,
         requiredModule: "TitulacionDirecta",
+        requiredPermission: "menu.tit.directa",
         isNew: true,
       },
       {
@@ -313,6 +337,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/titulacion-escolarizada",
         icon: GraduationCap,
         requiredModule: "TitulacionEscolarizada",
+        requiredPermission: "menu.tit.escolarizada",
         isNew: true,
         comingSoon: true,
       },
@@ -321,6 +346,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/titulacion-catalogos",
         icon: BookOpen,
         requiredModule: "TitulacionDirecta",
+        requiredPermission: "menu.tit.catalogos-sep",
         isNew: true,
       },
       {
@@ -328,6 +354,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/titulacion-configuracion",
         icon: Settings,
         requiredModule: "TitulacionDirecta",
+        requiredPermission: "menu.tit.configuracion-sep",
         isNew: true,
       },
     ],
@@ -343,11 +370,11 @@ export const sidebarItems: NavGroup[] = [
         icon: GraduationCap,
         requiredModule: "Academico",
         subItems: [
-          { title: "Grupos", url: "/dashboard/academic-management", newTab: false, requiredModule: "Academico" },
-          { title: "Promoción", url: "/dashboard/promotions", newTab: false, requiredModule: "Academico", isNew: true },
-          { title: "Horarios", url: "/dashboard/schedules", newTab: false, requiredModule: "Academico" },
-          { title: "Docentes", url: "/dashboard/teachers", newTab: false, requiredModule: "Academico" },
-          { title: "Solicitudes de Plan", url: "/dashboard/solicitudes-plan", newTab: false, requiredModule: "Academico", isNew: true },
+          { title: "Grupos", url: "/dashboard/academic-management", newTab: false, requiredModule: "Academico", requiredPermission: "menu.aca.grupos" },
+          { title: "Promoción", url: "/dashboard/promotions", newTab: false, requiredModule: "Academico", requiredPermission: "menu.aca.promocion", isNew: true },
+          { title: "Horarios", url: "/dashboard/schedules", newTab: false, requiredModule: "Academico", requiredPermission: "menu.aca.horarios" },
+          { title: "Docentes", url: "/dashboard/teachers", newTab: false, requiredModule: "Academico", requiredPermission: "menu.aca.docentes" },
+          { title: "Solicitudes de Plan", url: "/dashboard/solicitudes-plan", newTab: false, requiredModule: "Academico", requiredPermission: "menu.aca.solicitudes-plan", isNew: true },
         ],
       },
     ],
@@ -363,6 +390,7 @@ export const sidebarItems: NavGroup[] = [
         icon: DollarSign,
         isNew: true,
         requiredModule: "Finanzas",
+        requiredPermission: "menu.fin.caja",
       },
       {
         title: "Recibos",
@@ -370,7 +398,7 @@ export const sidebarItems: NavGroup[] = [
         icon: Receipt,
         requiredModule: "Finanzas",
         subItems: [
-          { title: "Administración", url: "/dashboard/receipts", newTab: false, requiredModule: "Finanzas" },
+          { title: "Administración", url: "/dashboard/receipts", newTab: false, requiredModule: "Finanzas", requiredPermission: "menu.fin.recibos-admin" },
           { title: "Mis Recibos", url: "/dashboard/receipts/my-receipts", newTab: false, isNew: true },
         ],
       },
@@ -380,14 +408,14 @@ export const sidebarItems: NavGroup[] = [
         icon: Banknote,
         requiredModule: "Finanzas",
         subItems: [
-          { title: "Corte de Caja", url: "/dashboard/cashier/corte", newTab: false, isNew: true, requiredModule: "Finanzas" },
-          { title: "Plantillas de Cobro", url: "/dashboard/payment-templates", newTab: false, isNew: true, requiredModule: "Finanzas" },
-          { title: "Conceptos de Pago", url: "/dashboard/payment-concepts", newTab: false, isNew: true, requiredModule: "Finanzas" },
-          { title: "Tarifas de Admisión", url: "/dashboard/tarifas-admision", newTab: false, isNew: true, requiredModule: "Finanzas" },
-          { title: "Becas", url: "/dashboard/scholarships", newTab: false, isNew: true, requiredModule: "Finanzas" },
-          { title: "Pagos", url: "/dashboard/payments", newTab: false, requiredModule: "Finanzas" },
-          { title: "Reportes", url: "/dashboard/reports", newTab: false, requiredModule: "Finanzas" },
-          { title: "Solicitudes de Baja", url: "/dashboard/solicitudes-baja", newTab: false, isNew: true, requiredModule: "Finanzas", badgeKey: "solicitudesBaja" },
+          { title: "Corte de Caja", url: "/dashboard/cashier/corte", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.corte" },
+          { title: "Plantillas de Cobro", url: "/dashboard/payment-templates", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.plantillas" },
+          { title: "Conceptos de Pago", url: "/dashboard/payment-concepts", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.conceptos" },
+          { title: "Tarifas de Admisión", url: "/dashboard/tarifas-admision", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.tarifas" },
+          { title: "Becas", url: "/dashboard/scholarships", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.becas" },
+          { title: "Pagos", url: "/dashboard/payments", newTab: false, requiredModule: "Finanzas", requiredPermission: "menu.fin.pagos" },
+          { title: "Reportes", url: "/dashboard/reports", newTab: false, requiredModule: "Finanzas", requiredPermission: "menu.fin.reportes" },
+          { title: "Solicitudes de Baja", url: "/dashboard/solicitudes-baja", newTab: false, isNew: true, requiredModule: "Finanzas", requiredPermission: "menu.fin.solicitudes-baja", badgeKey: "solicitudesBaja" },
         ],
       },
     ],
@@ -410,6 +438,11 @@ export const sidebarItems: NavGroup[] = [
     label: "SOPORTE",
     items: [
       {
+        title: "Manual de Usuario",
+        url: "/dashboard/manual",
+        icon: BookOpen,
+      },
+      {
         title: "Tickets",
         url: "/dashboard/tickets",
         icon: LifeBuoy,
@@ -426,12 +459,14 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/users",
         icon: UserCircle,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.usuarios",
       },
       {
         title: "Roles y Permisos",
         url: "/dashboard/roles",
         icon: Shield,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.roles",
         isNew: true,
       },
       {
@@ -439,6 +474,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/bitacora",
         icon: ScrollText,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.bitacora",
         isNew: true,
       },
       {
@@ -446,6 +482,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/usuarios-azure",
         icon: Users,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.usuarios-azure",
         isNew: true,
       },
       {
@@ -453,6 +490,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/correos-azure",
         icon: Mail,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.correos-azure",
         isNew: true,
       },
       {
@@ -460,6 +498,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/plantillas-reporte",
         icon: FileText,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.plantillas-reporte",
         isNew: true,
       },
       {
@@ -467,6 +506,15 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/configuracion-calificaciones",
         icon: SlidersHorizontal,
         requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.config-calificaciones",
+        isNew: true,
+      },
+      {
+        title: "Configuración de Matrículas",
+        url: "/dashboard/configuracion-matriculas",
+        icon: Hash,
+        requiredModule: "Configuracion",
+        requiredPermission: "menu.cfg.config-matriculas",
         isNew: true,
       },
     ],
@@ -550,7 +598,17 @@ export const sidebarItems: NavGroup[] = [
   },
 ];
 
-export function filterSidebarByModules(accessibleModules: string[], userRole?: string): NavGroup[] {
+export function filterSidebarByModules(
+  accessibleModules: string[],
+  userRole?: string,
+  viewablePermissions?: Set<string>,
+): NavGroup[] {
+  const puedeVer = (requiredModule?: string, requiredPermission?: string): boolean => {
+    if (requiredModule && !accessibleModules.includes(requiredModule)) return false;
+    if (requiredPermission && viewablePermissions && !viewablePermissions.has(requiredPermission)) return false;
+    return true;
+  };
+
   return sidebarItems
     .filter((group) => {
       if (group.requiredRole && userRole !== group.requiredRole) return false;
@@ -560,17 +618,12 @@ export function filterSidebarByModules(accessibleModules: string[], userRole?: s
     .map((group) => ({
       ...group,
       items: group.items
-        .filter((item) => {
-          if (!item.requiredModule) return true;
-          return accessibleModules.includes(item.requiredModule);
-        })
+        .filter((item) => puedeVer(item.requiredModule, item.requiredPermission))
         .map((item) => ({
           ...item,
-          subItems: item.subItems?.filter((subItem) => {
-            if (!subItem.requiredModule) return true;
-            return accessibleModules.includes(subItem.requiredModule);
-          }),
-        })),
+          subItems: item.subItems?.filter((subItem) => puedeVer(subItem.requiredModule, subItem.requiredPermission)),
+        }))
+        .filter((item) => !item.subItems || item.subItems.length > 0),
     }))
     .filter((group) => group.items.length > 0);
 }

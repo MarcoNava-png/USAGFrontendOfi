@@ -51,6 +51,20 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
+function normalizeSubdomain(raw: string, final = false): string {
+  let s = String(raw)
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]
+    .split(".")[0]
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+/, "");
+  if (final) s = s.replace(/-+$/, "");
+  return s;
+}
+
 export default function NewTenantPage() {
   const router = useRouter()
   const [plans, setPlans] = useState<PlanLicencia[]>([])
@@ -94,8 +108,7 @@ export default function NewTenantPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
 
     if (field === 'codigo') {
-      const subdomain = String(value).toLowerCase().replace(/[^a-z0-9]/g, '')
-      setFormData(prev => ({ ...prev, subdominio: subdomain }))
+      setFormData(prev => ({ ...prev, subdominio: normalizeSubdomain(String(value)) }))
     }
   }
 
@@ -115,9 +128,15 @@ export default function NewTenantPage() {
       return
     }
 
+    const subdominio = normalizeSubdomain(formData.subdominio, true)
+    if (!subdominio) {
+      toast.error('El subdominio no es válido')
+      return
+    }
+
     try {
       setLoading(true)
-      const response = await tenantAdminService.create(formData)
+      const response = await tenantAdminService.create({ ...formData, subdominio })
       setResult(response)
 
       if (response.exitoso) {
@@ -277,13 +296,19 @@ export default function NewTenantPage() {
                       id="subdominio"
                       placeholder="escuela1"
                       value={formData.subdominio}
-                      onChange={(e) => handleChange('subdominio', e.target.value.toLowerCase())}
+                      onChange={(e) => handleChange('subdominio', normalizeSubdomain(e.target.value))}
                       className="rounded-r-none"
                     />
                     <span className="inline-flex items-center px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm">
                       .{APP_CONFIG.domain}
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Solo la etiqueta, en minúsculas. La dirección quedará como{" "}
+                    <span className="font-medium text-foreground">
+                      {formData.subdominio || "escuela1"}.{APP_CONFIG.domain}
+                    </span>
+                  </p>
                 </div>
               </div>
 

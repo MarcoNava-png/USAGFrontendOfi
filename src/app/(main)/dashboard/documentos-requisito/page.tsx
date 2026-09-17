@@ -294,7 +294,7 @@ export default function DocumentosRequisitoPage() {
               <TableRow
                 className="hover:bg-transparent"
                 style={{
-                  background: "linear-gradient(to right, #14356F, #1e4a8f)",
+                  background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))",
                 }}
               >
                 <TableHead className="font-semibold text-white">

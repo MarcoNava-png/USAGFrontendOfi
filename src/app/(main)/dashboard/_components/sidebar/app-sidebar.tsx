@@ -12,7 +12,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useBranding } from "@/hooks/use-branding";
-import { shadeColor } from "@/lib/color-utils";
+import { ensureReadableSurface, readableInk, shadeColor } from "@/lib/color-utils";
 import { usePermissions } from "@/hooks/use-permissions";
 import { sidebarItems, filterSidebarByModules, type NavGroup } from "@/navigation/sidebar/sidebar-items";
 import type { TenantBranding } from "@/services/branding-service";
@@ -27,6 +27,11 @@ function filtrarPorFeatures(groups: NavGroup[], branding: TenantBranding | null)
     ["/dashboard/reportes-academicos", "/dashboard/reports", "/dashboard/plantillas-reporte", "/dashboard/reportes-builder"].forEach((u) =>
       bloqueadas.add(u),
     );
+  }
+
+  // Microsoft 365 / Azure AD usa credenciales globales de USAG: solo USAG puede verlo.
+  if (branding.codigo?.toUpperCase() !== "USAG") {
+    ["/dashboard/usuarios-azure", "/dashboard/correos-azure"].forEach((u) => bloqueadas.add(u));
   }
 
   if (bloqueadas.size === 0) return groups;
@@ -46,8 +51,13 @@ function filtrarPorFeatures(groups: NavGroup[], branding: TenantBranding | null)
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { accessibleModules, isLoading, isAdmin, isSuperAdmin, primaryRole } = usePermissions();
+  const { permissions, accessibleModules, isLoading, isAdmin, isSuperAdmin, primaryRole } = usePermissions();
   const branding = useBranding();
+
+  const viewablePermissions = useMemo(
+    () => new Set((permissions?.permissions ?? []).filter((p) => p.canView).map((p) => p.permissionCode)),
+    [permissions],
+  );
 
   const filteredItems = useMemo(() => {
     let base;
@@ -59,21 +69,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     } else if (isLoading) {
       base = filterSidebarByModules(["Dashboard"], primaryRole ?? undefined);
     } else {
-      base = filterSidebarByModules(accessibleModules, primaryRole ?? undefined);
+      base = filterSidebarByModules(accessibleModules, primaryRole ?? undefined, viewablePermissions);
     }
     return filtrarPorFeatures(base, branding);
-  }, [accessibleModules, isLoading, isAdmin, isSuperAdmin, primaryRole, branding]);
+  }, [accessibleModules, isLoading, isAdmin, isSuperAdmin, primaryRole, branding, viewablePermissions]);
 
   const logoUrl = branding?.logoUrl;
   const nombreCorto = branding?.nombreCorto ?? "SACI";
   const color = branding?.colorPrimario || "#14356F";
+  const surface = ensureReadableSurface(color, 4.5);
+  const headerInk = readableInk(color);
 
   return (
     <Sidebar
       {...props}
       className="border-r-0"
       style={{
-        background: `linear-gradient(to bottom, ${color}, ${shadeColor(color, -25)})`,
+        background: `linear-gradient(to bottom, ${surface}, ${shadeColor(surface, -25)})`,
       }}
     >
       <SidebarHeader className="border-b border-white/10 p-4">
@@ -90,7 +102,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="object-contain w-full h-auto max-h-20"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center gap-1 py-2 text-white">
+              <div className="flex flex-col items-center justify-center gap-1 py-2" style={{ color: headerInk }}>
                 <GraduationCap className="h-9 w-9" />
                 <span className="text-sm font-semibold tracking-wide">{nombreCorto}</span>
               </div>

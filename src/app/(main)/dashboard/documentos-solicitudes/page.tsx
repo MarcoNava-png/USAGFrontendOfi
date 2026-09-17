@@ -260,7 +260,7 @@ export default function DocumentosSolicitudesPage() {
             onClick={handleExportarReporte}
             size="sm"
             className="text-white"
-            style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+            style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
             disabled={loading || !data || data.solicitudes.length === 0}
           >
             <FileSpreadsheet className="mr-1.5 h-4 w-4" />
@@ -596,7 +596,7 @@ export default function DocumentosSolicitudesPage() {
                               solicitud.estatus === 'PAGADO'
                                 ? {}
                                 : solicitud.estatus !== 'GENERADO'
-                                  ? { background: 'linear-gradient(to right, #14356F, #1e4a8f)' }
+                                  ? { background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }
                                   : {}
                             }
                           >

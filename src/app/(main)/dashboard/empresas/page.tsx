@@ -148,7 +148,7 @@ export default function EmpresasPage() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow style={{ background: "linear-gradient(to right, #14356F, #1e4a8f)" }}>
+                <TableRow style={{ background: "linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))" }}>
                   <TableHead className="text-white font-semibold">ID</TableHead>
                   <TableHead className="text-white font-semibold">Nombre</TableHead>
                   <TableHead className="text-white font-semibold text-center">Aspirantes</TableHead>

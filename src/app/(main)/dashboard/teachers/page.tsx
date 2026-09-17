@@ -144,7 +144,7 @@ export default function TeachersPage() {
             type="button"
             onClick={() => setOpenCreateDialog(true)}
             className="text-white"
-            style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+            style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
           >
             Nuevo Docente
           </Button>
@@ -194,6 +194,7 @@ export default function TeachersPage() {
       )}
       <CreateTeacherDialog
         open={openCreateDialog}
+        campuses={campuses}
         genres={genres}
         states={states}
         civilStatus={civilStatus}

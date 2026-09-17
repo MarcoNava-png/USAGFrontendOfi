@@ -374,7 +374,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
                 type="submit"
                 disabled={isSubmitting}
                 className="text-white"
-                style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? "Guardando..." : "Guardar Cambios"}

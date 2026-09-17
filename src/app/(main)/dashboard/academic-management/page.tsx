@@ -2,16 +2,19 @@
 
 import { useEffect, useState, useMemo } from "react";
 
-import { BookOpen, Building2, GraduationCap, Plus } from "lucide-react";
+import Link from "next/link";
+
+import { BookOpen, Building2, ClipboardList, GraduationCap, Plus, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePermissions } from "@/hooks/use-permissions";
 import { formatPeriodoLabel } from "@/services/academic-period-service";
 import { getCampusList } from "@/services/campus-service";
 import { getAcademicPeriods, getStudyPlans } from "@/services/catalogs-service";
-import { getAcademicManagement } from "@/services/groups-service";
+import { getAcademicManagement, repararMateriasFaltantes } from "@/services/groups-service";
 import { Campus } from "@/types/campus";
 import { AcademicPeriod, StudyPlan } from "@/types/catalog";
 import { GestionAcademicaResponse } from "@/types/group";
@@ -30,6 +33,10 @@ export default function AcademicManagementPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const { permissions } = usePermissions();
+  const puedeReparar =
+    permissions?.roles?.some((r) => ["superadmin", "admin", "controlescolar"].includes(r)) ?? false;
 
   const filteredPlans = useMemo(() => {
     if (selectedCampusId === "all") return studyPlans;
@@ -118,6 +125,26 @@ export default function AcademicManagementPage() {
     }
   };
 
+  const handleRepararMaterias = async () => {
+    setRepairing(true);
+    try {
+      const r = await repararMateriasFaltantes();
+      if (r.gruposReparados === 0) {
+        toast.success(`Sin materias faltantes: se revisaron ${r.gruposRevisados} grupos.`);
+      } else {
+        toast.success(
+          `Reparados ${r.gruposReparados} grupo(s): se ligaron ${r.materiasAgregadas} materia(s) del plan.`,
+        );
+      }
+      await loadAcademicData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { Error?: string } }; message?: string };
+      toast.error(err?.response?.data?.Error ?? err?.message ?? "No se pudo ejecutar la reparación");
+    } finally {
+      setRepairing(false);
+    }
+  };
+
   if (initialLoading) {
     return (
       <div className="container mx-auto py-6">
@@ -146,15 +173,29 @@ export default function AcademicManagementPage() {
             Administra grupos por licenciatura y {periodicidadLabel.toLowerCase()}
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          disabled={!selectedPlanId}
-          className="text-white"
-          style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Crear Grupo
-        </Button>
+        <div className="flex gap-2">
+          {puedeReparar && (
+            <Button variant="outline" onClick={handleRepararMaterias} disabled={repairing}>
+              <Wrench className={`w-4 h-4 mr-2 ${repairing ? "animate-spin" : ""}`} />
+              {repairing ? "Reparando..." : "Reparar materias faltantes"}
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/academic-management/captura-historial">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Captura de historial
+            </Link>
+          </Button>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            disabled={!selectedPlanId}
+            className="text-white"
+            style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Crear Grupo
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white rounded-lg border shadow-sm">

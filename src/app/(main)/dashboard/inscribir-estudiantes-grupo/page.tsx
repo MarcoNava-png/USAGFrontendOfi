@@ -551,7 +551,7 @@ export default function InscribirEstudiantesGrupoPage() {
                     ? 'bg-muted text-muted-foreground'
                     : ''
               }`}
-              style={step === s ? { background: 'linear-gradient(to right, #14356F, #1e4a8f)', color: 'white' } : undefined}
+              style={step === s ? { background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))', color: 'white' } : undefined}
             >
               {['select-group', 'load-students', 'confirm', 'results'].indexOf(step) > i ? (
                 <Check className="h-4 w-4" />
@@ -565,7 +565,7 @@ export default function InscribirEstudiantesGrupoPage() {
       </div>
       {step === 'select-group' && (
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, var(--brand-surface) 0%, var(--brand-surface-2) 50%, var(--brand-surface-2) 100%)' }}>
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
                 <Users className="h-6 w-6 text-white" />
@@ -687,7 +687,7 @@ export default function InscribirEstudiantesGrupoPage() {
                 onClick={() => setStep('load-students')}
                 disabled={!selectedGrupo}
                 className="text-white"
-                style={selectedGrupo ? { background: 'linear-gradient(to right, #14356F, #1e4a8f)' } : undefined}
+                style={selectedGrupo ? { background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' } : undefined}
               >
                 Continuar
               </Button>
@@ -708,7 +708,7 @@ export default function InscribirEstudiantesGrupoPage() {
       )}
       {step === 'load-students' && (
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+          <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, var(--brand-surface) 0%, var(--brand-surface-2) 50%, var(--brand-surface-2) 100%)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
@@ -870,7 +870,7 @@ export default function InscribirEstudiantesGrupoPage() {
                 onClick={() => setStep('confirm')}
                 disabled={seleccionadosCount === 0}
                 className="text-white"
-                style={{ background: seleccionadosCount > 0 ? 'linear-gradient(to right, #14356F, #1e4a8f)' : undefined }}
+                style={{ background: seleccionadosCount > 0 ? 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' : undefined }}
               >
                 Continuar ({seleccionadosCount} seleccionados)
               </Button>
@@ -882,7 +882,7 @@ export default function InscribirEstudiantesGrupoPage() {
       {step === 'confirm' && grupoInfo && (
         <div className="space-y-6">
           <Card className="border-0 shadow-lg overflow-hidden">
-            <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+            <CardHeader className="text-white pb-6" style={{ background: 'linear-gradient(135deg, var(--brand-surface) 0%, var(--brand-surface-2) 50%, var(--brand-surface-2) 100%)' }}>
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
                   <CheckCircle2 className="h-6 w-6 text-white" />
@@ -953,7 +953,7 @@ export default function InscribirEstudiantesGrupoPage() {
                   onClick={handleImportar}
                   disabled={loading}
                   className="text-white"
-                  style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+                  style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
                 >
                   {loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -972,7 +972,7 @@ export default function InscribirEstudiantesGrupoPage() {
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-5">
             <Card className="border-0 shadow-md overflow-hidden">
-              <div className="h-1" style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}></div>
+              <div className="h-1" style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}></div>
               <CardHeader className="pb-2">
                 <CardDescription>Grupo</CardDescription>
                 <CardTitle className="text-lg" style={{ color: '#14356F' }}>{resultado.nombreGrupo}</CardTitle>
@@ -1000,7 +1000,7 @@ export default function InscribirEstudiantesGrupoPage() {
               </CardHeader>
             </Card>
             <Card className="border-0 shadow-md overflow-hidden" style={{ background: 'linear-gradient(to bottom right, rgba(20, 53, 111, 0.05), rgba(37, 99, 235, 0.05))' }}>
-              <div className="h-1" style={{ background: 'linear-gradient(to right, #14356F, #2563eb)' }}></div>
+              <div className="h-1" style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}></div>
               <CardHeader className="pb-2">
                 <CardDescription>Matriculas generadas</CardDescription>
                 <CardTitle style={{ color: '#14356F' }}>{resultado.estudiantesCreados}</CardTitle>
@@ -1026,7 +1026,7 @@ export default function InscribirEstudiantesGrupoPage() {
             </Alert>
           )}
           <Card className="border-0 shadow-lg overflow-hidden">
-            <CardHeader className="text-white" style={{ background: 'linear-gradient(135deg, #14356F 0%, #1e4a8f 50%, #2563eb 100%)' }}>
+            <CardHeader className="text-white" style={{ background: 'linear-gradient(135deg, var(--brand-surface) 0%, var(--brand-surface-2) 50%, var(--brand-surface-2) 100%)' }}>
               <CardTitle className="text-white">Detalle de Importacion</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -1147,7 +1147,7 @@ export default function InscribirEstudiantesGrupoPage() {
             <Button
               onClick={handleReset}
               className="text-white"
-              style={{ background: 'linear-gradient(to right, #14356F, #1e4a8f)' }}
+              style={{ background: 'linear-gradient(to right, var(--brand-surface), var(--brand-surface-2))' }}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Nueva Importacion
